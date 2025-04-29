@@ -24,12 +24,20 @@ module Adapters
         Adapters::Repositories::MetricRepository.new.find_metric(id)
       end
 
+      def list_metrics(filters = {})
+        Adapters::Repositories::MetricRepository.new.list_metrics(filters)
+      end
+
       def save_alert(alert)
         Adapters::Repositories::AlertRepository.new.save_alert(alert)
       end
 
       def find_alert(id)
         Adapters::Repositories::AlertRepository.new.find_alert(id)
+      end
+
+      def list_alerts(filters = {})
+        Adapters::Repositories::AlertRepository.new.list_alerts(filters)
       end
     end
   end

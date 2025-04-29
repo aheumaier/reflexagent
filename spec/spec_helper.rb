@@ -32,6 +32,14 @@ require_relative '../app/core/use_cases/process_event'
 require_relative '../app/core/use_cases/calculate_metrics'
 require_relative '../app/core/use_cases/detect_anomalies'
 require_relative '../app/core/use_cases/send_notification'
+require_relative '../app/core/use_cases/find_event'
+require_relative '../app/core/use_cases/find_metric'
+require_relative '../app/core/use_cases/find_alert'
+require_relative '../app/core/use_cases/list_metrics'
+require_relative '../app/core/use_cases/list_alerts'
+
+# Factory
+require_relative '../app/core/use_case_factory'
 
 require 'securerandom'
 

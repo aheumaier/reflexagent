@@ -12,6 +12,12 @@ module Adapters
         # Will query the database in a real implementation
         nil
       end
+
+      def list_alerts(filters = {})
+        # Implementation of StoragePort#list_alerts
+        # Will query the database with filters in a real implementation
+        []
+      end
     end
   end
 end

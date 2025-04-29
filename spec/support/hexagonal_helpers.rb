@@ -57,6 +57,40 @@ module HexagonalHelpers
         @alerts[id]
       end
 
+      def list_metrics(filters = {})
+        if filters.empty?
+          @metrics.values
+        else
+          @metrics.values.select do |metric|
+            filters.all? do |key, value|
+              if metric.dimensions.key?(key)
+                metric.dimensions[key] == value
+              elsif metric.respond_to?(key)
+                metric.send(key) == value
+              else
+                false
+              end
+            end
+          end
+        end
+      end
+
+      def list_alerts(filters = {})
+        if filters.empty?
+          @alerts.values
+        else
+          @alerts.values.select do |alert|
+            filters.all? do |key, value|
+              if alert.respond_to?(key)
+                alert.send(key) == value
+              else
+                false
+              end
+            end
+          end
+        end
+      end
+
       private
 
       def add_id_to_event(event)
