@@ -15,6 +15,24 @@ module Core
         @timestamp = timestamp
         @status = status
       end
+
+      def message
+        "#{name} - #{metric.name} exceeded threshold of #{threshold}"
+      end
+
+      def details
+        {
+          metric_name: metric.name,
+          metric_value: metric.value,
+          threshold: threshold,
+          source: metric.source,
+          dimensions: metric.dimensions
+        }
+      end
+
+      def created_at
+        timestamp
+      end
     end
   end
 end
