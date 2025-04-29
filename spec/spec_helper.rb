@@ -21,9 +21,17 @@ require_relative '../app/ports/cache_port'
 require_relative '../app/ports/notification_port'
 require_relative '../app/ports/queue_port'
 require_relative '../app/ports/dashboard_port'
+
+# Domain models
 require_relative '../app/core/domain/event'
 require_relative '../app/core/domain/metric'
 require_relative '../app/core/domain/alert'
+
+# Use cases
+require_relative '../app/core/use_cases/process_event'
+require_relative '../app/core/use_cases/calculate_metrics'
+require_relative '../app/core/use_cases/detect_anomalies'
+require_relative '../app/core/use_cases/send_notification'
 
 require 'securerandom'
 

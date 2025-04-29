@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        color: #333333;
+        background-color: #f7f7f7;
+      }
+      .alert-container {
+        max-width: 600px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #ffffff;
+        border-radius: 6px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      }
+      .alert-header {
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+        color: #ffffff;
+        font-weight: bold;
+      }
+      .critical {
+        background-color: #d9534f;
+      }
+      .warning {
+        background-color: #f0ad4e;
+      }
+      .info {
+        background-color: #5bc0de;
+      }
+      .alert-message {
+        font-size: 16px;
+        line-height: 1.5;
+        margin-bottom: 20px;
+      }
+      .alert-details {
+        background-color: #f9f9f9;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 20px;
+      }
+      .alert-timestamp {
+        color: #777777;
+        font-size: 14px;
+        margin-top: 20px;
+      }
+      .footer {
+        font-size: 12px;
+        color: #777777;
+        text-align: center;
+        margin-top: 30px;
+        border-top: 1px solid #eeeeee;
+        padding-top: 15px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="alert-container">
+      <div class="alert-header <%= @severity.downcase %>">
+        <%= @severity.upcase %> ALERT
+      </div>
+      
+      <div class="alert-message">
+        <strong>Alert Message:</strong> <%= @message %>
+      </div>
+      
+      <% if @details.present? %>
+      <div class="alert-details">
+        <strong>Additional Details:</strong>
+        <pre><%= @details %></pre>
+      </div>
+      <% end %>
+      
+      <div class="alert-timestamp">
+        Alert generated at: <%= @timestamp.strftime('%Y-%m-%d %H:%M:%S %Z') %>
+      </div>
+      
+      <div class="footer">
+        This is an automated alert notification. Please do not reply to this email.
+        For assistance, contact your system administrator.
+      </div>
+    </div>
+  </body>
+</html> 

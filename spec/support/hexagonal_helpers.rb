@@ -20,8 +20,13 @@ module HexagonalHelpers
       end
 
       def save_event(event)
-        @saved_events << event
-        event_with_id = event.instance_variable_get(:@id) ? event : add_id_to_event(event)
+        # Check if the event has an ID, if not add one
+        event_with_id = if event.id.nil?
+                          add_id_to_event(event)
+                        else
+                          event
+                        end
+        @saved_events << event_with_id
         @events[event_with_id.id] = event_with_id
         event_with_id
       end
@@ -32,7 +37,7 @@ module HexagonalHelpers
 
       def save_metric(metric)
         @saved_metrics << metric
-        metric_with_id = metric.instance_variable_get(:@id) ? metric : add_id_to_metric(metric)
+        metric_with_id = metric.id.nil? ? add_id_to_metric(metric) : metric
         @metrics[metric_with_id.id] = metric_with_id
         metric_with_id
       end
@@ -43,7 +48,7 @@ module HexagonalHelpers
 
       def save_alert(alert)
         @saved_alerts << alert
-        alert_with_id = alert.instance_variable_get(:@id) ? alert : add_id_to_alert(alert)
+        alert_with_id = alert.id.nil? ? add_id_to_alert(alert) : alert
         @alerts[alert_with_id.id] = alert_with_id
         alert_with_id
       end
