@@ -10,8 +10,20 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 0) do
+ActiveRecord::Schema[7.1].define(version: 2025_04_29_215034) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "domain_events", force: :cascade do |t|
+    t.uuid "aggregate_id", null: false
+    t.string "event_type", null: false
+    t.jsonb "payload", default: {}, null: false
+    t.datetime "created_at", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.bigserial "position", null: false
+    t.index ["aggregate_id", "position"], name: "index_domain_events_on_aggregate_id_and_position"
+    t.index ["aggregate_id"], name: "index_domain_events_on_aggregate_id"
+    t.index ["event_type"], name: "index_domain_events_on_event_type"
+    t.index ["position"], name: "index_domain_events_on_position", unique: true
+  end
 
 end
