@@ -232,3 +232,27 @@ RSpec.configure do |config|
     setup_test_container
   end
 end
+
+# Autoload the Core, Ports, and Adapters modules for testing
+# This ensures that all the modules are available in test environment
+
+# This is needed because Rails' auto-loading in test environment
+# may not load all modules until they are referenced
+
+# Make sure Core modules are loaded
+module Core
+  module Domain; end
+  module UseCases; end
+end
+
+# Make sure Ports are loaded
+module Ports; end
+
+# Make sure Adapters are loaded
+module Adapters
+  module Repositories; end
+  module Cache; end
+  module Notifications; end
+  module Queue; end
+  module Web; end
+end
