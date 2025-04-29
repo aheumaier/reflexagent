@@ -23,8 +23,23 @@ require 'rspec/rails'
 # Load SimpleCov at the very top for test coverage
 require_relative 'support/simplecov'
 
-# Load all the support files
-Dir[Rails.root.join('spec', 'support', '**', '*.rb')].sort.each { |f| require f }
+# Load factory_bot configuration
+require_relative 'support/factory_bot'
+
+# Load shoulda matchers configuration
+require_relative 'support/shoulda_matchers'
+
+# Load hexagonal helpers
+require_relative 'support/hexagonal_helpers'
+
+# Load shared contexts
+Dir[Rails.root.join('spec/support/shared_contexts/**/*.rb')].sort.each { |f| require f }
+
+# Load shared examples
+Dir[Rails.root.join('spec/support/shared_examples/**/*.rb')].sort.each { |f| require f }
+
+# Load helpers
+Dir[Rails.root.join('spec/support/helpers/**/*.rb')].sort.each { |f| require f }
 
 # Checks for pending migrations and applies them before tests are run.
 # If you are not using ActiveRecord, you can remove these lines.
