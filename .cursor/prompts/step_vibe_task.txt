@@ -1,0 +1,8 @@
+# prompts/step_vibe_task.txt
+Step {{STEP_NUMBER}} of {{TOTAL_STEPS}}: {{STEP_DESCRIPTION}}
+
+- Only work on this step.  
+- Make a small git commit when complete.  
+- Do not touch other parts of the code.  
+
+Questions before you begin?

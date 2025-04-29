@@ -1,0 +1,9 @@
+# prompts/full_vibe_task.txt
+The task: {{TASK_DESCRIPTION}}
+
+1. Grep the codebase for all relevant places.  
+2. Implement the change end-to-end.  
+3. Refactor any dead code.  
+4. Commit with a descriptive message.  
+
+Before you start, what questions do you have?

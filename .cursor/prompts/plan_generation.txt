@@ -1,0 +1,10 @@
+# prompts/plan_generation.txt
+I need to implement: initialize project structure and DI wiring..
+- Add directories app/core/domain, app/core/use_cases, app/ports, app/adapters.
+- Wire up your dependency_injection.rb initializer with empty placeholders for each port.
+- Commit: chore: initialize project structure and DI wiring.
+
+1. Propose a 5–7 step implementation plan.  
+2. Each step should be independent and commit-sized.  
+3. Reference existing modules under `app/core` or `app/adapters`.  
+4. Ask clarifying questions if needed.
