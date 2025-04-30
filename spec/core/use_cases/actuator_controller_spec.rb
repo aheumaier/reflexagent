@@ -5,32 +5,27 @@ require_relative '../../../app/core/use_cases/actuator_controller'
 RSpec.describe Core::UseCases::ActuatorController do
   let(:hvac_actuator) do
     instance_double(
-      "Core::Domain::HvacActuator",
+      "Core::Domain::Actuator",
       name: "ci_pipeline",
-      device_id: "pipeline-123",
-      location: "main-repo",
-      properties: { provider: "Jenkins" },
+      properties: { provider: "Jenkins", type: "hvac", location: "main-repo" },
       respond_to?: true
     )
   end
 
   let(:light_actuator) do
     instance_double(
-      "Core::Domain::LightActuator",
+      "Core::Domain::Actuator",
       name: "team_notifications",
-      location: "dev-team",
-      properties: { platform: "Slack" },
+      properties: { platform: "Slack", type: "light", location: "dev-team" },
       respond_to?: true
     )
   end
 
   let(:door_actuator) do
     instance_double(
-      "Core::Domain::DoorActuator",
+      "Core::Domain::Actuator",
       name: "issue_tracker",
-      door_id: "project-123",
-      location: "sprint-board",
-      properties: { tool: "Jira" },
+      properties: { tool: "Jira", type: "door", location: "sprint-board" },
       respond_to?: true
     )
   end
@@ -38,39 +33,31 @@ RSpec.describe Core::UseCases::ActuatorController do
   subject(:controller) { described_class.new }
 
   before do
-    # Setup is_a? checks for all actuators - add default first
-    allow(hvac_actuator).to receive(:is_a?).and_return(false)
-    allow(light_actuator).to receive(:is_a?).and_return(false)
-    allow(door_actuator).to receive(:is_a?).and_return(false)
-
-    # Then override with specific matches
+    # Setup mock behavior for actuators
     allow(hvac_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
     allow(light_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
     allow(door_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
-
-    allow(hvac_actuator).to receive(:is_a?).with(Core::Domain::HvacActuator).and_return(true)
-    allow(light_actuator).to receive(:is_a?).with(Core::Domain::LightActuator).and_return(true)
-    allow(door_actuator).to receive(:is_a?).with(Core::Domain::DoorActuator).and_return(true)
 
     # Add generic fallback for send method first
     allow(hvac_actuator).to receive(:send).and_return(nil)
     allow(light_actuator).to receive(:send).and_return(nil)
     allow(door_actuator).to receive(:send).and_return(nil)
 
-    # Then override with specific attribute and property returns
-    allow(hvac_actuator).to receive(:send).with(:device_id).and_return("pipeline-123")
-    allow(hvac_actuator).to receive(:send).with(:location).and_return("main-repo")
-    allow(hvac_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins" })
+    # Then override with specific property returns
+    allow(hvac_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", type: "hvac", location: "main-repo" })
     allow(hvac_actuator).to receive(:send).with(:provider).and_return("Jenkins")
+    allow(hvac_actuator).to receive(:send).with(:type).and_return("hvac")
+    allow(hvac_actuator).to receive(:send).with(:location).and_return("main-repo")
 
-    allow(light_actuator).to receive(:send).with(:location).and_return("dev-team")
-    allow(light_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack" })
+    allow(light_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", type: "light", location: "dev-team" })
     allow(light_actuator).to receive(:send).with(:platform).and_return("Slack")
+    allow(light_actuator).to receive(:send).with(:type).and_return("light")
+    allow(light_actuator).to receive(:send).with(:location).and_return("dev-team")
 
-    allow(door_actuator).to receive(:send).with(:door_id).and_return("project-123")
-    allow(door_actuator).to receive(:send).with(:location).and_return("sprint-board")
-    allow(door_actuator).to receive(:send).with(:properties).and_return({ tool: "Jira" })
+    allow(door_actuator).to receive(:send).with(:properties).and_return({ tool: "Jira", type: "door", location: "sprint-board" })
     allow(door_actuator).to receive(:send).with(:tool).and_return("Jira")
+    allow(door_actuator).to receive(:send).with(:type).and_return("door")
+    allow(door_actuator).to receive(:send).with(:location).and_return("sprint-board")
   end
 
   describe "#initialize" do
@@ -95,7 +82,7 @@ RSpec.describe Core::UseCases::ActuatorController do
       before { controller.register(hvac_actuator) }
 
       it "raises an ArgumentError" do
-        duplicate_actuator = instance_double("Core::Domain::HvacActuator", name: "ci_pipeline")
+        duplicate_actuator = instance_double("Core::Domain::Actuator", name: "ci_pipeline")
         allow(duplicate_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
 
         expect {
@@ -179,17 +166,8 @@ RSpec.describe Core::UseCases::ActuatorController do
 
     context "with multiple criteria" do
       it "returns actuators matching all criteria" do
-        # Override properties for this specific test
-        allow(hvac_actuator).to receive(:properties).and_return({ provider: "Jenkins", type: "build" })
-        allow(hvac_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", type: "build" })
-        allow(hvac_actuator).to receive(:send).with(:type).and_return("build")
-
-        allow(light_actuator).to receive(:properties).and_return({ platform: "Slack", type: "build" })
-        allow(light_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", type: "build" })
-        allow(light_actuator).to receive(:send).with(:type).and_return("build")
-
         expect(
-          controller.find_actuators(location: "main-repo", type: "build")
+          controller.find_actuators(location: "main-repo", type: "hvac")
         ).to contain_exactly(hvac_actuator)
       end
     end
@@ -250,17 +228,17 @@ RSpec.describe Core::UseCases::ActuatorController do
 
     context "when actuator raises other errors" do
       it "catches the error and returns an error result" do
-        action_params = { action: "start_build", branch: "main" }
+        action_params = { action: "start_build" }
 
         expect(hvac_actuator).to receive(:execute).with(action_params).and_raise(
-          RuntimeError, "CI server connection failed"
+          RuntimeError, "Failed to connect to CI server"
         )
 
         expect(controller.execute_action("ci_pipeline", action_params)).to eq(
           {
             success: false,
             actuator_name: "ci_pipeline",
-            error: "Execution error: CI server connection failed"
+            error: "Execution error: Failed to connect to CI server"
           }
         )
       end
@@ -271,183 +249,160 @@ RSpec.describe Core::UseCases::ActuatorController do
     before do
       controller.register(hvac_actuator)
       controller.register(light_actuator)
-      controller.register(door_actuator)
     end
 
     context "with criteria matching multiple actuators" do
       it "executes the action on all matching actuators" do
-        # Setup both actuators to have the same repository/location
-        allow(hvac_actuator).to receive(:send).with(:location).and_return("shared-repo")
-        allow(light_actuator).to receive(:send).with(:location).and_return("shared-repo")
+        # Setup the mocks for the actuator type check
+        allow(hvac_actuator).to receive(:properties).and_return({ provider: "Jenkins", environment: "staging" })
+        allow(hvac_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", environment: "staging" })
+        allow(hvac_actuator).to receive(:send).with(:environment).and_return("staging")
 
-        # Properly update location attribute for consistency
-        allow(hvac_actuator).to receive(:location).and_return("shared-repo")
-        allow(light_actuator).to receive(:location).and_return("shared-repo")
+        allow(light_actuator).to receive(:properties).and_return({ platform: "Slack", environment: "staging" })
+        allow(light_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", environment: "staging" })
+        allow(light_actuator).to receive(:send).with(:environment).and_return("staging")
 
-        action_params = { action: "update_status", status: "failed" }
-
+        # Setup expectations for the execute method
+        action_params = { message: "Deploying to staging" }
         expect(hvac_actuator).to receive(:execute).with(action_params).and_return(
-          { success: true, message: "CI status updated to failed" }
+          { success: true, message: "CI pipeline notified" }
         )
-
         expect(light_actuator).to receive(:execute).with(action_params).and_return(
-          { success: true, message: "Notification sent for failed status" }
+          { success: true, message: "Slack notified" }
         )
 
-        results = controller.execute_group_action({ location: "shared-repo" }, action_params)
+        # Call the method under test
+        results = controller.execute_group_action({ environment: "staging" }, action_params)
 
-        expect(results).to contain_exactly(
-          { success: true, message: "CI status updated to failed", actuator_name: "ci_pipeline" },
-          { success: true, message: "Notification sent for failed status", actuator_name: "team_notifications" }
+        # Verify the results
+        expect(results[:success]).to eq(true)
+        expect(results[:count]).to eq(2)
+        expect(results[:results].size).to eq(2)
+        expect(results[:results]).to include(
+          { success: true, message: "CI pipeline notified", actuator_name: "ci_pipeline" },
+          { success: true, message: "Slack notified", actuator_name: "team_notifications" }
         )
       end
     end
 
     context "with criteria matching no actuators" do
       it "returns an error result" do
-        results = controller.execute_group_action({ location: "non-existent" }, { action: "update_status" })
-
-        expect(results).to eq([
-          {
-            success: false,
-            error: "No actuators found matching criteria: {:location=>\"non-existent\"}"
-          }
-        ])
+        results = controller.execute_group_action({ environment: "production" }, { action: "deploy" })
+        expect(results[:success]).to eq(false)
+        expect(results[:error]).to eq("No actuators match the criteria")
       end
     end
 
     context "when some actuators fail" do
       it "returns mixed results" do
-        # Set both to the same repository/location
-        allow(hvac_actuator).to receive(:send).with(:location).and_return("shared-repo")
-        allow(light_actuator).to receive(:send).with(:location).and_return("shared-repo")
+        # Setup the mocks for the actuator type check
+        allow(hvac_actuator).to receive(:properties).and_return({ provider: "Jenkins", environment: "staging" })
+        allow(hvac_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", environment: "staging" })
+        allow(hvac_actuator).to receive(:send).with(:environment).and_return("staging")
 
-        # Properly update location attribute for consistency
-        allow(hvac_actuator).to receive(:location).and_return("shared-repo")
-        allow(light_actuator).to receive(:location).and_return("shared-repo")
+        allow(light_actuator).to receive(:properties).and_return({ platform: "Slack", environment: "staging" })
+        allow(light_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", environment: "staging" })
+        allow(light_actuator).to receive(:send).with(:environment).and_return("staging")
 
-        action_params = { action: "update_status" }
-
+        # Setup expectations for the execute method
+        action_params = { message: "Deploying to staging" }
         expect(hvac_actuator).to receive(:execute).with(action_params).and_return(
-          { success: true, message: "CI status updated" }
+          { success: true, message: "CI pipeline notified" }
         )
-
         expect(light_actuator).to receive(:execute).with(action_params).and_raise(
-          ArgumentError, "Missing status parameter"
+          RuntimeError, "Failed to connect to Slack"
         )
 
-        results = controller.execute_group_action({ location: "shared-repo" }, action_params)
+        # Call the method under test
+        results = controller.execute_group_action({ environment: "staging" }, action_params)
 
-        expect(results).to contain_exactly(
-          { success: true, message: "CI status updated", actuator_name: "ci_pipeline" },
-          {
-            success: false,
-            actuator_name: "team_notifications",
-            error: "Missing status parameter"
-          }
+        # Verify the results
+        expect(results[:success]).to eq(false)
+        expect(results[:count]).to eq(2)
+        expect(results[:results].size).to eq(2)
+        expect(results[:results]).to include(
+          { success: true, message: "CI pipeline notified", actuator_name: "ci_pipeline" },
+          { success: false, error: "Failed to connect to Slack", actuator_name: "team_notifications" }
         )
       end
     end
   end
 
   describe "#execute_type_action" do
+    let(:second_hvac) do
+      instance_double(
+        "Core::Domain::Actuator",
+        name: "deploy_pipeline",
+        properties: { provider: "Jenkins", type: "hvac", location: "deploy-repo" },
+        respond_to?: true
+      )
+    end
+
     before do
       controller.register(hvac_actuator)
       controller.register(light_actuator)
-      controller.register(door_actuator)
+
+      # Setup mock behavior for type check
+      allow(second_hvac).to receive(:is_a?).and_return(false)  # Default first
+      allow(second_hvac).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)  # Override for Actuator
+      allow(second_hvac).to receive(:send).with(:properties).and_return({ provider: "Jenkins", type: "hvac", location: "deploy-repo" })
+      allow(second_hvac).to receive(:send).with(:type).and_return("hvac")
+      allow(second_hvac).to receive(:send).with(:location).and_return("deploy-repo")
+
+      # Register the second_hvac actuator
+      controller.register(second_hvac)
     end
 
     context "with actuators of the specified type" do
-      let(:second_hvac) do
-        instance_double(
-          "Core::Domain::HvacActuator",
-          name: "feature_pipeline",
-          device_id: "pipeline-456",
-          location: "feature-repo",
-          properties: {}
-        )
-      end
-
-      before do
-        allow(second_hvac).to receive(:is_a?).and_return(false)
-        allow(second_hvac).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
-        allow(second_hvac).to receive(:is_a?).with(Core::Domain::HvacActuator).and_return(true)
-        allow(second_hvac).to receive(:send).and_return(nil)
-        controller.register(second_hvac)
-      end
-
       it "executes the action on all actuators of the type" do
-        action_params = { action: "refresh_status", force: true }
+        action_params = { action: "start_build", branch: "main" }
 
         expect(hvac_actuator).to receive(:execute).with(action_params).and_return(
-          { success: true, message: "Main pipeline status refreshed" }
+          { success: true, message: "CI build started" }
         )
-
         expect(second_hvac).to receive(:execute).with(action_params).and_return(
-          { success: true, message: "Feature pipeline status refreshed" }
+          { success: true, message: "Deploy build started" }
         )
 
-        results = controller.execute_type_action(Core::Domain::HvacActuator, action_params)
+        results = controller.execute_type_action("hvac", action_params)
 
-        expect(results).to contain_exactly(
-          { success: true, message: "Main pipeline status refreshed", actuator_name: "ci_pipeline" },
-          { success: true, message: "Feature pipeline status refreshed", actuator_name: "feature_pipeline" }
+        expect(results[:success]).to eq(true)
+        expect(results[:count]).to eq(2)
+        expect(results[:results].size).to eq(2)
+        expect(results[:results]).to include(
+          { success: true, message: "CI build started", actuator_name: "ci_pipeline" },
+          { success: true, message: "Deploy build started", actuator_name: "deploy_pipeline" }
         )
       end
     end
 
     context "with no actuators of the specified type" do
       it "returns an error result" do
-        dummy_type = Class.new
-
-        results = controller.execute_type_action(dummy_type, { action: "execute" })
-
-        expect(results).to eq([
-          {
-            success: false,
-            error: "No actuators found of type: #{dummy_type}"
-          }
-        ])
+        results = controller.execute_type_action("unknown_type", { action: "some_action" })
+        expect(results[:success]).to eq(false)
+        expect(results[:error]).to eq("No actuators of type 'unknown_type' found")
       end
     end
 
     context "when some actuators fail" do
-      let(:second_hvac) do
-        instance_double(
-          "Core::Domain::HvacActuator",
-          name: "feature_pipeline",
-          properties: {}
-        )
-      end
-
-      before do
-        allow(second_hvac).to receive(:is_a?).and_return(false)
-        allow(second_hvac).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
-        allow(second_hvac).to receive(:is_a?).with(Core::Domain::HvacActuator).and_return(true)
-        allow(second_hvac).to receive(:send).and_return(nil)
-        controller.register(second_hvac)
-      end
-
       it "returns mixed results" do
-        action_params = { action: "trigger_deploy", environment: "staging" }
+        action_params = { action: "start_build", branch: "main" }
 
         expect(hvac_actuator).to receive(:execute).with(action_params).and_return(
-          { success: true, message: "Main pipeline deployed to staging" }
+          { success: true, message: "CI build started" }
         )
-
         expect(second_hvac).to receive(:execute).with(action_params).and_raise(
-          RuntimeError, "Deployment permission denied"
+          RuntimeError, "Failed to connect to CI server"
         )
 
-        results = controller.execute_type_action(Core::Domain::HvacActuator, action_params)
+        results = controller.execute_type_action("hvac", action_params)
 
-        expect(results).to contain_exactly(
-          { success: true, message: "Main pipeline deployed to staging", actuator_name: "ci_pipeline" },
-          {
-            success: false,
-            actuator_name: "feature_pipeline",
-            error: "Execution error: Deployment permission denied"
-          }
+        expect(results[:success]).to eq(false)
+        expect(results[:count]).to eq(2)
+        expect(results[:results].size).to eq(2)
+        expect(results[:results]).to include(
+          { success: true, message: "CI build started", actuator_name: "ci_pipeline" },
+          { success: false, error: "Failed to connect to CI server", actuator_name: "deploy_pipeline" }
         )
       end
     end

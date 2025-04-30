@@ -92,18 +92,18 @@ module Core
       # Execute actions on multiple actuators matching criteria
       # @param criteria [Hash] Criteria for selecting actuators
       # @param action_params [Hash] Parameters for the action
-      # @return [Array<Hash>] Results from each actuator
+      # @return [Hash] Results from each actuator with overall status
       def execute_group_action(criteria, action_params)
         actuators = find_actuators(criteria)
 
         if actuators.empty?
-          return [{
+          return {
             success: false,
-            error: "No actuators found matching criteria: #{criteria}"
-          }]
+            error: "No actuators match the criteria"
+          }
         end
 
-        actuators.map do |actuator|
+        results = actuators.map do |actuator|
           begin
             result = actuator.execute(action_params)
             result.merge(actuator_name: actuator.name)
@@ -117,27 +117,33 @@ module Core
             {
               success: false,
               actuator_name: actuator.name,
-              error: "Execution error: #{e.message}"
+              error: e.message
             }
           end
         end
+
+        {
+          success: results.all? { |r| r[:success] },
+          count: results.size,
+          results: results
+        }
       end
 
       # Execute an action on all actuators of a specific type
-      # @param actuator_type [Class] The class of actuator to target
+      # @param type [String] The type of actuator to target (from properties[:type])
       # @param action_params [Hash] Parameters for the action
-      # @return [Array<Hash>] Results from each actuator
-      def execute_type_action(actuator_type, action_params)
-        actuators = @actuators.values.select { |a| a.is_a?(actuator_type) }
+      # @return [Hash] Results from each actuator with overall status
+      def execute_type_action(type, action_params)
+        actuators = find_actuators(type: type)
 
         if actuators.empty?
-          return [{
+          return {
             success: false,
-            error: "No actuators found of type: #{actuator_type}"
-          }]
+            error: "No actuators of type '#{type}' found"
+          }
         end
 
-        actuators.map do |actuator|
+        results = actuators.map do |actuator|
           begin
             result = actuator.execute(action_params)
             result.merge(actuator_name: actuator.name)
@@ -151,10 +157,16 @@ module Core
             {
               success: false,
               actuator_name: actuator.name,
-              error: "Execution error: #{e.message}"
+              error: e.message
             }
           end
         end
+
+        {
+          success: results.all? { |r| r[:success] },
+          count: results.size,
+          results: results
+        }
       end
     end
   end
