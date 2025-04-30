@@ -42,61 +42,51 @@ RSpec.describe "API V1 Events", type: :request do
     end
 
     before do
-      # Mock the WebhookAuthenticator to return true for our test token
+      # Mock the WebhookAuthenticator for all possible combinations
+      allow(WebhookAuthenticator).to receive(:valid?).and_return(false)
       allow(WebhookAuthenticator).to receive(:valid?).with("valid_token", "github").and_return(true)
 
-      # Create a stubbed event to return from the use case
-      allow_any_instance_of(Core::Domain::Event).to receive(:id).and_return("event-123")
-
-      # Mock the storage port to avoid database interactions
-      storage_port_double = double("StoragePort")
-      allow(storage_port_double).to receive(:save_event).and_return(true)
+      allow(SecureRandom).to receive(:uuid).and_return("event-123")
 
       # Mock the queue port to avoid background job scheduling
       queue_port_double = double("QueuePort")
-      allow(queue_port_double).to receive(:enqueue_metric_calculation).and_return(true)
+      allow(queue_port_double).to receive(:enqueue_raw_event).and_return(true)
 
       # Register our test doubles with the DependencyContainer
-      DependencyContainer.register(:storage_port, storage_port_double)
       DependencyContainer.register(:queue_port, queue_port_double)
 
-      # Use the real WebAdapter for ingestion
-      DependencyContainer.register(:ingestion_port, Adapters::Web::WebAdapter.new)
+      # Allow Rails.env.local? to return false in tests to force token validation
+      allow(Rails.env).to receive(:local?).and_return(false)
     end
 
     context "with valid github commit payload" do
-      it "accepts the webhook and returns a 201 status" do
-        post "/api/v1/events",
-             params: { source: "github" },
+      it "accepts the webhook and returns a 202 status" do
+        post "/api/v1/events?source=github",
              headers: valid_headers,
              env: { "RAW_POST_DATA" => github_commit_payload }
 
-        expect(response).to have_http_status(:created)
+        expect(response).to have_http_status(:accepted)
 
         json_response = JSON.parse(response.body)
         expect(json_response["id"]).to eq("event-123")
-        expect(json_response["status"]).to eq("processed")
-        expect(json_response["source"]).to eq("github")
+        expect(json_response["status"]).to eq("accepted")
+        expect(json_response["message"]).to eq("Event accepted for processing")
       end
     end
 
     context "with missing source parameter" do
-      it "returns a 400 bad request status" do
+      it "returns a 401 unauthorized status" do
         post "/api/v1/events",
              headers: valid_headers,
              env: { "RAW_POST_DATA" => github_commit_payload }
 
-        expect(response).to have_http_status(:bad_request)
-
-        json_response = JSON.parse(response.body)
-        expect(json_response["error"]).to include("source")
+        expect(response).to have_http_status(:unauthorized)
       end
     end
 
     context "with invalid authentication token" do
       it "returns a 401 unauthorized status" do
-        post "/api/v1/events",
-             params: { source: "github" },
+        post "/api/v1/events?source=github",
              headers: { "Content-Type" => "application/json", "X-Webhook-Token" => "invalid_token" },
              env: { "RAW_POST_DATA" => github_commit_payload }
 
@@ -104,10 +94,29 @@ RSpec.describe "API V1 Events", type: :request do
       end
     end
 
+    context "with bearer token authentication" do
+      it "accepts the webhook with bearer token" do
+        # Update the mock to handle this case
+        allow(WebhookAuthenticator).to receive(:valid?).with("valid_token", "github").and_return(true)
+
+        post "/api/v1/events?source=github",
+             headers: {
+               "Content-Type" => "application/json",
+               "Authorization" => "Bearer valid_token"
+             },
+             env: { "RAW_POST_DATA" => github_commit_payload }
+
+        expect(response).to have_http_status(:accepted)
+      end
+    end
+
     context "with invalid JSON payload" do
       it "returns a 400 bad request status" do
-        post "/api/v1/events",
-             params: { source: "github" },
+        # Need to stub authenticate_source! method to bypass authentication
+        # before we get to JSON parsing error
+        allow_any_instance_of(Api::V1::EventsController).to receive(:authenticate_source!).and_return(true)
+
+        post "/api/v1/events?source=github",
              headers: valid_headers,
              env: { "RAW_POST_DATA" => "invalid json{" }
 

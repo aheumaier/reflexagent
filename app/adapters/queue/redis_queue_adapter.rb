@@ -36,6 +36,12 @@ module Adapters
       # @param source [String] The source of the webhook (github, jira, etc.)
       # @return [Boolean] True if the raw event was enqueued successfully
       def enqueue_raw_event(raw_payload, source)
+        # Check for backpressure first
+        if queue_full?(:raw_events)
+          Rails.logger.warn("Raw events queue is full - backpressure applied")
+          raise QueueBackpressureError, "Too many pending events, please retry later"
+        end
+
         # Create a simple payload wrapper with minimal metadata
         payload_wrapper = {
           id: SecureRandom.uuid,
@@ -47,8 +53,10 @@ module Adapters
 
         # Enqueue the raw event
         enqueue_item(:raw_events, payload_wrapper)
-        Rails.logger.info("Enqueued raw #{source} event (id: #{payload_wrapper[:id]})")
+        Rails.logger.debug { "Enqueued raw #{source} event (id: #{payload_wrapper[:id]})" }
         true
+      rescue QueueBackpressureError => e
+        raise # Re-raise backpressure errors for appropriate client handling
       rescue StandardError => e
         Rails.logger.error("Failed to enqueue raw event: #{e.message}")
         Rails.logger.error(e.backtrace.join("\n"))
@@ -60,7 +68,7 @@ module Adapters
       # @return [Boolean] True if the job was enqueued successfully
       def enqueue_metric_calculation(event)
         enqueue_item(:metric_calculation, serialize_event(event))
-        Rails.logger.info("Enqueued metric calculation job for event: #{event.id}")
+        Rails.logger.debug { "Enqueued metric calculation job for event: #{event.id}" }
         true
       rescue StandardError => e
         Rails.logger.error("Failed to enqueue metric calculation: #{e.message}")
@@ -73,7 +81,7 @@ module Adapters
       # @return [Boolean] True if the job was enqueued successfully
       def enqueue_anomaly_detection(metric)
         enqueue_item(:anomaly_detection, serialize_metric(metric))
-        Rails.logger.info("Enqueued anomaly detection job for metric: #{metric.id}")
+        Rails.logger.debug { "Enqueued anomaly detection job for metric: #{metric.id}" }
         true
       rescue StandardError => e
         Rails.logger.error("Failed to enqueue anomaly detection: #{e.message}")
@@ -89,6 +97,14 @@ module Adapters
             redis.llen(queue_name)
           end
         end
+      end
+
+      # Checks if a specific queue is full
+      # @param queue_key [Symbol] The queue to check
+      # @return [Boolean] True if the queue is at or above its maximum size
+      def queue_full?(queue_key)
+        depths = queue_depths
+        depths[queue_key] >= MAX_QUEUE_SIZE[queue_key]
       end
 
       # Checks if any queues are experiencing backpressure
@@ -274,7 +290,7 @@ module Adapters
         Adapters::Cache::RedisCache.redis
       end
 
-      # Custom error class for backpressure scenarios
+      # Public class for queue backpressure errors
       class QueueBackpressureError < StandardError; end
     end
   end

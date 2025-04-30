@@ -23,7 +23,7 @@ module Api
         raw_payload = request.raw_post
         source = params.require(:source)
 
-        # Log incoming request for debugging
+        # Log incoming request at debug level
         Rails.logger.debug { "EventsController#create received #{source} webhook" }
 
         begin

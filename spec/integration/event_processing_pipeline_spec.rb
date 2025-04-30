@@ -47,15 +47,12 @@ RSpec.describe "Event Processing Pipeline", type: :integration do
     end
 
     it "handles backpressure when queue is full" do
-      # Set a very low max queue size for testing
-      stub_const("Adapters::Queue::RedisQueueAdapter::MAX_QUEUE_SIZE", { raw_events: 2 })
+      # Mock the queue_depths method to simulate a full queue
+      allow(queue_adapter).to receive(:queue_depths).and_return(
+        raw_events: Adapters::Queue::RedisQueueAdapter::MAX_QUEUE_SIZE[:raw_events]
+      )
 
-      # Enqueue events until the queue is full
-      2.times do
-        queue_adapter.enqueue_raw_event(valid_payload, source)
-      end
-
-      # The third enqueue should raise a backpressure error
+      # The enqueue should raise a backpressure error
       expect do
         queue_adapter.enqueue_raw_event(valid_payload, source)
       end.to raise_error(Adapters::Queue::RedisQueueAdapter::QueueBackpressureError)
