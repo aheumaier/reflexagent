@@ -10,9 +10,23 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_04_29_215034) do
+ActiveRecord::Schema[7.1].define(version: 2025_04_30_080912) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "domain_alerts", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "severity", null: false
+    t.jsonb "metric_data", default: {}, null: false
+    t.float "threshold", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "timestamp", default: -> { "CURRENT_TIMESTAMP" }, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name"], name: "index_domain_alerts_on_name"
+    t.index ["severity"], name: "index_domain_alerts_on_severity"
+    t.index ["status"], name: "index_domain_alerts_on_status"
+  end
 
   create_table "domain_events", force: :cascade do |t|
     t.uuid "aggregate_id", null: false
