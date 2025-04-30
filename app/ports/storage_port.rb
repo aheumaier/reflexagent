@@ -35,6 +35,15 @@ module Ports
       raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
     end
 
+    # Metric analytics operations
+    def get_average(name, start_time = nil, end_time = nil)
+      raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+    end
+
+    def get_percentile(name, percentile, start_time = nil, end_time = nil)
+      raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+    end
+
     # Alert operations
     def save_alert(alert)
       raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"

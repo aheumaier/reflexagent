@@ -4,68 +4,147 @@ require_relative '../../../app/core/domain/metric'
 
 RSpec.describe Adapters::Cache::RedisCache do
   let(:cache) { described_class.new }
+  let(:redis) { described_class.redis }
   let(:metric) do
     Core::Domain::Metric.new(
       name: 'cpu.usage',
       value: 85.5,
       source: 'web-01',
-      dimensions: { region: 'us-west', environment: 'production' }
+      dimensions: { region: 'us-west', environment: 'production' },
+      timestamp: Time.current
     )
   end
 
-  # These tests would normally use a real Redis instance in test mode
-  # For this implementation, we'll test the interface compliance
+  before do
+    # Clear Redis before each test
+    redis.flushdb
+  end
 
   describe '#cache_metric' do
-    it 'caches the metric and returns it' do
-      # In a real implementation, you would use a test Redis instance
-      # and verify the Redis state after caching
+    it 'stores the metric in Redis and returns it' do
+      # Cache the metric
       result = cache.cache_metric(metric)
 
+      # Verify the returned metric
       expect(result).to eq(metric)
+
+      # Verify the metric was stored in Redis
+      expect(redis.get("metric:latest:#{metric.name}")).to eq(metric.value.to_s)
+
+      # Verify the metric with dimensions was stored
+      dimension_string = metric.dimensions.sort.map { |k, v| "#{k}=#{v}" }.join(',')
+      expect(redis.get("metric:latest:#{metric.name}:#{dimension_string}")).to eq(metric.value.to_s)
+
+      # Verify the time series was updated
+      expect(redis.zcard("metric:timeseries:#{metric.name}")).to eq(1)
     end
   end
 
   describe '#get_cached_metric' do
-    it 'returns nil when metric not cached' do
-      result = cache.get_cached_metric('cpu.usage', { region: 'us-west' })
-
-      expect(result).to be_nil
+    before do
+      # Cache a metric
+      cache.cache_metric(metric)
     end
 
-    it 'returns cached metric when available' do
-      # This test would normally:
-      # 1. Cache a metric
-      # 2. Retrieve it
-      # 3. Verify it matches what was cached
-      # Since our implementation is a stub, we'll skip the actual verification
-      allow(cache).to receive(:get_cached_metric).with('cpu.usage', { region: 'us-west' }).and_return(metric)
+    it 'retrieves the latest value for a metric by name' do
+      value = cache.get_cached_metric('cpu.usage')
+      expect(value).to eq(85.5)
+    end
 
-      result = cache.get_cached_metric('cpu.usage', { region: 'us-west' })
+    it 'retrieves a metric with specific dimensions' do
+      value = cache.get_cached_metric('cpu.usage', { region: 'us-west', environment: 'production' })
+      expect(value).to eq(85.5)
+    end
 
-      expect(result).to eq(metric)
+    it 'returns nil for a non-existent metric' do
+      value = cache.get_cached_metric('non.existent')
+      expect(value).to be_nil
+    end
+
+    it 'returns nil for a metric with non-existent dimensions' do
+      value = cache.get_cached_metric('cpu.usage', { region: 'non-existent' })
+      expect(value).to be_nil
+    end
+  end
+
+  describe '#get_metric_history' do
+    before do
+      # Cache multiple metrics with different timestamps
+      3.times do |i|
+        cache.cache_metric(
+          Core::Domain::Metric.new(
+            name: 'cpu.usage',
+            value: 80 + i * 5.0,
+            source: 'web-01',
+            dimensions: { region: 'us-west' },
+            timestamp: i.hours.ago
+          )
+        )
+      end
+    end
+
+    it 'retrieves the time series data for a metric' do
+      history = cache.get_metric_history('cpu.usage')
+
+      # Verify the history has the right number of entries
+      expect(history.size).to eq(3)
+
+      # Verify the entries are in reverse chronological order (newest first)
+      expect(history.first[:value] > history.last[:value]).to be(true)
+    end
+
+    it 'limits the number of history entries returned' do
+      history = cache.get_metric_history('cpu.usage', 2)
+      expect(history.size).to eq(2)
     end
   end
 
   describe '#clear_metric_cache' do
-    it 'returns true when clearing cache' do
-      # In a real implementation, this would:
-      # 1. Cache some metrics
-      # 2. Clear the cache
-      # 3. Verify the cache is empty
-      result = cache.clear_metric_cache
+    before do
+      # Cache multiple metrics with different names
+      cache.cache_metric(
+        Core::Domain::Metric.new(
+          name: 'cpu.usage',
+          value: 85.5,
+          source: 'web-01',
+          timestamp: Time.current
+        )
+      )
 
-      expect(result).to be true
+      cache.cache_metric(
+        Core::Domain::Metric.new(
+          name: 'memory.usage',
+          value: 70.3,
+          source: 'web-01',
+          timestamp: Time.current
+        )
+      )
     end
 
-    it 'clears only specific metric when name provided' do
-      # In a real implementation with Redis, this would:
-      # 1. Cache multiple metrics
-      # 2. Clear one specific metric
-      # 3. Verify only that metric is cleared
-      result = cache.clear_metric_cache('cpu.usage')
+    it 'clears cache for a specific metric' do
+      # Verify both metrics exist
+      expect(redis.get("metric:latest:cpu.usage")).not_to be_nil
+      expect(redis.get("metric:latest:memory.usage")).not_to be_nil
 
-      expect(result).to be true
+      # Clear one metric
+      cache.clear_metric_cache('cpu.usage')
+
+      # Verify only the specified metric was cleared
+      expect(redis.get("metric:latest:cpu.usage")).to be_nil
+      expect(redis.get("metric:latest:memory.usage")).not_to be_nil
+    end
+
+    it 'clears all metric caches when no name is specified' do
+      # Verify both metrics exist
+      expect(redis.get("metric:latest:cpu.usage")).not_to be_nil
+      expect(redis.get("metric:latest:memory.usage")).not_to be_nil
+
+      # Clear all metrics
+      cache.clear_metric_cache
+
+      # Verify all metrics were cleared
+      expect(redis.get("metric:latest:cpu.usage")).to be_nil
+      expect(redis.get("metric:latest:memory.usage")).to be_nil
     end
   end
 end
