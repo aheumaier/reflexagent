@@ -3,7 +3,7 @@ require_relative '../../../app/core/domain/actuator'
 require_relative '../../../app/core/use_cases/actuator_controller'
 
 RSpec.describe Core::UseCases::ActuatorController do
-  let(:hvac_actuator) do
+  let(:ci_pipeline_actuator) do
     instance_double(
       "Core::Domain::Actuator",
       name: "ci_pipeline",
@@ -12,7 +12,7 @@ RSpec.describe Core::UseCases::ActuatorController do
     )
   end
 
-  let(:light_actuator) do
+  let(:team_notification_actuator) do
     instance_double(
       "Core::Domain::Actuator",
       name: "team_notifications",
@@ -21,7 +21,7 @@ RSpec.describe Core::UseCases::ActuatorController do
     )
   end
 
-  let(:door_actuator) do
+  let(:issue_tracker_actuator) do
     instance_double(
       "Core::Domain::Actuator",
       name: "issue_tracker",
@@ -34,30 +34,30 @@ RSpec.describe Core::UseCases::ActuatorController do
 
   before do
     # Setup mock behavior for actuators
-    allow(hvac_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
-    allow(light_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
-    allow(door_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
+    allow(ci_pipeline_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
+    allow(team_notification_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
+    allow(issue_tracker_actuator).to receive(:is_a?).with(Core::Domain::Actuator).and_return(true)
 
     # Add generic fallback for send method first
-    allow(hvac_actuator).to receive(:send).and_return(nil)
-    allow(light_actuator).to receive(:send).and_return(nil)
-    allow(door_actuator).to receive(:send).and_return(nil)
+    allow(ci_pipeline_actuator).to receive(:send).and_return(nil)
+    allow(team_notification_actuator).to receive(:send).and_return(nil)
+    allow(issue_tracker_actuator).to receive(:send).and_return(nil)
 
     # Then override with specific property returns
-    allow(hvac_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", type: "hvac", location: "main-repo" })
-    allow(hvac_actuator).to receive(:send).with(:provider).and_return("Jenkins")
-    allow(hvac_actuator).to receive(:send).with(:type).and_return("hvac")
-    allow(hvac_actuator).to receive(:send).with(:location).and_return("main-repo")
+    allow(ci_pipeline_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", type: "hvac", location: "main-repo" })
+    allow(ci_pipeline_actuator).to receive(:send).with(:provider).and_return("Jenkins")
+    allow(ci_pipeline_actuator).to receive(:send).with(:type).and_return("hvac")
+    allow(ci_pipeline_actuator).to receive(:send).with(:location).and_return("main-repo")
 
-    allow(light_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", type: "light", location: "dev-team" })
-    allow(light_actuator).to receive(:send).with(:platform).and_return("Slack")
-    allow(light_actuator).to receive(:send).with(:type).and_return("light")
-    allow(light_actuator).to receive(:send).with(:location).and_return("dev-team")
+    allow(team_notification_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", type: "light", location: "dev-team" })
+    allow(team_notification_actuator).to receive(:send).with(:platform).and_return("Slack")
+    allow(team_notification_actuator).to receive(:send).with(:type).and_return("light")
+    allow(team_notification_actuator).to receive(:send).with(:location).and_return("dev-team")
 
-    allow(door_actuator).to receive(:send).with(:properties).and_return({ tool: "Jira", type: "door", location: "sprint-board" })
-    allow(door_actuator).to receive(:send).with(:tool).and_return("Jira")
-    allow(door_actuator).to receive(:send).with(:type).and_return("door")
-    allow(door_actuator).to receive(:send).with(:location).and_return("sprint-board")
+    allow(issue_tracker_actuator).to receive(:send).with(:properties).and_return({ tool: "Jira", type: "door", location: "sprint-board" })
+    allow(issue_tracker_actuator).to receive(:send).with(:tool).and_return("Jira")
+    allow(issue_tracker_actuator).to receive(:send).with(:type).and_return("door")
+    allow(issue_tracker_actuator).to receive(:send).with(:location).and_return("sprint-board")
   end
 
   describe "#initialize" do
@@ -69,17 +69,17 @@ RSpec.describe Core::UseCases::ActuatorController do
   describe "#register" do
     context "with a valid actuator" do
       it "adds the actuator to the internal collection" do
-        controller.register(hvac_actuator)
-        expect(controller.actuators["ci_pipeline"]).to eq(hvac_actuator)
+        controller.register(ci_pipeline_actuator)
+        expect(controller.actuators["ci_pipeline"]).to eq(ci_pipeline_actuator)
       end
 
       it "returns true on successful registration" do
-        expect(controller.register(hvac_actuator)).to eq(true)
+        expect(controller.register(ci_pipeline_actuator)).to eq(true)
       end
     end
 
     context "with an already registered actuator name" do
-      before { controller.register(hvac_actuator) }
+      before { controller.register(ci_pipeline_actuator) }
 
       it "raises an ArgumentError" do
         duplicate_actuator = instance_double("Core::Domain::Actuator", name: "ci_pipeline")
@@ -105,8 +105,8 @@ RSpec.describe Core::UseCases::ActuatorController do
 
   describe "#unregister" do
     before do
-      controller.register(hvac_actuator)
-      controller.register(light_actuator)
+      controller.register(ci_pipeline_actuator)
+      controller.register(team_notification_actuator)
     end
 
     context "with an existing actuator name" do
@@ -135,32 +135,32 @@ RSpec.describe Core::UseCases::ActuatorController do
 
   describe "#find_actuators" do
     before do
-      controller.register(hvac_actuator)
-      controller.register(light_actuator)
-      controller.register(door_actuator)
+      controller.register(ci_pipeline_actuator)
+      controller.register(team_notification_actuator)
+      controller.register(issue_tracker_actuator)
     end
 
     context "with no criteria" do
       it "returns all registered actuators" do
-        expect(controller.find_actuators).to contain_exactly(hvac_actuator, light_actuator, door_actuator)
+        expect(controller.find_actuators).to contain_exactly(ci_pipeline_actuator, team_notification_actuator, issue_tracker_actuator)
       end
     end
 
     context "with name criteria" do
       it "returns actuators matching the name" do
-        expect(controller.find_actuators(name: "ci_pipeline")).to contain_exactly(hvac_actuator)
+        expect(controller.find_actuators(name: "ci_pipeline")).to contain_exactly(ci_pipeline_actuator)
       end
     end
 
     context "with property criteria" do
       it "returns actuators matching the property" do
-        expect(controller.find_actuators(provider: "Jenkins")).to contain_exactly(hvac_actuator)
+        expect(controller.find_actuators(provider: "Jenkins")).to contain_exactly(ci_pipeline_actuator)
       end
     end
 
     context "with attribute criteria" do
       it "returns actuators matching the attribute" do
-        expect(controller.find_actuators(location: "main-repo")).to contain_exactly(hvac_actuator)
+        expect(controller.find_actuators(location: "main-repo")).to contain_exactly(ci_pipeline_actuator)
       end
     end
 
@@ -168,7 +168,7 @@ RSpec.describe Core::UseCases::ActuatorController do
       it "returns actuators matching all criteria" do
         expect(
           controller.find_actuators(location: "main-repo", type: "hvac")
-        ).to contain_exactly(hvac_actuator)
+        ).to contain_exactly(ci_pipeline_actuator)
       end
     end
 
@@ -181,7 +181,7 @@ RSpec.describe Core::UseCases::ActuatorController do
 
   describe "#execute_action" do
     before do
-      controller.register(hvac_actuator)
+      controller.register(ci_pipeline_actuator)
     end
 
     context "with a valid actuator and action" do
@@ -189,7 +189,7 @@ RSpec.describe Core::UseCases::ActuatorController do
         action_params = { action: "start_build", branch: "main" }
         result = { success: true, message: "Build started on main branch" }
 
-        expect(hvac_actuator).to receive(:execute).with(action_params).and_return(result)
+        expect(ci_pipeline_actuator).to receive(:execute).with(action_params).and_return(result)
 
         expect(controller.execute_action("ci_pipeline", action_params)).to eq(
           result.merge(actuator_name: "ci_pipeline")
@@ -212,7 +212,7 @@ RSpec.describe Core::UseCases::ActuatorController do
       it "catches the error and returns an error result" do
         action_params = { action: "start_build" }
 
-        expect(hvac_actuator).to receive(:execute).with(action_params).and_raise(
+        expect(ci_pipeline_actuator).to receive(:execute).with(action_params).and_raise(
           ArgumentError, "Missing branch parameter"
         )
 
@@ -230,7 +230,7 @@ RSpec.describe Core::UseCases::ActuatorController do
       it "catches the error and returns an error result" do
         action_params = { action: "start_build" }
 
-        expect(hvac_actuator).to receive(:execute).with(action_params).and_raise(
+        expect(ci_pipeline_actuator).to receive(:execute).with(action_params).and_raise(
           RuntimeError, "Failed to connect to CI server"
         )
 
@@ -247,27 +247,27 @@ RSpec.describe Core::UseCases::ActuatorController do
 
   describe "#execute_group_action" do
     before do
-      controller.register(hvac_actuator)
-      controller.register(light_actuator)
+      controller.register(ci_pipeline_actuator)
+      controller.register(team_notification_actuator)
     end
 
     context "with criteria matching multiple actuators" do
       it "executes the action on all matching actuators" do
         # Setup the mocks for the actuator type check
-        allow(hvac_actuator).to receive(:properties).and_return({ provider: "Jenkins", environment: "staging" })
-        allow(hvac_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", environment: "staging" })
-        allow(hvac_actuator).to receive(:send).with(:environment).and_return("staging")
+        allow(ci_pipeline_actuator).to receive(:properties).and_return({ provider: "Jenkins", environment: "staging" })
+        allow(ci_pipeline_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", environment: "staging" })
+        allow(ci_pipeline_actuator).to receive(:send).with(:environment).and_return("staging")
 
-        allow(light_actuator).to receive(:properties).and_return({ platform: "Slack", environment: "staging" })
-        allow(light_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", environment: "staging" })
-        allow(light_actuator).to receive(:send).with(:environment).and_return("staging")
+        allow(team_notification_actuator).to receive(:properties).and_return({ platform: "Slack", environment: "staging" })
+        allow(team_notification_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", environment: "staging" })
+        allow(team_notification_actuator).to receive(:send).with(:environment).and_return("staging")
 
         # Setup expectations for the execute method
         action_params = { message: "Deploying to staging" }
-        expect(hvac_actuator).to receive(:execute).with(action_params).and_return(
+        expect(ci_pipeline_actuator).to receive(:execute).with(action_params).and_return(
           { success: true, message: "CI pipeline notified" }
         )
-        expect(light_actuator).to receive(:execute).with(action_params).and_return(
+        expect(team_notification_actuator).to receive(:execute).with(action_params).and_return(
           { success: true, message: "Slack notified" }
         )
 
@@ -296,20 +296,20 @@ RSpec.describe Core::UseCases::ActuatorController do
     context "when some actuators fail" do
       it "returns mixed results" do
         # Setup the mocks for the actuator type check
-        allow(hvac_actuator).to receive(:properties).and_return({ provider: "Jenkins", environment: "staging" })
-        allow(hvac_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", environment: "staging" })
-        allow(hvac_actuator).to receive(:send).with(:environment).and_return("staging")
+        allow(ci_pipeline_actuator).to receive(:properties).and_return({ provider: "Jenkins", environment: "staging" })
+        allow(ci_pipeline_actuator).to receive(:send).with(:properties).and_return({ provider: "Jenkins", environment: "staging" })
+        allow(ci_pipeline_actuator).to receive(:send).with(:environment).and_return("staging")
 
-        allow(light_actuator).to receive(:properties).and_return({ platform: "Slack", environment: "staging" })
-        allow(light_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", environment: "staging" })
-        allow(light_actuator).to receive(:send).with(:environment).and_return("staging")
+        allow(team_notification_actuator).to receive(:properties).and_return({ platform: "Slack", environment: "staging" })
+        allow(team_notification_actuator).to receive(:send).with(:properties).and_return({ platform: "Slack", environment: "staging" })
+        allow(team_notification_actuator).to receive(:send).with(:environment).and_return("staging")
 
         # Setup expectations for the execute method
         action_params = { message: "Deploying to staging" }
-        expect(hvac_actuator).to receive(:execute).with(action_params).and_return(
+        expect(ci_pipeline_actuator).to receive(:execute).with(action_params).and_return(
           { success: true, message: "CI pipeline notified" }
         )
-        expect(light_actuator).to receive(:execute).with(action_params).and_raise(
+        expect(team_notification_actuator).to receive(:execute).with(action_params).and_raise(
           RuntimeError, "Failed to connect to Slack"
         )
 
@@ -339,8 +339,8 @@ RSpec.describe Core::UseCases::ActuatorController do
     end
 
     before do
-      controller.register(hvac_actuator)
-      controller.register(light_actuator)
+      controller.register(ci_pipeline_actuator)
+      controller.register(team_notification_actuator)
 
       # Setup mock behavior for type check
       allow(second_hvac).to receive(:is_a?).and_return(false)  # Default first
@@ -357,7 +357,7 @@ RSpec.describe Core::UseCases::ActuatorController do
       it "executes the action on all actuators of the type" do
         action_params = { action: "start_build", branch: "main" }
 
-        expect(hvac_actuator).to receive(:execute).with(action_params).and_return(
+        expect(ci_pipeline_actuator).to receive(:execute).with(action_params).and_return(
           { success: true, message: "CI build started" }
         )
         expect(second_hvac).to receive(:execute).with(action_params).and_return(
@@ -388,7 +388,7 @@ RSpec.describe Core::UseCases::ActuatorController do
       it "returns mixed results" do
         action_params = { action: "start_build", branch: "main" }
 
-        expect(hvac_actuator).to receive(:execute).with(action_params).and_return(
+        expect(ci_pipeline_actuator).to receive(:execute).with(action_params).and_return(
           { success: true, message: "CI build started" }
         )
         expect(second_hvac).to receive(:execute).with(action_params).and_raise(

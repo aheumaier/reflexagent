@@ -1,22 +1,24 @@
 require 'rails_helper'
 
 # We need to define a mock Sensor class first
-unless defined?(Core::Domain::Sensor)
+
 module Core
-  module Domain
-    class Sensor
-      attr_reader :name
+    module Domain
 
-      def initialize(name)
-        @name = name
-      end
+    unless defined?(Core::Domain::Sensor)
+      class Sensor
+        attr_reader :name
 
-      def perceive
-        {}
+        def initialize(name)
+          @name = name
+        end
+
+        def perceive
+          {}
+        end
       end
     end
-
-    # Mock Actuator for this test only - it needs to match the signature of our real Actuator
+      # Mock Actuator for this test only - it needs to match the signature of our real Actuator
     unless defined?(Core::Domain::Actuator)
       class Actuator
         attr_reader :name, :properties
@@ -41,6 +43,7 @@ module Core
     end
   end
 end
+
 
 RSpec.describe Core::Domain::ReflexiveAgent do
   let(:test_sensor) { Core::Domain::Sensor.new("test_sensor") }

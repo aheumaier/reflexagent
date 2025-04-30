@@ -26,6 +26,8 @@ require_relative '../app/ports/dashboard_port'
 require_relative '../app/core/domain/event'
 require_relative '../app/core/domain/metric'
 require_relative '../app/core/domain/alert'
+require_relative '../app/core/domain/actuator'
+require_relative '../app/core/domain/reflexive_agent'
 
 # Use cases
 require_relative '../app/core/use_cases/process_event'
