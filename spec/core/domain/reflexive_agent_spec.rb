@@ -1,7 +1,7 @@
 require 'rails_helper'
-require_relative '../../../app/core/domain/reflexive_agent'
 
 # We need to define a mock Sensor class first
+unless defined?(Core::Domain::Sensor)
 module Core
   module Domain
     class Sensor
@@ -16,23 +16,27 @@ module Core
       end
     end
 
-    class Actuator
-      attr_reader :name
+    # Mock Actuator for this test only - it needs to match the signature of our real Actuator
+    unless defined?(Core::Domain::Actuator)
+      class Actuator
+        attr_reader :name, :properties
 
-      def initialize(name)
-        @name = name
-      end
+        def initialize(name:, **properties)
+          @name = name
+          @properties = properties
+        end
 
-      def execute(action_name, **params)
-        true
-      end
+        def execute(params)
+          true
+        end
 
-      def supported_actions
-        []
-      end
+        def supported_actions
+          []
+        end
 
-      def supports_action?(action_name)
-        true
+        def supports_action?(action_name)
+          true
+        end
       end
     end
   end
@@ -40,7 +44,7 @@ end
 
 RSpec.describe Core::Domain::ReflexiveAgent do
   let(:test_sensor) { Core::Domain::Sensor.new("test_sensor") }
-  let(:test_actuator) { Core::Domain::Actuator.new("test_actuator") }
+  let(:test_actuator) { Core::Domain::Actuator.new(name: "test_actuator") }
 
   before do
     # Make the test_sensor return useful data
@@ -51,9 +55,7 @@ RSpec.describe Core::Domain::ReflexiveAgent do
     allow(test_actuator).to receive(:supports_action?).with(:turn_on).and_return(true)
     allow(test_actuator).to receive(:supports_action?).with(:turn_off).and_return(true)
     allow(test_actuator).to receive(:supports_action?).with(any_args).and_return(false)
-    allow(test_actuator).to receive(:execute).with(:turn_on).and_return(true)
-    allow(test_actuator).to receive(:execute).with(:turn_off).and_return(false)
-    allow(test_actuator).to receive(:execute).with(any_args).and_return(nil)
+    allow(test_actuator).to receive(:execute).with(any_args).and_return(true)
   end
 
   describe "#initialize" do

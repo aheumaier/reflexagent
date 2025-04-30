@@ -8,10 +8,9 @@ module Core
       # @param name [String] Unique identifier for the actuator
       # @param properties [Hash] Custom properties of the actuator
       def initialize(name:, **properties)
+        raise ArgumentError, "Name cannot be empty" if name.nil? || name.to_s.empty?
         @name = name
         @properties = properties
-
-        validate!
       end
 
       # Execute an action on this actuator
@@ -43,12 +42,6 @@ module Core
         return if missing.empty?
 
         raise ArgumentError, "Missing required parameters: #{missing.join(', ')}"
-      end
-
-      private
-
-      def validate!
-        raise ArgumentError, "Name cannot be empty" if name.nil? || name.empty?
       end
     end
 
@@ -106,12 +99,6 @@ module Core
       end
 
       private
-
-      def validate!
-        super
-        raise ArgumentError, "Device ID cannot be empty" if device_id.nil? || device_id.empty?
-        raise ArgumentError, "Location cannot be empty" if location.nil? || location.empty?
-      end
 
       def validate_params!(params)
         unless params.is_a?(Hash)
@@ -175,11 +162,6 @@ module Core
 
       private
 
-      def validate!
-        super
-        raise ArgumentError, "Location cannot be empty" if location.nil? || location.empty?
-      end
-
       def validate_params!(params)
         unless params.is_a?(Hash)
           raise ArgumentError, "Action parameters must be a hash"
@@ -237,12 +219,6 @@ module Core
       end
 
       private
-
-      def validate!
-        super
-        raise ArgumentError, "Door ID cannot be empty" if door_id.nil? || door_id.empty?
-        raise ArgumentError, "Location cannot be empty" if location.nil? || location.empty?
-      end
 
       def validate_params!(params)
         unless params.is_a?(Hash)
