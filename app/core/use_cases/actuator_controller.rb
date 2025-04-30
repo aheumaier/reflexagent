@@ -13,9 +13,7 @@ module Core
       # @param actuator [Core::Domain::Actuator] The actuator to register
       # @return [Boolean] True if registration was successful
       def register(actuator)
-        unless actuator.is_a?(Core::Domain::Actuator)
-          raise ArgumentError, "Only actuators can be registered"
-        end
+        raise ArgumentError, "Only actuators can be registered" unless actuator.is_a?(Core::Domain::Actuator)
 
         if @actuators[actuator.name]
           raise ArgumentError, "An actuator with name '#{actuator.name}' is already registered"
@@ -104,22 +102,20 @@ module Core
         end
 
         results = actuators.map do |actuator|
-          begin
-            result = actuator.execute(action_params)
-            result.merge(actuator_name: actuator.name)
-          rescue ArgumentError => e
-            {
-              success: false,
-              actuator_name: actuator.name,
-              error: e.message
-            }
-          rescue StandardError => e
-            {
-              success: false,
-              actuator_name: actuator.name,
-              error: e.message
-            }
-          end
+          result = actuator.execute(action_params)
+          result.merge(actuator_name: actuator.name)
+        rescue ArgumentError => e
+          {
+            success: false,
+            actuator_name: actuator.name,
+            error: e.message
+          }
+        rescue StandardError => e
+          {
+            success: false,
+            actuator_name: actuator.name,
+            error: e.message
+          }
         end
 
         {
@@ -144,22 +140,20 @@ module Core
         end
 
         results = actuators.map do |actuator|
-          begin
-            result = actuator.execute(action_params)
-            result.merge(actuator_name: actuator.name)
-          rescue ArgumentError => e
-            {
-              success: false,
-              actuator_name: actuator.name,
-              error: e.message
-            }
-          rescue StandardError => e
-            {
-              success: false,
-              actuator_name: actuator.name,
-              error: e.message
-            }
-          end
+          result = actuator.execute(action_params)
+          result.merge(actuator_name: actuator.name)
+        rescue ArgumentError => e
+          {
+            success: false,
+            actuator_name: actuator.name,
+            error: e.message
+          }
+        rescue StandardError => e
+          {
+            success: false,
+            actuator_name: actuator.name,
+            error: e.message
+          }
         end
 
         {
