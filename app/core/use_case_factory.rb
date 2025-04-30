@@ -1,7 +1,18 @@
+require_relative "use_cases/process_event"
+require_relative "use_cases/calculate_metrics"
+require_relative "use_cases/detect_anomalies"
+require_relative "use_cases/send_notification"
+require_relative "use_cases/find_event"
+require_relative "use_cases/find_metric"
+require_relative "use_cases/find_alert"
+require_relative "use_cases/list_metrics"
+require_relative "use_cases/list_alerts"
+
 class UseCaseFactory
   class << self
     def create_process_event
       Core::UseCases::ProcessEvent.new(
+        ingestion_port: DependencyContainer.resolve(:ingestion_port),
         storage_port: DependencyContainer.resolve(:storage_port),
         queue_port: DependencyContainer.resolve(:queue_port)
       )

@@ -1,91 +1,113 @@
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe Core::UseCases::ProcessEvent do
-  include_context "with all mock ports"
+  let(:ingestion_port) { instance_double(Ports::IngestionPort) }
+  let(:storage_port) { instance_double(Ports::StoragePort) }
+  let(:queue_port) { instance_double(Ports::QueuePort) }
 
-  let(:event) do
-    Core::Domain::Event.new(
-      name: 'server.cpu.usage',
-      data: { value: 85.5, host: 'web-01' },
-      source: 'monitoring-agent',
-      timestamp: Time.current
-    )
+  let(:use_case) do
+    described_class.new(ingestion_port: ingestion_port, storage_port: storage_port, queue_port: queue_port)
   end
 
-  subject(:use_case) { described_class.new(storage_port: mock_storage_port, queue_port: mock_queue_port) }
+  let(:raw_payload) { { key: "value" }.to_json }
+  let(:source) { "github" }
+  let(:event) { instance_double(Core::Domain::Event, id: "event-123", name: "github.push", source: "github") }
 
-  describe '#call' do
-    it 'saves the event via the storage port' do
-      # Since the storage port adds an ID, we need to look for the event
-      # based on properties other than the ID
-      result = use_case.call(event)
+  describe "#call" do
+    before do
+      allow(Rails.logger).to receive(:debug)
+      allow(Rails.logger).to receive(:error)
 
-      expect(mock_storage_port.saved_events.size).to eq(1)
-      saved_event = mock_storage_port.saved_events.first
-      expect(saved_event.name).to eq('server.cpu.usage')
-      expect(saved_event.data[:value]).to eq(85.5)
-      expect(saved_event.source).to eq('monitoring-agent')
+      # Default behavior for successful path
+      allow(ingestion_port).to receive(:receive_event).with(raw_payload, source: source).and_return(event)
+      allow(storage_port).to receive(:save_event).with(event).and_return(true)
+      allow(queue_port).to receive(:enqueue_metric_calculation).with(event).and_return(true)
     end
 
-    it 'enqueues the event for metric calculation via the queue port' do
-      use_case.call(event)
+    it "parses the raw payload into a domain event" do
+      expect(ingestion_port).to receive(:receive_event).with(raw_payload, source: source).and_return(event)
 
-      expect(mock_queue_port.enqueued_events.size).to eq(1)
-      expect(mock_queue_port.enqueued_events.first.name).to eq('server.cpu.usage')
+      use_case.call(raw_payload, source: source)
     end
 
-    it 'processes the event in the correct order' do
-      # Using method spies to ensure the correct order of calls
-      expect(mock_storage_port).to receive(:save_event).ordered
-      expect(mock_queue_port).to receive(:enqueue_metric_calculation).ordered
+    it "stores the event" do
+      expect(storage_port).to receive(:save_event).with(event)
 
-      use_case.call(event)
+      use_case.call(raw_payload, source: source)
     end
 
-    it 'assigns an ID to the event if none exists' do
-      event_without_id = Core::Domain::Event.new(
-        name: 'server.cpu.usage',
-        data: { value: 85.5, host: 'web-01' },
-        source: 'monitoring-agent',
-        timestamp: Time.current
-      )
+    it "enqueues the event for metric calculation" do
+      expect(queue_port).to receive(:enqueue_metric_calculation).with(event)
 
-      use_case.call(event_without_id)
-
-      saved_event = mock_storage_port.saved_events.first
-      expect(saved_event.id).not_to be_nil
+      use_case.call(raw_payload, source: source)
     end
 
-    context 'when an error occurs' do
+    it "returns the processed event" do
+      result = use_case.call(raw_payload, source: source)
+
+      expect(result).to eq(event)
+    end
+
+    context "when event parsing fails" do
       before do
-        allow(mock_storage_port).to receive(:save_event).and_raise(StandardError.new('Test error'))
+        allow(ingestion_port).to receive(:receive_event).and_raise("Parsing error")
       end
 
-      it 'propagates the error' do
-        expect { use_case.call(event) }.to raise_error(StandardError, 'Test error')
+      it "logs the error" do
+        expect(Rails.logger).to receive(:error).with(/Error parsing event/)
+
+        expect do
+          use_case.call(raw_payload, source: source)
+        end.to raise_error(Core::UseCases::ProcessEvent::EventParsingError)
+      end
+
+      it "raises an EventParsingError" do
+        expect do
+          use_case.call(raw_payload, source: source)
+        end.to raise_error(Core::UseCases::ProcessEvent::EventParsingError, /Failed to parse event/)
       end
     end
-  end
 
-  describe 'factory method' do
-    it 'creates the use case with dependencies injected' do
-      # Register our mocks with the container
-      DependencyContainer.register(:storage_port, mock_storage_port)
-      DependencyContainer.register(:queue_port, mock_queue_port)
+    context "when event storage fails" do
+      before do
+        allow(storage_port).to receive(:save_event).and_raise("Storage error")
+      end
 
-      # Create use case using factory
-      factory_created = UseCaseFactory.create_process_event
+      it "logs the error" do
+        expect(Rails.logger).to receive(:error).with(/Error saving event/)
 
-      # Verify injected dependencies are working
-      factory_created.call(event)
+        expect do
+          use_case.call(raw_payload, source: source)
+        end.to raise_error(Core::UseCases::ProcessEvent::EventStorageError)
+      end
 
-      expect(mock_storage_port.saved_events.size).to eq(1)
-      saved_event = mock_storage_port.saved_events.first
-      expect(saved_event.name).to eq('server.cpu.usage')
+      it "raises an EventStorageError" do
+        expect do
+          use_case.call(raw_payload, source: source)
+        end.to raise_error(Core::UseCases::ProcessEvent::EventStorageError, /Failed to save event/)
+      end
+    end
 
-      expect(mock_queue_port.enqueued_events.size).to eq(1)
-      enqueued_event = mock_queue_port.enqueued_events.first
-      expect(enqueued_event.name).to eq('server.cpu.usage')
+    context "when metric calculation enqueuing fails" do
+      before do
+        allow(queue_port).to receive(:enqueue_metric_calculation).and_raise("Queue error")
+      end
+
+      it "logs the error but continues processing" do
+        expect(Rails.logger).to receive(:error).with(/Error enqueuing event/)
+        expect(Rails.logger).to receive(:error).with(/Continuing despite enqueueing error/)
+
+        # The use case should NOT raise an error in this case
+        expect do
+          use_case.call(raw_payload, source: source)
+        end.not_to raise_error
+      end
+
+      it "still returns the event" do
+        result = use_case.call(raw_payload, source: source)
+
+        expect(result).to eq(event)
+      end
     end
   end
 end

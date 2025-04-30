@@ -30,7 +30,9 @@ gem "cssbundling-rails"
 gem "jbuilder"
 
 # Use Redis adapter to run Action Cable in production
-gem 'redis', '~> 5.0'
+gem "redis", "~> 5.0"
+# Thread-safe connection pools
+gem "connection_pool", "~> 2.4"
 
 # Use Kredis to get higher-level data types in Redis [https://github.com/rails/kredis]
 # gem "kredis"
@@ -39,7 +41,7 @@ gem 'redis', '~> 5.0'
 # gem "bcrypt", "~> 3.1.7"
 
 # Windows does not include zoneinfo files, so bundle the tzinfo-data gem
-gem "tzinfo-data", platforms: %i[ windows jruby ]
+gem "tzinfo-data", platforms: [:windows, :jruby]
 
 # Reduces boot times through caching; required in config/boot.rb
 gem "bootsnap", require: false
@@ -49,12 +51,12 @@ gem "bootsnap", require: false
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
-  gem "debug", platforms: %i[ mri windows ]
+  gem "debug", platforms: [:mri, :windows]
 
   # Testing framework for Ruby on Rails
-  gem "rspec-rails", "~> 6.1"
   gem "factory_bot_rails", "~> 6.4"
   gem "faker", "~> 3.2"
+  gem "rspec-rails", "~> 6.1"
 end
 
 group :development do
@@ -69,6 +71,7 @@ group :development do
 
   # Ruby static code analyzer and formatter
   gem "rubocop", "~> 1.60", require: false
+  gem "rubocop-capybara", "~> 2.22", require: false
   gem "rubocop-rails", "~> 2.23", require: false
   gem "rubocop-rspec", "~> 2.27", require: false
 end

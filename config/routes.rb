@@ -8,7 +8,9 @@ Rails.application.routes.draw do
   # API routes
   namespace :api do
     namespace :v1 do
-      # Events
+      # Events - Unified webhook endpoint
+      # Accepts source parameter to identify the webhook source
+      # Example: POST /api/v1/events?source=github
       resources :events, only: [:create, :show]
 
       # Metrics

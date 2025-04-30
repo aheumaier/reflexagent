@@ -1,6 +1,9 @@
 module Ports
   module IngestionPort
-    def receive_event(payload)
+    # @param raw_payload [String] the full JSON body
+    # @param source [String] e.g. "github", "jira"
+    # @return [Core::Domain::Event]
+    def receive_event(raw_payload, source:)
       raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
     end
 

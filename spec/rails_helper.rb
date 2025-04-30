@@ -1,10 +1,10 @@
 # This file is copied to spec/ when you run 'rails generate rspec:install'
-require 'spec_helper'
-ENV['RAILS_ENV'] ||= 'test'
-require_relative '../config/environment'
+require "spec_helper"
+ENV["RAILS_ENV"] ||= "test"
+require_relative "../config/environment"
 # Prevent database truncation if the environment is production
 abort("The Rails environment is running in production mode!") if Rails.env.production?
-require 'rspec/rails'
+require "rspec/rails"
 # Add additional requires below this line. Rails is not loaded until this point!
 
 # Requires supporting ruby files with custom matchers and macros, etc, in
@@ -21,25 +21,28 @@ require 'rspec/rails'
 # require only the support files necessary.
 
 # Load SimpleCov at the very top for test coverage
-require_relative 'support/simplecov'
+require_relative "support/simplecov"
 
 # Load factory_bot configuration
-require_relative 'support/factory_bot'
+require_relative "support/factory_bot"
 
 # Load shoulda matchers configuration
-require_relative 'support/shoulda_matchers'
+require_relative "support/shoulda_matchers"
 
 # Load hexagonal helpers
-require_relative 'support/hexagonal_helpers'
+require_relative "support/hexagonal_helpers"
+
+# Load redis test helpers
+require_relative "support/redis_helpers"
 
 # Load shared contexts
-Dir[Rails.root.join('spec/support/shared_contexts/**/*.rb')].sort.each { |f| require f }
+Dir[Rails.root.join("spec/support/shared_contexts/**/*.rb")].sort.each { |f| require f }
 
 # Load shared examples
-Dir[Rails.root.join('spec/support/shared_examples/**/*.rb')].sort.each { |f| require f }
+Dir[Rails.root.join("spec/support/shared_examples/**/*.rb")].sort.each { |f| require f }
 
 # Load helpers
-Dir[Rails.root.join('spec/support/helpers/**/*.rb')].sort.each { |f| require f }
+Dir[Rails.root.join("spec/support/helpers/**/*.rb")].sort.each { |f| require f }
 
 # Checks for pending migrations and applies them before tests are run.
 # If you are not using ActiveRecord, you can remove these lines.
@@ -50,7 +53,7 @@ rescue ActiveRecord::PendingMigrationError => e
 end
 RSpec.configure do |config|
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
-  config.fixture_path = Rails.root.join('spec/fixtures')
+  config.fixture_path = Rails.root.join("spec/fixtures")
 
   # If you're not using ActiveRecord, or you'd prefer not to run each of your
   # examples within a transaction, remove the following line or assign false
@@ -79,4 +82,20 @@ RSpec.configure do |config|
   config.filter_rails_from_backtrace!
   # arbitrary gems may also be filtered via:
   # config.filter_gems_from_backtrace("gem name")
+
+  # Include Redis helpers for testing
+  config.include RedisHelpers, type: :integration
+  config.include RedisHelpers, type: :adapter
+
+  # Skip Redis-dependent tests if Redis is not available
+  config.before(:suite) do
+    if RedisHelpers.redis_available?
+      puts "\nRedis is available. Running Redis-dependent tests."
+    else
+      puts "\nRedis is not available. Skipping Redis-dependent tests."
+    end
+  end
+
+  # Filter examples requiring Redis if it's not available
+  config.filter_run_excluding redis: true unless RedisHelpers.redis_available?
 end

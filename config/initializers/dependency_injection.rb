@@ -5,10 +5,12 @@
 class DependencyContainer
   class << self
     def register(port, adapter)
+      Rails.logger.debug { "Registering adapter for port: #{port} with #{adapter.class.name}" }
       adapters[port] = adapter
     end
 
     def resolve(port)
+      Rails.logger.debug { "Resolving adapter for port: #{port} (available: #{adapters.keys.inspect})" }
       adapters[port] or raise "No adapter registered for port: #{port}"
     end
 
@@ -16,82 +18,78 @@ class DependencyContainer
       @adapters = {}
     end
 
-    private
-
+    # Expose adapters for debugging
     def adapters
       @adapters ||= {}
     end
   end
 end
 
-# Use case factory - creates use cases with their dependencies injected
-class UseCaseFactory
-  class << self
-    def create_process_event
-      Core::UseCases::ProcessEvent.new(
-        storage_port: DependencyContainer.resolve(:storage_port),
-        queue_port: DependencyContainer.resolve(:queue_port)
-      )
-    end
-
-    def create_calculate_metrics
-      Core::UseCases::CalculateMetrics.new(
-        storage_port: DependencyContainer.resolve(:storage_port),
-        cache_port: DependencyContainer.resolve(:cache_port)
-      )
-    end
-
-    def create_detect_anomalies
-      Core::UseCases::DetectAnomalies.new(
-        storage_port: DependencyContainer.resolve(:storage_port),
-        notification_port: DependencyContainer.resolve(:notification_port)
-      )
-    end
-
-    def create_send_notification
-      Core::UseCases::SendNotification.new(
-        notification_port: DependencyContainer.resolve(:notification_port),
-        storage_port: DependencyContainer.resolve(:storage_port)
-      )
-    end
-  end
-end
-
 # Register adapters in an initializer that runs after Rails is fully loaded
 Rails.application.config.after_initialize do
-  # Skip wiring in test environment - tests will explicitly set up their dependencies
-  unless Rails.env.test?
-    # Register ports to adapters in production/development
-    if defined?(Adapters)
-      # Storage port implementation
-      DependencyContainer.register(
-        :storage_port,
-        Adapters::Repositories::EventRepository.new
-      )
+  Rails.logger.info "Initializing dependency injection..."
 
-      # Cache port implementation
-      DependencyContainer.register(
-        :cache_port,
-        Adapters::Cache::RedisCache.new
-      )
+  # Let's initialize the adapters on startup
+  begin
+    # Load domain models first
+    require_relative "../../app/core/domain/event"
+    require_relative "../../app/core/domain/alert"
+    require_relative "../../app/core/domain/metric"
+    require_relative "../../app/core/domain/actuator"
+    require_relative "../../app/core/domain/reflexive_agent"
 
-      # Notification port implementation
-      DependencyContainer.register(
-        :notification_port,
-        Adapters::Notifications::SlackNotifier.new
-      )
+    # Load ALL ports before ANY adapters
+    require_relative "../../app/ports/ingestion_port"
+    require_relative "../../app/ports/storage_port"
+    require_relative "../../app/ports/cache_port"
+    require_relative "../../app/ports/notification_port"
+    require_relative "../../app/ports/queue_port"
 
-      # Queue port implementation
-      DependencyContainer.register(
-        :queue_port,
-        Adapters::Queue::ProcessEventWorker.new
-      )
+    # Only after ALL ports are loaded, load adapter classes
+    require_relative "../../app/adapters/web/web_adapter"
+    require_relative "../../app/adapters/repositories/event_repository"
+    require_relative "../../app/adapters/cache/redis_cache"
+    require_relative "../../app/adapters/notifications/slack_notifier"
+    require_relative "../../app/adapters/queue/process_event_worker"
+    require_relative "../../app/adapters/queue/redis_queue_adapter"
 
-      # Dashboard port implementation
-      DependencyContainer.register(
-        :dashboard_port,
-        Adapters::Web::DashboardController.new # This won't be used directly
-      )
-    end
+    # Now register them
+    Rails.logger.info "Registering adapters..."
+
+    # Ingestion port implementation
+    DependencyContainer.register(
+      :ingestion_port,
+      Adapters::Web::WebAdapter.new
+    )
+
+    # Storage port implementation
+    DependencyContainer.register(
+      :storage_port,
+      Adapters::Repositories::EventRepository.new
+    )
+
+    # Cache port implementation
+    DependencyContainer.register(
+      :cache_port,
+      Adapters::Cache::RedisCache.new
+    )
+
+    # Notification port implementation
+    DependencyContainer.register(
+      :notification_port,
+      Adapters::Notifications::SlackNotifier.new
+    )
+
+    # Queue port implementation
+    DependencyContainer.register(
+      :queue_port,
+      Adapters::Queue::RedisQueueAdapter.new
+    )
+
+    Rails.logger.info "Dependency injection initialized with ports: #{DependencyContainer.adapters.keys.inspect}"
+  rescue StandardError => e
+    Rails.logger.error "Error initializing dependency injection: #{e.message}"
+    Rails.logger.error e.backtrace.join("\n")
+    raise e if Rails.env.local?
   end
 end

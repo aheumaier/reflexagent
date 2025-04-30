@@ -1,32 +1,55 @@
+require "securerandom"
+
 module Core
   module Domain
+    # Event represents a domain event in the system
     class Event
-      attr_reader :id, :name, :source, :timestamp, :data
+      attr_reader :id, :name, :source, :data, :timestamp
 
-      def initialize(id: nil, name:, source:, timestamp: Time.now, data: {})
-        @id = id
+      # Create a new Event
+      #
+      # @param id [String, nil] Optional ID for the event (will be auto-generated if not provided)
+      # @param name [String] The name/type of the event
+      # @param source [String] The source system that generated the event
+      # @param data [Hash] The event payload data
+      # @param timestamp [Time] When the event occurred
+      def initialize(name:, source:, data:, id: nil, timestamp: Time.current)
+        @id = id || SecureRandom.uuid
         @name = name
         @source = source
-        @timestamp = timestamp
         @data = data
+        @timestamp = timestamp
         validate!
       end
 
-      # Validation methods
-      def valid?
-        !name.nil? && !name.empty? && !source.nil? && !source.empty? && timestamp.is_a?(Time)
+      # Convert the event to a hash for serialization
+      #
+      # @return [Hash] The event as a hash
+      def to_h
+        {
+          id: id,
+          name: name,
+          source: source,
+          data: data,
+          timestamp: timestamp.iso8601
+        }
       end
 
+      private
+
+      # Validates that the event data is well-formed
+      # @raise [ArgumentError] If any validations fail
       def validate!
-        raise ArgumentError, "Name cannot be empty" if name.nil? || name.empty?
-        raise ArgumentError, "Source cannot be empty" if source.nil? || source.empty?
-        raise ArgumentError, "Timestamp must be a Time object" unless timestamp.is_a?(Time)
-        raise ArgumentError, "Data must be a hash" unless data.is_a?(Hash)
+        raise ArgumentError, "Event name cannot be blank" if name.nil? || name.strip.empty?
+        raise ArgumentError, "Event source cannot be blank" if source.nil? || source.strip.empty?
+        raise ArgumentError, "Event data must be a Hash" unless data.is_a?(Hash)
+        raise ArgumentError, "Event timestamp must be a Time" unless timestamp.is_a?(Time)
       end
 
       # Equality methods for testing
       def ==(other)
         return false unless other.is_a?(Event)
+
         id == other.id &&
           name == other.name &&
           source == other.source &&
@@ -45,23 +68,13 @@ module Core
         Time.now - timestamp
       end
 
-      def to_h
-        {
-          id: id,
-          name: name,
-          source: source,
-          timestamp: timestamp,
-          data: data
-        }
-      end
-
       def with_id(new_id)
         self.class.new(
           id: new_id,
           name: name,
           source: source,
-          timestamp: timestamp,
-          data: data.dup
+          data: data.dup,
+          timestamp: timestamp
         )
       end
     end

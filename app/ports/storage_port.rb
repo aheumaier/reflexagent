@@ -1,10 +1,17 @@
 module Ports
   module StoragePort
-    # Basic event operations
+    # Save an event to storage
+    #
+    # @param event [Core::Domain::Event] The event to save
+    # @return [Core::Domain::Event] The saved event
     def save_event(event)
       raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
     end
 
+    # Find an event by ID
+    #
+    # @param id [String] The ID of the event to find
+    # @return [Core::Domain::Event, nil] The event if found, nil otherwise
     def find_event(id)
       raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
     end

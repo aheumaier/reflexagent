@@ -357,6 +357,7 @@ PLATFORMS
 DEPENDENCIES
   bootsnap
   capybara
+  connection_pool (~> 2.4)
   cssbundling-rails
   debug
   factory_bot_rails (~> 6.4)
@@ -369,6 +370,7 @@ DEPENDENCIES
   redis (~> 5.0)
   rspec-rails (~> 6.1)
   rubocop (~> 1.60)
+  rubocop-capybara (~> 2.22)
   rubocop-rails (~> 2.23)
   rubocop-rspec (~> 2.27)
   selenium-webdriver
