@@ -49,7 +49,10 @@ module Core
     class HvacActuator < Actuator
       attr_reader :device_id, :location
 
-      VALID_MODES = [:heat, :cool, :fan, :off]
+      # Define constants only if they don't already exist
+      unless const_defined?(:VALID_MODES)
+        VALID_MODES = [:heat, :cool, :fan, :off].freeze
+      end
 
       def initialize(name:, device_id:, location:, **properties)
         @device_id = device_id
@@ -95,7 +98,7 @@ module Core
       end
 
       def supported_actions
-        VALID_MODES
+        self.class::VALID_MODES
       end
 
       private
@@ -106,8 +109,8 @@ module Core
         end
 
         mode = params[:mode]
-        unless VALID_MODES.include?(mode)
-          raise ArgumentError, "Mode must be one of: #{VALID_MODES.join(', ')}"
+        unless self.class::VALID_MODES.include?(mode)
+          raise ArgumentError, "Mode must be one of: #{self.class::VALID_MODES.join(', ')}"
         end
 
         if [:heat, :cool].include?(mode) && !params[:temperature]
@@ -120,7 +123,10 @@ module Core
     class LightActuator < Actuator
       attr_reader :location
 
-      VALID_COMMANDS = [:on, :off, :dim]
+      # Define constants only if they don't already exist
+      unless const_defined?(:VALID_COMMANDS)
+        VALID_COMMANDS = [:on, :off, :dim].freeze
+      end
 
       def initialize(name:, location:, **properties)
         @location = location
@@ -157,7 +163,7 @@ module Core
       end
 
       def supported_actions
-        VALID_COMMANDS
+        self.class::VALID_COMMANDS
       end
 
       private
@@ -168,8 +174,8 @@ module Core
         end
 
         command = params[:command]
-        unless VALID_COMMANDS.include?(command)
-          raise ArgumentError, "Command must be one of: #{VALID_COMMANDS.join(', ')}"
+        unless self.class::VALID_COMMANDS.include?(command)
+          raise ArgumentError, "Command must be one of: #{self.class::VALID_COMMANDS.join(', ')}"
         end
 
         if command == :dim
@@ -185,7 +191,10 @@ module Core
     class DoorActuator < Actuator
       attr_reader :door_id, :location
 
-      VALID_COMMANDS = [:lock, :unlock]
+      # Define constants only if they don't already exist
+      unless const_defined?(:VALID_COMMANDS)
+        VALID_COMMANDS = [:lock, :unlock].freeze
+      end
 
       def initialize(name:, door_id:, location:, **properties)
         @door_id = door_id
@@ -215,7 +224,7 @@ module Core
       end
 
       def supported_actions
-        VALID_COMMANDS
+        self.class::VALID_COMMANDS
       end
 
       private
@@ -226,8 +235,8 @@ module Core
         end
 
         command = params[:command]
-        unless VALID_COMMANDS.include?(command)
-          raise ArgumentError, "Command must be one of: #{VALID_COMMANDS.join(', ')}"
+        unless self.class::VALID_COMMANDS.include?(command)
+          raise ArgumentError, "Command must be one of: #{self.class::VALID_COMMANDS.join(', ')}"
         end
       end
     end
