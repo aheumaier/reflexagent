@@ -1,5 +1,6 @@
 class DomainMetric < ApplicationRecord
   self.table_name = 'metrics'
+  self.primary_key = 'id'
 
   validates :name, presence: true
   validates :value, presence: true

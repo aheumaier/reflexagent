@@ -3,12 +3,13 @@ class CreateMetricsTable < ActiveRecord::Migration[7.1]
     # Create the main metrics table with partitioning
     execute <<-SQL
       CREATE TABLE metrics (
-        id          BIGSERIAL PRIMARY KEY,
+        id          BIGSERIAL,
         name        TEXT       NOT NULL,
         value       DOUBLE PRECISION NOT NULL,
         source      TEXT       NOT NULL,
         dimensions  JSONB,
-        recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+        recorded_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+        PRIMARY KEY (id, recorded_at)
       ) PARTITION BY RANGE (recorded_at);
     SQL
 

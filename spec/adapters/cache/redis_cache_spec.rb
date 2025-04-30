@@ -69,18 +69,37 @@ RSpec.describe Adapters::Cache::RedisCache do
 
   describe '#get_metric_history' do
     before do
-      # Cache multiple metrics with different timestamps
-      3.times do |i|
-        cache.cache_metric(
-          Core::Domain::Metric.new(
-            name: 'cpu.usage',
-            value: 80 + i * 5.0,
-            source: 'web-01',
-            dimensions: { region: 'us-west' },
-            timestamp: i.hours.ago
-          )
+      # Cache multiple metrics with different timestamps in a consistent order
+      # Make sure timestamps are monotonically decreasing
+      cache.cache_metric(
+        Core::Domain::Metric.new(
+          name: 'cpu.usage',
+          value: 90.0, # Most recent value should be highest for the test
+          source: 'web-01',
+          dimensions: { region: 'us-west' },
+          timestamp: 1.hour.ago
         )
-      end
+      )
+
+      cache.cache_metric(
+        Core::Domain::Metric.new(
+          name: 'cpu.usage',
+          value: 85.0,
+          source: 'web-01',
+          dimensions: { region: 'us-west' },
+          timestamp: 2.hours.ago
+        )
+      )
+
+      cache.cache_metric(
+        Core::Domain::Metric.new(
+          name: 'cpu.usage',
+          value: 80.0, # Oldest value should be lowest for the test
+          source: 'web-01',
+          dimensions: { region: 'us-west' },
+          timestamp: 3.hours.ago
+        )
+      )
     end
 
     it 'retrieves the time series data for a metric' do
@@ -90,12 +109,16 @@ RSpec.describe Adapters::Cache::RedisCache do
       expect(history.size).to eq(3)
 
       # Verify the entries are in reverse chronological order (newest first)
+      expect(history.first[:value]).to eq(90.0)
+      expect(history.last[:value]).to eq(80.0)
       expect(history.first[:value] > history.last[:value]).to be(true)
     end
 
     it 'limits the number of history entries returned' do
       history = cache.get_metric_history('cpu.usage', 2)
       expect(history.size).to eq(2)
+      expect(history.first[:value]).to eq(90.0)
+      expect(history.last[:value]).to eq(85.0)
     end
   end
 

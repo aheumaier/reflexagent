@@ -2,7 +2,8 @@
 Step {{STEP_NUMBER}} of {{TOTAL_STEPS}}: {{STEP_DESCRIPTION}}
 
 - Only work on this step.  
-- Make a small git commit when complete.  
+-
+- Make a small git commit when complete and all rspec test run greeen .  
 - Do not touch other parts of the code.  
 
 Questions before you begin?

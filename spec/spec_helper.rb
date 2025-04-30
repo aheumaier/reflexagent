@@ -40,6 +40,15 @@ require_relative '../app/core/use_cases/find_alert'
 require_relative '../app/core/use_cases/list_metrics'
 require_relative '../app/core/use_cases/list_alerts'
 
+
+# Adapters
+require_relative '../app/adapters/repositories/event_repository'
+require_relative '../app/adapters/repositories/metric_repository'
+require_relative '../app/adapters/repositories/alert_repository'
+require_relative '../app/adapters/queue/process_event_worker'
+
+
+
 # Factory
 require_relative '../app/core/use_case_factory'
 

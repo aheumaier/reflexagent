@@ -7,8 +7,7 @@ module Adapters
       def self.redis
         @redis ||= Redis.new(
           url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0'),
-          reconnect_attempts: 3,
-          reconnect_delay: 0.5
+          reconnect_attempts: 3
         )
       end
 
@@ -60,8 +59,16 @@ module Adapters
         # If dimensions are provided, try to fetch the specific metric
         if dimensions.any?
           dimension_string = dimensions.sort.map { |k, v| "#{k}=#{v}" }.join(',')
-          value = redis.get("metric:latest:#{name}:#{dimension_string}")
-          return value.to_f if value
+          dimension_key = "metric:latest:#{name}:#{dimension_string}"
+
+          # Only return the value if this specific dimension combination exists
+          if redis.exists?(dimension_key)
+            value = redis.get(dimension_key)
+            return value ? value.to_f : nil
+          end
+
+          # If the specific dimension doesn't exist, return nil instead of falling back
+          return nil
         end
 
         # Fallback to the general metric name

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_04_30_080912) do
+ActiveRecord::Schema[7.1].define(version: 2025_04_30_090455) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -38,6 +38,42 @@ ActiveRecord::Schema[7.1].define(version: 2025_04_30_080912) do
     t.index ["aggregate_id"], name: "index_domain_events_on_aggregate_id"
     t.index ["event_type"], name: "index_domain_events_on_event_type"
     t.index ["position"], name: "index_domain_events_on_position", unique: true
+  end
+
+  create_table "metrics", primary_key: ["id", "recorded_at"], force: :cascade do |t|
+    t.bigserial "id", null: false
+    t.text "name", null: false
+    t.float "value", null: false
+    t.text "source", null: false
+    t.jsonb "dimensions"
+    t.timestamptz "recorded_at", default: -> { "now()" }, null: false
+    t.index ["name", "recorded_at"], name: "metrics_name_recorded_at_idx"
+    t.index ["name"], name: "metrics_name_idx"
+    t.index ["recorded_at"], name: "metrics_recorded_at_idx"
+  end
+
+  create_table "metrics_2025_04", primary_key: ["id", "recorded_at"], force: :cascade do |t|
+    t.bigint "id", default: -> { "nextval('metrics_id_seq'::regclass)" }, null: false
+    t.text "name", null: false
+    t.float "value", null: false
+    t.text "source", null: false
+    t.jsonb "dimensions"
+    t.timestamptz "recorded_at", default: -> { "now()" }, null: false
+    t.index ["name", "recorded_at"], name: "metrics_2025_04_name_recorded_at_idx"
+    t.index ["name"], name: "metrics_2025_04_name_idx"
+    t.index ["recorded_at"], name: "metrics_2025_04_recorded_at_idx"
+  end
+
+  create_table "metrics_2025_05", primary_key: ["id", "recorded_at"], force: :cascade do |t|
+    t.bigint "id", default: -> { "nextval('metrics_id_seq'::regclass)" }, null: false
+    t.text "name", null: false
+    t.float "value", null: false
+    t.text "source", null: false
+    t.jsonb "dimensions"
+    t.timestamptz "recorded_at", default: -> { "now()" }, null: false
+    t.index ["name", "recorded_at"], name: "metrics_2025_05_name_recorded_at_idx"
+    t.index ["name"], name: "metrics_2025_05_name_idx"
+    t.index ["recorded_at"], name: "metrics_2025_05_recorded_at_idx"
   end
 
 end

@@ -31,7 +31,7 @@ module Adapters
         # Try to find in memory cache first (for tests)
         return @metrics_cache[id] if @metrics_cache.key?(id)
 
-        # Find in database
+        # Find in database - for composite primary key, we need to use find_by
         domain_metric = DomainMetric.find_by(id: id)
         return nil unless domain_metric
 
