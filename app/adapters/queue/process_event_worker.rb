@@ -4,14 +4,14 @@ module Adapters
       include Ports::QueuePort
 
       def enqueue_metric_calculation(event)
-        # Implementation of QueuePort#enqueue_metric_calculation
-        # Will enqueue a Sidekiq job in a real implementation
+        # Use the MetricCalculationJob to process metrics asynchronously
+        MetricCalculationJob.perform_later(event.id)
         true
       end
 
       def enqueue_anomaly_detection(metric)
-        # Implementation of QueuePort#enqueue_anomaly_detection
-        # Will enqueue a Sidekiq job in a real implementation
+        # In our updated flow, anomaly detection happens in the MetricCalculationJob
+        # This method is kept for compatibility with the port interface
         true
       end
     end

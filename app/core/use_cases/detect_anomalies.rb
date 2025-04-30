@@ -8,14 +8,28 @@ module Core
 
       def call(metric_id)
         metric = @storage_port.find_metric(metric_id)
+        return nil unless metric
 
-        # Simple placeholder anomaly detection logic
-        if metric.value > 100
+        # Different thresholds for different metric types
+        threshold =
+          case metric.name
+          when /cpu/i
+            80.0  # CPU usage threshold of 80%
+          when /memory/i
+            75.0  # Memory usage threshold of 75%
+          when /response_time/i
+            200.0 # Response time threshold of 200ms
+          else
+            90.0  # Default threshold
+          end
+
+        # Check if the metric exceeds the threshold
+        if metric.numeric? && metric.value > threshold
           alert = Core::Domain::Alert.new(
             name: "High #{metric.name}",
-            severity: :warning,
+            severity: determine_severity(metric, threshold),
             metric: metric,
-            threshold: 100
+            threshold: threshold
           )
 
           @storage_port.save_alert(alert)
@@ -25,6 +39,21 @@ module Core
         end
 
         nil
+      end
+
+      private
+
+      def determine_severity(metric, threshold)
+        # Calculate how much the metric exceeds the threshold
+        excess_percentage = ((metric.value - threshold) / threshold) * 100
+
+        if excess_percentage > 50
+          :critical
+        elsif excess_percentage > 20
+          :warning
+        else
+          :info
+        end
       end
     end
   end

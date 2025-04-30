@@ -2,16 +2,23 @@ class MetricCalculationJob < ApplicationJob
   queue_as :metrics
 
   def perform(event_id)
-    # Calculate metrics from the event
-    calculate_metrics_use_case = UseCaseFactory.create_calculate_metrics
-    metric = calculate_metrics_use_case.call(event_id)
+    # Create the use cases through the factory
+    calculate_metrics = UseCaseFactory.create_calculate_metrics
+    detect_anomalies = UseCaseFactory.create_detect_anomalies
 
-    # Check for anomalies
+    # Step 1: Calculate metrics from the event
+    metric = calculate_metrics.call(event_id)
+
+    # Step 2: Detect anomalies if we got a metric
     if metric
-      AnomalyDetectionJob.perform_async(metric.id)
+      alert = detect_anomalies.call(metric.id)
+
+      # Log alert creation for debugging
+      Rails.logger.info("Alert created: #{alert.name}") if alert
     end
-  rescue => e
-    Rails.logger.error("Error in MetricCalculationJob for event #{event_id}: #{e.message}")
-    # Consider retrying or reporting the error to monitoring system
+  rescue StandardError => e
+    Rails.logger.error("Error in MetricCalculationJob: #{e.message}")
+    Rails.logger.error(e.backtrace.join("\n"))
+    raise
   end
 end

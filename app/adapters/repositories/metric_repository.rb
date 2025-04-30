@@ -1,22 +1,27 @@
 module Adapters
   module Repositories
     class MetricRepository
+      def initialize
+        @metrics = {}
+      end
+
       def save_metric(metric)
-        # Implementation of StoragePort#save_metric
-        # Will save to the database in a real implementation
+        # In a real implementation, this would save to a database
+        # For our test, we'll just store in memory
+        @metrics[metric.id] = metric
         metric
       end
 
       def find_metric(id)
-        # Implementation of StoragePort#find_metric
-        # Will query the database in a real implementation
-        nil
+        # In a real implementation, this would query the database
+        # For our test, we'll just fetch from memory
+        @metrics[id]
       end
 
       def list_metrics(filters = {})
-        # Implementation of StoragePort#list_metrics
-        # Will query the database with filters in a real implementation
-        []
+        # In a real implementation, this would query the database with filters
+        # For our test, we'll just return all metrics
+        @metrics.values
       end
     end
   end
