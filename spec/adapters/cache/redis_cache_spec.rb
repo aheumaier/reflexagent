@@ -1,16 +1,16 @@
-require 'rails_helper'
-require_relative '../../../app/adapters/cache/redis_cache'
-require_relative '../../../app/core/domain/metric'
+require "rails_helper"
+require_relative "../../../app/adapters/cache/redis_cache"
+require_relative "../../../app/core/domain/metric"
 
-RSpec.describe Adapters::Cache::RedisCache do
+RSpec.describe Cache::RedisCache do
   let(:cache) { described_class.new }
   let(:redis) { described_class.redis }
   let(:metric) do
     Core::Domain::Metric.new(
-      name: 'cpu.usage',
+      name: "cpu.usage",
       value: 85.5,
-      source: 'web-01',
-      dimensions: { region: 'us-west', environment: 'production' },
+      source: "web-01",
+      dimensions: { region: "us-west", environment: "production" },
       timestamp: Time.current
     )
   end
@@ -20,8 +20,8 @@ RSpec.describe Adapters::Cache::RedisCache do
     redis.flushdb
   end
 
-  describe '#cache_metric' do
-    it 'stores the metric in Redis and returns it' do
+  describe "#cache_metric" do
+    it "stores the metric in Redis and returns it" do
       # Cache the metric
       result = cache.cache_metric(metric)
 
@@ -32,7 +32,7 @@ RSpec.describe Adapters::Cache::RedisCache do
       expect(redis.get("metric:latest:#{metric.name}")).to eq(metric.value.to_s)
 
       # Verify the metric with dimensions was stored
-      dimension_string = metric.dimensions.sort.map { |k, v| "#{k}=#{v}" }.join(',')
+      dimension_string = metric.dimensions.sort.map { |k, v| "#{k}=#{v}" }.join(",")
       expect(redis.get("metric:latest:#{metric.name}:#{dimension_string}")).to eq(metric.value.to_s)
 
       # Verify the time series was updated
@@ -40,70 +40,70 @@ RSpec.describe Adapters::Cache::RedisCache do
     end
   end
 
-  describe '#get_cached_metric' do
+  describe "#get_cached_metric" do
     before do
       # Cache a metric
       cache.cache_metric(metric)
     end
 
-    it 'retrieves the latest value for a metric by name' do
-      value = cache.get_cached_metric('cpu.usage')
+    it "retrieves the latest value for a metric by name" do
+      value = cache.get_cached_metric("cpu.usage")
       expect(value).to eq(85.5)
     end
 
-    it 'retrieves a metric with specific dimensions' do
-      value = cache.get_cached_metric('cpu.usage', { region: 'us-west', environment: 'production' })
+    it "retrieves a metric with specific dimensions" do
+      value = cache.get_cached_metric("cpu.usage", { region: "us-west", environment: "production" })
       expect(value).to eq(85.5)
     end
 
-    it 'returns nil for a non-existent metric' do
-      value = cache.get_cached_metric('non.existent')
+    it "returns nil for a non-existent metric" do
+      value = cache.get_cached_metric("non.existent")
       expect(value).to be_nil
     end
 
-    it 'returns nil for a metric with non-existent dimensions' do
-      value = cache.get_cached_metric('cpu.usage', { region: 'non-existent' })
+    it "returns nil for a metric with non-existent dimensions" do
+      value = cache.get_cached_metric("cpu.usage", { region: "non-existent" })
       expect(value).to be_nil
     end
   end
 
-  describe '#get_metric_history' do
+  describe "#get_metric_history" do
     before do
       # Cache multiple metrics with different timestamps in a consistent order
       # Make sure timestamps are monotonically decreasing
       cache.cache_metric(
         Core::Domain::Metric.new(
-          name: 'cpu.usage',
+          name: "cpu.usage",
           value: 90.0, # Most recent value should be highest for the test
-          source: 'web-01',
-          dimensions: { region: 'us-west' },
+          source: "web-01",
+          dimensions: { region: "us-west" },
           timestamp: 1.hour.ago
         )
       )
 
       cache.cache_metric(
         Core::Domain::Metric.new(
-          name: 'cpu.usage',
+          name: "cpu.usage",
           value: 85.0,
-          source: 'web-01',
-          dimensions: { region: 'us-west' },
+          source: "web-01",
+          dimensions: { region: "us-west" },
           timestamp: 2.hours.ago
         )
       )
 
       cache.cache_metric(
         Core::Domain::Metric.new(
-          name: 'cpu.usage',
+          name: "cpu.usage",
           value: 80.0, # Oldest value should be lowest for the test
-          source: 'web-01',
-          dimensions: { region: 'us-west' },
+          source: "web-01",
+          dimensions: { region: "us-west" },
           timestamp: 3.hours.ago
         )
       )
     end
 
-    it 'retrieves the time series data for a metric' do
-      history = cache.get_metric_history('cpu.usage')
+    it "retrieves the time series data for a metric" do
+      history = cache.get_metric_history("cpu.usage")
 
       # Verify the history has the right number of entries
       expect(history.size).to eq(3)
@@ -114,50 +114,50 @@ RSpec.describe Adapters::Cache::RedisCache do
       expect(history.first[:value] > history.last[:value]).to be(true)
     end
 
-    it 'limits the number of history entries returned' do
-      history = cache.get_metric_history('cpu.usage', 2)
+    it "limits the number of history entries returned" do
+      history = cache.get_metric_history("cpu.usage", 2)
       expect(history.size).to eq(2)
       expect(history.first[:value]).to eq(90.0)
       expect(history.last[:value]).to eq(85.0)
     end
   end
 
-  describe '#clear_metric_cache' do
+  describe "#clear_metric_cache" do
     before do
       # Cache multiple metrics with different names
       cache.cache_metric(
         Core::Domain::Metric.new(
-          name: 'cpu.usage',
+          name: "cpu.usage",
           value: 85.5,
-          source: 'web-01',
+          source: "web-01",
           timestamp: Time.current
         )
       )
 
       cache.cache_metric(
         Core::Domain::Metric.new(
-          name: 'memory.usage',
+          name: "memory.usage",
           value: 70.3,
-          source: 'web-01',
+          source: "web-01",
           timestamp: Time.current
         )
       )
     end
 
-    it 'clears cache for a specific metric' do
+    it "clears cache for a specific metric" do
       # Verify both metrics exist
       expect(redis.get("metric:latest:cpu.usage")).not_to be_nil
       expect(redis.get("metric:latest:memory.usage")).not_to be_nil
 
       # Clear one metric
-      cache.clear_metric_cache('cpu.usage')
+      cache.clear_metric_cache("cpu.usage")
 
       # Verify only the specified metric was cleared
       expect(redis.get("metric:latest:cpu.usage")).to be_nil
       expect(redis.get("metric:latest:memory.usage")).not_to be_nil
     end
 
-    it 'clears all metric caches when no name is specified' do
+    it "clears all metric caches when no name is specified" do
       # Verify both metrics exist
       expect(redis.get("metric:latest:cpu.usage")).not_to be_nil
       expect(redis.get("metric:latest:memory.usage")).not_to be_nil

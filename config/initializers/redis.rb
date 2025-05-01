@@ -13,12 +13,12 @@ require_relative "../../app/adapters/cache/redis_cache"
 require_relative "../../app/adapters/queue/redis_queue_adapter"
 
 # Set up global constants for backward compatibility
-REDIS_POOL = Adapters::Cache::RedisManager.connection_pool_for(:default)
+REDIS_POOL = Cache::RedisManager.connection_pool_for(:default)
 
 # Include RedisHelper module for convenience
 module RedisHelper
   def self.with_redis(&)
-    Adapters::Cache::RedisManager.with_redis(:default, &)
+    Cache::RedisManager.with_redis(:default, &)
   end
 end
 
@@ -30,8 +30,8 @@ if (cache_store_config.is_a?(Array) && cache_store_config[0] == :redis_cache_sto
   Rails.application.config.cache_store = [
     :redis_cache_store,
     {
-      url: Adapters::Cache::RedisManager.url_for(:cache),
-      pool: Adapters::Cache::RedisManager.connection_pool_for(:cache),
+      url: Cache::RedisManager.url_for(:cache),
+      pool: Cache::RedisManager.connection_pool_for(:cache),
       error_handler: lambda { |method:, returning:, exception:|
         Rails.logger.error("Redis Cache Error: #{exception.message}")
         Raven.capture_exception(exception) if defined?(Raven) # Log to Sentry if available

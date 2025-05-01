@@ -31,9 +31,11 @@ test:
 
 production:
   <<: *default
+  host: dpg-d09kdure5dus73boghi0-a
+  port: 5432
   database: reflex_agent_production
-  username: postgres
-  password: Ead3g3he+
+  username: reflex_agent_production_user
+  password: Dl6S9x0DT6kwCGNJXnmGbNJySh0vLlv3
 
   # The specified database role being used to connect to PostgreSQL.
   # To create additional roles in PostgreSQL see `$ createuser --help`.

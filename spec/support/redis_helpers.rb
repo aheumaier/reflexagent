@@ -16,7 +16,7 @@ module RedisHelpers
   def clear_redis(pattern = "queue:*")
     return true unless self.class.redis_available?
 
-    Adapters::Cache::RedisManager.with_redis do |redis|
+    Cache::RedisManager.with_redis do |redis|
       redis.keys(pattern).each do |key|
         redis.del(key)
       end
@@ -30,7 +30,7 @@ module RedisHelpers
   def queue_depth(queue_name)
     return 0 unless self.class.redis_available?
 
-    Adapters::Cache::RedisManager.with_redis do |redis|
+    Cache::RedisManager.with_redis do |redis|
       redis.llen("queue:test:#{queue_name}")
     end
   end
@@ -54,7 +54,7 @@ module RedisHelpers
 
       begin
         # Try to connect and ping Redis
-        Adapters::Cache::RedisManager.with_redis do |redis|
+        Cache::RedisManager.with_redis do |redis|
           redis.ping
         end
         @redis_available = true

@@ -3,11 +3,11 @@ require_relative "../../app/adapters/cache/redis_cache"
 require_relative "../../app/core/domain/metric"
 
 RSpec.describe "Metric Caching", type: :integration do
-  let(:cache) { Adapters::Cache::RedisCache.new }
+  let(:cache) { Cache::RedisCache.new }
 
   # Create a helper method to execute commands on Redis
   def with_redis(&block)
-    Adapters::Cache::RedisCache.with_redis(&block)
+    Cache::RedisCache.with_redis(&block)
   end
 
   # Helper method to create a test metric

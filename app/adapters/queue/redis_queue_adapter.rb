@@ -387,7 +387,7 @@ module Adapters
         if defined?(REDIS_POOL)
           REDIS_POOL.with(&)
         else
-          Adapters::Cache::RedisManager.with_redis(:queue, &)
+          Cache::RedisCache.with_redis(&)
         end
       end
 
@@ -405,16 +405,24 @@ module Adapters
       # @param error [Exception] The error that caused the failure
       def enqueue_to_dead_letter(item, error)
         with_redis do |redis|
-          dead_letter_item = item.merge(
-            error: {
-              message: error.message,
-              backtrace: error.backtrace&.take(10),
-              time: Time.current.iso8601
-            }
-          )
+          # Add error info to the item
+          item[:error] = {
+            message: error.message,
+            backtrace: error.backtrace&.first(5),
+            time: Time.current.iso8601
+          }
 
-          redis.rpush("queue:dead_letter", dead_letter_item.to_json)
-          redis.expire("queue:dead_letter", DEFAULT_TTL)
+          # Increment retry count
+          item[:retries] = (item[:retries] || 0) + 1
+
+          # If max retries not reached, requeue with delay
+          if item[:retries] <= DEFAULT_MAX_RETRIES
+            # Add to delayed queue for retry
+            redis.rpush("#{QUEUES[:raw_events]}:retry", serialize_item(item))
+          else
+            # Move to dead letter queue
+            redis.rpush("#{QUEUES[:raw_events]}#{DLQ_SUFFIX}", serialize_item(item))
+          end
         end
       end
 
@@ -426,15 +434,20 @@ module Adapters
       def move_to_dlq(item, queue_name: DEFAULT_QUEUE, error: nil)
         dlq_name = "#{queue_name}#{DLQ_SUFFIX}"
 
-        # Add error information to the item
-        dlq_item = {
-          original_item: item,
-          error: error&.message,
-          backtrace: error&.backtrace&.first(10),
-          failed_at: Time.current
-        }
+        with_redis do |redis|
+          # Add error info and timestamp
+          dlq_item = item.dup
+          dlq_item[:moved_to_dlq_at] = Time.current.iso8601
 
-        enqueue(dlq_item, queue_name: dlq_name)
+          if error
+            dlq_item[:error] = {
+              message: error.message,
+              backtrace: error.backtrace&.first(5)
+            }
+          end
+
+          redis.rpush(dlq_name, serialize_item(dlq_item))
+        end
       end
 
       # Enqueues an item to the specified queue with backpressure handling
@@ -445,43 +458,43 @@ module Adapters
         queue_name = QUEUES[queue_key]
 
         with_redis do |redis|
-          # Apply backpressure if the queue is too large
-          if redis.llen(queue_name) >= MAX_QUEUE_SIZE[queue_key]
-            # We have a few strategies for backpressure:
-            # 1. Raise an exception (which would result in a 429 Too Many Requests)
-            # 2. Drop the item (which would result in data loss)
-            # 3. Process older items in the queue to make room
+          # Check queue depth again (race condition protection)
+          current_depth = redis.llen(queue_name)
 
-            # For now, we'll use strategy 1 - inform the client of backpressure
-            raise QueueBackpressureError, "Queue #{queue_key} is full (max: #{MAX_QUEUE_SIZE[queue_key]})"
+          # Apply backpressure if queue is too full
+          if current_depth >= MAX_QUEUE_SIZE[queue_key]
+            raise QueueBackpressureError, "Queue #{queue_key} is full (#{current_depth}/#{MAX_QUEUE_SIZE[queue_key]})"
           end
 
-          # Add the item to the queue
-          redis.multi do |transaction|
-            transaction.rpush(queue_name, item.to_json)
-            transaction.expire(queue_name, DEFAULT_TTL) # Ensure the queue has a TTL
+          # Add standard metadata
+          if item.is_a?(Hash)
+            item[:enqueued_at] ||= Time.current.iso8601
+            item[:queue] = queue_name
           end
+
+          # Serialize and enqueue
+          serialized_item = serialize_item(item)
+          redis.rpush(queue_name, serialized_item)
+
+          # Set TTL on queue
+          redis.expire(queue_name, DEFAULT_TTL)
         end
-
-        # Use debug level for routine successful enqueues
-        Rails.logger.debug { "Enqueued item to #{queue_key} queue (id: #{item[:id]})" }
-        true
       end
 
       # Serialize an item for storage
       def serialize_item(item)
         JSON.generate(item)
-      rescue StandardError => e
-        Rails.logger.error("Queue item serialization error: #{e.message}")
-        JSON.generate({ error: "Serialization failed", original_class: item.class.name })
+      rescue JSON::GeneratorError => e
+        Rails.logger.error("Failed to serialize queue item: #{e.message}")
+        JSON.generate(error: "Serialization error: #{e.message}")
       end
 
       # Deserialize an item from storage
       def deserialize_item(serialized_item)
         JSON.parse(serialized_item, symbolize_names: true)
-      rescue StandardError => e
-        Rails.logger.error("Queue item deserialization error: #{e.message}")
-        { error: "Deserialization failed", raw_data: serialized_item }
+      rescue JSON::ParserError => e
+        Rails.logger.error("Failed to deserialize queue item: #{e.message}")
+        { error: "Deserialization error: #{e.message}" }
       end
 
       # Serializes an event for storage in Redis
@@ -490,10 +503,11 @@ module Adapters
       def serialize_event(event)
         {
           id: event.id,
-          name: event.name,
+          type: event.type,
           source: event.source,
           timestamp: event.timestamp.iso8601,
-          type: "event"
+          data: event.data,
+          metadata: event.metadata
         }
       end
 
@@ -506,7 +520,7 @@ module Adapters
           name: metric.name,
           value: metric.value,
           timestamp: metric.timestamp.iso8601,
-          type: "metric"
+          dimensions: metric.dimensions
         }
       end
 

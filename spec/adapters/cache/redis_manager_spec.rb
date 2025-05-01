@@ -2,7 +2,7 @@
 
 require "rails_helper"
 
-RSpec.describe Adapters::Cache::RedisManager do
+RSpec.describe Cache::RedisManager do
   describe ".url_for" do
     it "returns the default URL for :default purpose" do
       allow(ENV).to receive(:fetch).with("REDIS_URL", "redis://localhost:6379/0").and_return("redis://test:6379/0")

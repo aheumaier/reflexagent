@@ -70,7 +70,7 @@ Rails.application.config.after_initialize do
     # Cache port implementation
     DependencyContainer.register(
       :cache_port,
-      Adapters::Cache::RedisCache.new
+      Cache::RedisCache.new
     )
 
     # Notification port implementation
