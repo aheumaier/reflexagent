@@ -5,6 +5,7 @@ require "connection_pool"
 
 # Make sure to load ports before adapters to avoid uninitialized constant errors
 require_relative "../../app/ports/cache_port"
+require_relative "../../app/ports/queue_port"
 
 # Require our Redis-related classes
 require_relative "../../app/adapters/cache/redis_manager"
