@@ -165,25 +165,28 @@ def custom_event_payload
   }
 end
 
-# Print intro
-puts "ReflexAgent Webhook Demo"
-puts "======================="
-puts "Sending webhooks to #{BASE_URL}/events\n\n"
+# Only run the script when it's called directly, not when required/loaded
+if __FILE__ == $PROGRAM_NAME
+  # Print intro
+  puts "ReflexAgent Webhook Demo"
+  puts "======================="
+  puts "Sending webhooks to #{BASE_URL}/events\n\n"
 
-# Send GitHub webhook with token auth
-puts "Sending GitHub commit webhook..."
-send_webhook("github", github_commit_payload, "token")
+  # Send GitHub webhook with token auth
+  puts "Sending GitHub commit webhook..."
+  send_webhook("github", github_commit_payload, "token")
 
-# Send Jira webhook with bearer auth
-puts "Sending Jira issue webhook..."
-send_webhook("jira", jira_issue_payload, "bearer")
+  # Send Jira webhook with bearer auth
+  puts "Sending Jira issue webhook..."
+  send_webhook("jira", jira_issue_payload, "bearer")
 
-# Send GitLab webhook with token auth
-puts "Sending GitLab merge request webhook..."
-send_webhook("gitlab", gitlab_merge_request_payload, "token")
+  # Send GitLab webhook with token auth
+  puts "Sending GitLab merge request webhook..."
+  send_webhook("gitlab", gitlab_merge_request_payload, "token")
 
-# Send custom webhook with token auth
-puts "Sending custom deployment webhook..."
-send_webhook("deployment", custom_event_payload, "token")
+  # Send custom webhook with token auth
+  puts "Sending custom deployment webhook..."
+  send_webhook("deployment", custom_event_payload, "token")
 
-puts "All done! Check your application logs for details on processing."
+  puts "All done! Check your application logs for details on processing."
+end
