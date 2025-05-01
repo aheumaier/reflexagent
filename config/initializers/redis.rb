@@ -9,7 +9,7 @@ require_relative "../../app/ports/cache_port"
 # Require our Redis-related classes
 require_relative "../../app/adapters/cache/redis_manager"
 require_relative "../../app/adapters/cache/redis_cache"
-require_relative "../../app/adapters/queue/redis_queue"
+require_relative "../../app/adapters/queue/redis_queue_adapter"
 
 # Set up global constants for backward compatibility
 REDIS_POOL = Adapters::Cache::RedisManager.connection_pool_for(:default)

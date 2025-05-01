@@ -50,7 +50,6 @@ Rails.application.config.after_initialize do
     require_relative "../../app/adapters/repositories/event_repository"
     require_relative "../../app/adapters/cache/redis_cache"
     require_relative "../../app/adapters/notifications/slack_notifier"
-    require_relative "../../app/adapters/queue/process_event_worker"
     require_relative "../../app/adapters/queue/redis_queue_adapter"
 
     # Now register them

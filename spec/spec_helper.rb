@@ -44,7 +44,7 @@ require_relative "../app/core/use_cases/list_alerts"
 # require_relative '../app/adapters/repositories/event_repository'
 # require_relative '../app/adapters/repositories/metric_repository'
 # require_relative '../app/adapters/repositories/alert_repository'
-require_relative "../app/adapters/queue/process_event_worker"
+require_relative "../app/adapters/queue/redis_queue_adapter"
 
 # Factory
 require_relative "../app/core/use_case_factory"
