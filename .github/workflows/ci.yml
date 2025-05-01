@@ -1,0 +1,81 @@
+name: ReflexAgent CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: reflexagent_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 3.3.2
+        bundler-cache: true # runs 'bundle install' and caches installed gems automatically
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+        cache: 'yarn'
+    
+    - name: Install dependencies
+      run: |
+        gem install bundler
+        bundle install --jobs 4 --retry 3
+        yarn install
+    
+    - name: Setup database
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/reflexagent_test
+      run: |
+        bundle exec rails db:prepare
+    
+    - name: Run unit tests
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/reflexagent_test
+        REDIS_URL: redis://localhost:6379/1
+      run: bundle exec rspec --exclude-pattern "spec/integration/**/*_spec.rb"
+    
+    - name: Run integration tests
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/reflexagent_test
+        REDIS_URL: redis://localhost:6379/1
+      run: bundle exec rspec spec/integration
+    
+    - name: Generate coverage report
+      uses: simplecov-ruby/simplecov-ruby-action@v1
+      with:
+        minimum_coverage: 80% 
