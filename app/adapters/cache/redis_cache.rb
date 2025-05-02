@@ -1,35 +1,121 @@
 # frozen_string_literal: true
 
+require_relative "../../ports/cache_port"
 module Cache
   class RedisCache
-    include Ports::CachePort
+    include CachePort
+
+    # Class-level connection pool cache
+    class_attribute :connection_pool_cache, default: {}
+
+    # Default expiration time of 1 hour if not specified
+    DEFAULT_TTL = 3600
 
     # Redis connection management
     def self.redis
-      # If using the connection pool (preferred for thread safety)
-      if defined?(REDIS_POOL)
-        # Just return the pool - callers should use with_redis for thread safety
-        REDIS_POOL
-      else
-        # Fallback for older code or tests
-        @redis ||= Redis.new(
-          url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"),
-          reconnect_attempts: 3
-        )
-      end
+      @redis ||= Redis.new(
+        url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"),
+        reconnect_attempts: 3
+      )
     end
 
     # Helper method to execute a block with a Redis connection
-    def self.with_redis(&)
-      if defined?(REDIS_POOL)
-        REDIS_POOL.with(&)
+    def self.with_redis(purpose = :default, &)
+      if defined?(ConnectionPool) && block_given?
+        connection_pool_for(purpose).with(&)
       else
         yield redis
       end
     end
 
-    # Default expiration time of 1 hour if not specified
-    DEFAULT_TTL = 3600
+    # Configure ConnectionPool size and timeout from ENV
+    def self.connection_pool_size
+      ENV.fetch("REDIS_POOL_SIZE", 10).to_i
+    end
+
+    def self.connection_pool_timeout
+      ENV.fetch("REDIS_POOL_TIMEOUT", 5).to_i
+    end
+
+    # Return the URL for a Redis DB for a given purpose
+    def self.url_for(purpose = :default)
+      case purpose.to_sym
+      when :cache then ENV.fetch("REDIS_CACHE_URL") { ENV.fetch("REDIS_URL", "redis://localhost:6379/0") }
+      when :queue then ENV.fetch("REDIS_QUEUE_URL") { ENV.fetch("REDIS_URL", "redis://localhost:6379/0") }
+      when :throttling then ENV.fetch("REDIS_THROTTLING_URL") { ENV.fetch("REDIS_URL", "redis://localhost:6379/0") }
+      else ENV.fetch("REDIS_URL", "redis://localhost:6379/0")
+      end
+    end
+
+    # Build a new connection pool
+    def self.build_connection_pool(purpose)
+      require "connection_pool" unless defined?(ConnectionPool)
+
+      ConnectionPool.new(size: connection_pool_size, timeout: connection_pool_timeout) do
+        client = Redis.new(
+          url: url_for(purpose),
+          timeout: ENV.fetch("REDIS_TIMEOUT", 5).to_i,
+          reconnect_attempts: ENV.fetch("REDIS_RECONNECT_ATTEMPTS", 3).to_i
+        )
+
+        # Run a quick test to ensure the connection works in development
+        if Rails.env.development?
+          begin
+            client.ping
+            Rails.logger.info("Redis connection successful: #{url_for(purpose)}")
+          rescue Redis::BaseError => e
+            Rails.logger.error("Redis connection failed: #{e.message}")
+          end
+        end
+
+        client
+      end
+    end
+
+    # Find or build a connection pool
+    def self.find_or_build_connection_pool(purpose)
+      connection_pool_cache[purpose] ||= build_connection_pool(purpose)
+    end
+
+    # Return a memoized ConnectionPool instance for a given purpose
+    def self.connection_pool_for(purpose = :default)
+      case purpose.to_sym
+      when :cache then find_or_build_connection_pool(:cache)
+      when :queue then find_or_build_connection_pool(:queue)
+      when :throttling then find_or_build_connection_pool(:throttling)
+      else find_or_build_connection_pool(:default)
+      end
+    end
+
+    # Initialize Rails cache if using Redis Cache Store
+    def self.initialize_rails_cache!
+      cache_store_config = Rails.application.config.cache_store
+
+      if (cache_store_config.is_a?(Array) && cache_store_config[0] == :redis_cache_store) ||
+         cache_store_config == :redis_cache_store
+
+        Rails.application.config.cache_store = [
+          :redis_cache_store,
+          {
+            url: url_for(:cache),
+            pool: connection_pool_for(:cache),
+            error_handler: lambda { |method:, returning:, exception:|
+              Rails.logger.error("Redis Cache Error: #{exception.message}")
+              Raven.capture_exception(exception) if defined?(Raven)
+            }
+          }
+        ]
+      end
+    end
+
+    # For backward compatibility
+    def self.redis_pool
+      if defined?(REDIS_POOL)
+        REDIS_POOL
+      else
+        connection_pool_for(:default)
+      end
+    end
 
     # Write a value to the cache
     # @param key [String] The cache key
@@ -37,7 +123,7 @@ module Cache
     # @param ttl [Integer] Time to live in seconds
     # @return [Boolean] true if successful
     def write(key, value, ttl: DEFAULT_TTL)
-      Cache::RedisManager.with_redis(:cache) do |redis|
+      self.class.with_redis(:cache) do |redis|
         redis.setex(normalized_key(key), ttl, ActiveSupport::JSON.encode(value))
       end
       true
@@ -50,7 +136,7 @@ module Cache
     # @param key [String] The cache key
     # @return [Object, nil] The cached value or nil if not found/expired
     def read(key)
-      data = Cache::RedisManager.with_redis(:cache) do |redis|
+      data = self.class.with_redis(:cache) do |redis|
         redis.get(normalized_key(key))
       end
 
@@ -69,7 +155,7 @@ module Cache
     # @param key [String] The cache key
     # @return [Boolean] true if the key exists
     def exist?(key)
-      Cache::RedisManager.with_redis(:cache) do |redis|
+      self.class.with_redis(:cache) do |redis|
         redis.exists?(normalized_key(key))
       end
     rescue Redis::BaseError => e
@@ -81,7 +167,7 @@ module Cache
     # @param key [String] The cache key
     # @return [Boolean] true if successful
     def delete(key)
-      Cache::RedisManager.with_redis(:cache) do |redis|
+      self.class.with_redis(:cache) do |redis|
         redis.del(normalized_key(key))
       end
       true
@@ -94,7 +180,7 @@ module Cache
     # @param pattern [String] Pattern to match (e.g., "user:*")
     # @return [Boolean] true if successful
     def clear(pattern = "*")
-      Cache::RedisManager.with_redis(:cache) do |redis|
+      self.class.with_redis(:cache) do |redis|
         keys = redis.keys(normalized_key(pattern))
         redis.del(*keys) unless keys.empty?
       end

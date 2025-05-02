@@ -5,12 +5,12 @@
 class DependencyContainer
   class << self
     def register(port, adapter)
-      Rails.logger.debug { "Registering adapter for port: #{port} with #{adapter.class.name}" }
+      Rails.logger.info { "Registering adapter for port: #{port} with #{adapter.class.name}" }
       adapters[port] = adapter
     end
 
     def resolve(port)
-      Rails.logger.debug { "Resolving adapter for port: #{port} (available: #{adapters.keys.inspect})" }
+      Rails.logger.info { "Resolving adapter for port: #{port} (available: #{adapters.keys.inspect})" }
       adapters[port] or raise "No adapter registered for port: #{port}"
     end
 
@@ -25,7 +25,7 @@ class DependencyContainer
   end
 end
 
-# Register adapters in an initializer that runs after Rails is fully loaded
+# Register dependencies adapters in an initializer that runs after Rails is fully loaded
 Rails.application.config.after_initialize do
   Rails.logger.info "Initializing dependency injection..."
 
@@ -38,19 +38,20 @@ Rails.application.config.after_initialize do
     require_relative "../../app/core/domain/actuator"
     require_relative "../../app/core/domain/reflexive_agent"
 
-    # Load ALL ports before ANY adapters
+    # Not - need in eager loading Load ALL ports before ANY adapters
     require_relative "../../app/ports/ingestion_port"
     require_relative "../../app/ports/storage_port"
     require_relative "../../app/ports/cache_port"
-    require_relative "../../app/ports/notification_port"
     require_relative "../../app/ports/queue_port"
+    require_relative "../../app/ports/notification_port"
 
     # Only after ALL ports are loaded, load adapter classes
     require_relative "../../app/adapters/web/web_adapter"
     require_relative "../../app/adapters/repositories/event_repository"
     require_relative "../../app/adapters/cache/redis_cache"
     require_relative "../../app/adapters/notifications/slack_notifier"
-    require_relative "../../app/adapters/queue/redis_queue_adapter"
+    require_relative "../../app/adapters/notifications/email_notifier"
+    require_relative "../../app/adapters/queuing/redis_queue_adapter"
 
     # Now register them
     Rails.logger.info "Registering adapters..."
@@ -58,13 +59,13 @@ Rails.application.config.after_initialize do
     # Ingestion port implementation
     DependencyContainer.register(
       :ingestion_port,
-      Adapters::Web::WebAdapter.new
+      Web::WebAdapter.new
     )
 
     # Storage port implementation
     DependencyContainer.register(
       :storage_port,
-      Adapters::Repositories::EventRepository.new
+      Repositories::EventRepository.new
     )
 
     # Cache port implementation
@@ -73,16 +74,16 @@ Rails.application.config.after_initialize do
       Cache::RedisCache.new
     )
 
-    # Notification port implementation
-    DependencyContainer.register(
-      :notification_port,
-      Adapters::Notifications::SlackNotifier.new
-    )
-
     # Queue port implementation
     DependencyContainer.register(
       :queue_port,
-      Adapters::Queue::RedisQueueAdapter.new
+      Queuing::RedisQueueAdapter.new
+    )
+
+    # Notification port implementation
+    DependencyContainer.register(
+      :notification_port,
+      Notifications::EmailNotifier.new
     )
 
     Rails.logger.info "Dependency injection initialized with ports: #{DependencyContainer.adapters.keys.inspect}"

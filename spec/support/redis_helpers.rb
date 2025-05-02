@@ -50,20 +50,13 @@ module RedisHelpers
     # Check if Redis is available for testing
     # @return [Boolean] true if Redis is available, false otherwise
     def redis_available?
-      return @redis_available if defined?(@redis_available)
-
-      begin
-        # Try to connect and ping Redis
-        Cache::RedisManager.with_redis do |redis|
-          redis.ping
+      @redis_available ||= begin
+        Cache::RedisCache.with_redis(:default) do |redis|
+          redis.ping == "PONG"
         end
-        @redis_available = true
-      rescue Redis::CannotConnectError, Redis::ConnectionError => e
-        Rails.logger.warn("Redis not available for tests: #{e.message}")
-        @redis_available = false
+      rescue Redis::CannotConnectError, Redis::ConnectionError
+        false
       end
-
-      @redis_available
     end
 
     # Skip a test if Redis is not available

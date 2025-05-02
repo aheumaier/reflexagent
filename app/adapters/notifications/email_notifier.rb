@@ -1,27 +1,29 @@
-module Adapters
-  module Notifications
-    class EmailNotifier
-      include Ports::NotificationPort
+# frozen_string_literal: true
 
-      def initialize(mailer: ApplicationMailer)
-        @mailer = mailer
-      end
+require_relative "../../ports/notification_port"
 
-      def send_alert(alert)
-        @mailer.alert_notification(
-          severity: alert.severity,
-          message: alert.message,
-          timestamp: alert.created_at,
-          details: alert.details
-        ).deliver_now
-      end
+module Notifications
+  class EmailNotifier
+    include NotificationPort
 
-      def send_message(channel, message)
-        @mailer.general_notification(
-          channel: channel,
-          message: message
-        ).deliver_now
-      end
+    def initialize(mailer: ApplicationMailer)
+      @mailer = mailer
+    end
+
+    def send_alert(alert)
+      @mailer.alert_notification(
+        severity: alert.severity,
+        message: alert.message,
+        timestamp: alert.created_at,
+        details: alert.details
+      ).deliver_now
+    end
+
+    def send_message(channel, message)
+      @mailer.general_notification(
+        channel: channel,
+        message: message
+      ).deliver_now
     end
   end
 end

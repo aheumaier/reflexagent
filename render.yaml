@@ -3,7 +3,7 @@ services:
   - type: web
     name: reflexagent-web
     env: ruby
-    buildCommand: bundle install && bundle exec rake assets:precompile
+    buildCommand: render-build.sh 
     startCommand: bundle exec puma -C config/puma.rb
     healthCheckPath: /health
     envVars:
