@@ -172,12 +172,12 @@ module Domain
     # Validate that an actuator responds to the execute method
     def validate_actuator(actuator)
       # Support both direct type check and duck typing for flexibility
-      if (defined?(Core::Domain::Actuator) && actuator.is_a?(Core::Domain::Actuator)) ||
+      if (defined?(Domain::Actuator) && actuator.is_a?(Domain::Actuator)) ||
          (actuator.respond_to?(:execute) && actuator.respond_to?(:name) &&
           actuator.respond_to?(:supported_actions) && actuator.respond_to?(:supports_action?))
         true
       else
-        raise ArgumentError, "Actuator must implement proper interfaces or be a Core::Domain::Actuator"
+        raise ArgumentError, "Actuator must implement proper interfaces or be a Domain::Actuator"
       end
     end
 

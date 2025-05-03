@@ -24,7 +24,8 @@ module UseCases
 
       # Store the event in the repository
       begin
-        @storage_port.save_event(event)
+        stored_event = @storage_port.save_event(event)
+        event = stored_event
         Rails.logger.debug { "Event saved: #{event.id}" }
       rescue StandardError => e
         Rails.logger.error("Error saving event: #{e.message}")

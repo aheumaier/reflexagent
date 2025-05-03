@@ -1,0 +1,56 @@
+<!-- Super simple navbar with explicit inline styles -->
+<div style="background-color: #4338ca; color: white; padding: 16px 0; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 0 16px; display: flex; justify-content: space-between; align-items: center;">
+    <!-- Left side with app name and nav -->
+    <div style="display: flex; align-items: center;">
+      <!-- App name -->
+      <span style="font-weight: bold; font-size: 20px; margin-right: 24px;">ReflexAgent</span>
+      
+      <!-- Nav links with inline flex -->
+      <div style="display: flex; gap: 16px;">
+        <%= link_to "Engineering", engineering_dashboard_path, 
+            style: "color: white; padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500; #{current_page?(engineering_dashboard_path) ? 'background-color: #3730a3;' : ''}" %>
+        
+        <a href="#" style="color: white; padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">Product</a>
+        <a href="#" style="color: white; padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">Operations</a>
+        <a href="#" style="color: white; padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;">Security</a>
+      </div>
+    </div>
+    
+    <!-- Right side with notifications and profile -->
+    <div style="display: flex; align-items: center; gap: 16px;">
+      <!-- Notification bell -->
+      <div style="position: relative;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+        </svg>
+        <span style="position: absolute; top: -8px; right: -8px; background-color: #ef4444; color: white; border-radius: 9999px; height: 18px; width: 18px; font-size: 12px; display: flex; align-items: center; justify-content: center;">3</span>
+      </div>
+      
+      <!-- Profile avatar -->
+      <div style="background-color: #3730a3; color: white; width: 32px; height: 32px; border-radius: 9999px; display: flex; align-items: center; justify-content: center; font-weight: 500;">
+        AH
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Sub-header with metrics title and date filtering -->
+<div style="background-color: white; box-shadow: 0 1px 3px rgba(0,0,0,0.1); padding: 16px 0;">
+  <div style="max-width: 1280px; margin: 0 auto; padding: 0 16px; display: flex; justify-content: space-between; align-items: center;">
+    <h1 style="font-size: 24px; font-weight: bold; color: #111827; margin: 0;">Engineering Metrics <span style="font-size: 16px; color: #6b7280; font-weight: normal;">(Last <%= @selected_period || 7 %> Days)</span></h1>
+    
+    <!-- Date filter buttons with debugging -->
+    <div style="display: flex; gap: 12px;">
+      <%= link_to "Last 7 Days", engineering_dashboard_path(days: 7), 
+          style: "#{@selected_period == 7 ? 'background-color: #4338ca; color: white;' : 'background-color: white; color: #374151; border: 1px solid #d1d5db;'} padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;", 
+          data: { turbo: true },
+          onclick: "console.log('7 days filter clicked'); return true;" %>
+          
+      <%= link_to "Last 30 Days", engineering_dashboard_path(days: 30), 
+          style: "#{@selected_period == 30 ? 'background-color: #4338ca; color: white;' : 'background-color: white; color: #374151; border: 1px solid #d1d5db;'} padding: 8px 12px; border-radius: 4px; text-decoration: none; font-size: 14px; font-weight: 500;", 
+          data: { turbo: true },
+          onclick: "console.log('30 days filter clicked'); return true;" %>
+    </div>
+  </div>
+</div> 

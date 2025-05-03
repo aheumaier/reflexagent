@@ -1,16 +1,61 @@
 <!DOCTYPE html>
-<html>
+<html class="h-full bg-gray-50">
   <head>
     <title>ReflexAgent</title>
     <meta name="viewport" content="width=device-width,initial-scale=1">
     <%= csrf_meta_tags %>
     <%= csp_meta_tag %>
+    <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
 
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
     <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
+    
+    <!-- Chart.js fallback for development testing -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Debugging tools -->
+    <script>
+      window.addEventListener('DOMContentLoaded', () => {
+        console.log('DOM loaded from application layout');
+        
+        // Check if Stimulus is loaded
+        if (window.Stimulus) {
+          console.log('Stimulus is available globally');
+        } else {
+          console.warn('Stimulus is not available globally - controllers may not work');
+        }
+        
+        // Check if Chart.js is loaded
+        if (window.Chart) {
+          console.log('Chart.js is available globally');
+        } else {
+          console.error('Chart.js is not available globally - charts will not work');
+        }
+        
+        // Log viewport dimensions
+        const viewportWidth = window.innerWidth || document.documentElement.clientWidth;
+        const viewportHeight = window.innerHeight || document.documentElement.clientHeight;
+        console.log(`Viewport dimensions: ${viewportWidth}px × ${viewportHeight}px`);
+        
+        // Check viewport size classes
+        const breakpoints = { sm: 640, md: 768, lg: 1024, xl: 1280, '2xl': 1536 };
+        const currentBreakpoint = Object.keys(breakpoints).filter(
+          key => viewportWidth >= breakpoints[key]
+        ).pop() || 'xs';
+        console.log(`Current breakpoint: ${currentBreakpoint}`);
+      });
+    </script>
   </head>
 
-  <body>
-    <%= yield %>
+  <body class="h-full">
+    <div class="min-h-full">
+      <%= render 'shared/navbar' %>
+      
+      <main>
+        <div class="mx-auto max-w-7xl py-6 sm:px-6 lg:px-8">
+          <%= yield %>
+        </div>
+      </main>
+    </div>
   </body>
 </html>

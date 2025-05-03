@@ -41,6 +41,16 @@ module StoragePort
     raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
   end
 
+  # Find an aggregate metric by name and dimensions
+  def find_aggregate_metric(name, dimensions)
+    raise NotImplementedError
+  end
+
+  # Update an existing metric (for aggregates)
+  def update_metric(metric)
+    raise NotImplementedError
+  end
+
   # Metric analytics operations
   def get_average(name, start_time = nil, end_time = nil)
     raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"

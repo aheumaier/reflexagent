@@ -37,6 +37,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/core/domain/metric"
     require_relative "../../app/core/domain/actuator"
     require_relative "../../app/core/domain/reflexive_agent"
+    require_relative "../../app/core/domain/metric_classifier"
 
     # Not - need in eager loading Load ALL ports before ANY adapters
     require_relative "../../app/ports/ingestion_port"
@@ -48,10 +49,12 @@ Rails.application.config.after_initialize do
     # Only after ALL ports are loaded, load adapter classes
     require_relative "../../app/adapters/web/web_adapter"
     require_relative "../../app/adapters/repositories/event_repository"
+    require_relative "../../app/adapters/repositories/metric_repository"
+    require_relative "../../app/adapters/repositories/alert_repository"
     require_relative "../../app/adapters/cache/redis_cache"
     require_relative "../../app/adapters/notifications/slack_notifier"
     require_relative "../../app/adapters/notifications/email_notifier"
-    require_relative "../../app/adapters/queuing/redis_queue_adapter"
+    require_relative "../../app/adapters/queuing/sidekiq_queue_adapter"
 
     # Now register them
     Rails.logger.info "Registering adapters..."
@@ -62,10 +65,19 @@ Rails.application.config.after_initialize do
       Web::WebAdapter.new
     )
 
-    # Storage port implementation
+    # Register domain-specific repositories directly
+    # Each repository is now explicitly used by the appropriate use cases
     DependencyContainer.register(
-      :storage_port,
+      :event_repository,
       Repositories::EventRepository.new
+    )
+    DependencyContainer.register(
+      :metric_repository,
+      Repositories::MetricRepository.new
+    )
+    DependencyContainer.register(
+      :alert_repository,
+      Repositories::AlertRepository.new
     )
 
     # Cache port implementation
@@ -77,13 +89,19 @@ Rails.application.config.after_initialize do
     # Queue port implementation
     DependencyContainer.register(
       :queue_port,
-      Queuing::RedisQueueAdapter.new
+      Queuing::SidekiqQueueAdapter.new
     )
 
     # Notification port implementation
     DependencyContainer.register(
       :notification_port,
       Notifications::EmailNotifier.new
+    )
+
+    # Register the MetricClassifier as a service
+    DependencyContainer.register(
+      :metric_classifier,
+      Domain::MetricClassifier.new
     )
 
     Rails.logger.info "Dependency injection initialized with ports: #{DependencyContainer.adapters.keys.inspect}"

@@ -10,7 +10,7 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
 
     # Create and register our test adapters
     event_repo = Adapters::Repositories::EventRepository.new
-    metric_repo = Adapters::Repositories::MetricRepository.new
+    metric_repo = Repositories::MetricRepository.new
     alert_repo = Adapters::Repositories::AlertRepository.new
 
     @storage_port = double("StoragePort")
@@ -62,11 +62,25 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
       raw_payload
     }
 
+    @metric_classifier = double("MetricClassifier")
+    allow(@metric_classifier).to receive(:classify_event) do |event|
+      {
+        metrics: [
+          {
+            name: "#{event.name}_count",
+            value: 1,
+            dimensions: { source: event.source }
+          }
+        ]
+      }
+    end
+
     DependencyContainer.register(:storage_port, @storage_port)
     DependencyContainer.register(:cache_port, @cache_port)
     DependencyContainer.register(:queue_port, @queue_port)
     DependencyContainer.register(:notification_port, @notification_port)
     DependencyContainer.register(:ingestion_port, @ingestion_port)
+    DependencyContainer.register(:metric_classifier, @metric_classifier)
   end
 
   after do
@@ -84,7 +98,8 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
 
       calculate_metrics = Core::UseCases::CalculateMetrics.new(
         storage_port: DependencyContainer.resolve(:storage_port),
-        cache_port: DependencyContainer.resolve(:cache_port)
+        cache_port: DependencyContainer.resolve(:cache_port),
+        metric_classifier: DependencyContainer.resolve(:metric_classifier)
       )
 
       # Start with a test event
@@ -188,7 +203,8 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
 
       calculate_metrics = Core::UseCases::CalculateMetrics.new(
         storage_port: DependencyContainer.resolve(:storage_port),
-        cache_port: DependencyContainer.resolve(:cache_port)
+        cache_port: DependencyContainer.resolve(:cache_port),
+        metric_classifier: DependencyContainer.resolve(:metric_classifier)
       )
 
       detect_anomalies = Core::UseCases::DetectAnomalies.new(

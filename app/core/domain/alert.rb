@@ -40,7 +40,7 @@ module Domain
     def valid?
       name.present? &&
         SEVERITIES.include?(severity) &&
-        !metric.nil? && metric.is_a?(Core::Domain::Metric) &&
+        !metric.nil? && metric.is_a?(Domain::Metric) &&
         !threshold.nil? &&
         timestamp.is_a?(Time) &&
         STATUSES.include?(status)
@@ -50,7 +50,7 @@ module Domain
       raise ArgumentError, "Name cannot be empty" if name.nil? || name.empty?
       raise ArgumentError, "Severity must be one of: #{SEVERITIES.join(', ')}" unless SEVERITIES.include?(severity)
       raise ArgumentError, "Metric cannot be nil" if metric.nil?
-      raise ArgumentError, "Metric must be a Core::Domain::Metric" unless metric.is_a?(Core::Domain::Metric)
+      raise ArgumentError, "Metric must be a Domain::Metric" unless metric.is_a?(Domain::Metric)
       raise ArgumentError, "Threshold cannot be nil" if threshold.nil?
       raise ArgumentError, "Timestamp must be a Time object" unless timestamp.is_a?(Time)
       raise ArgumentError, "Status must be one of: #{STATUSES.join(', ')}" unless STATUSES.include?(status)

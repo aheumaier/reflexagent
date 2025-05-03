@@ -12,7 +12,7 @@ RSpec.describe "Metric Caching", type: :integration do
 
   # Helper method to create a test metric
   def create_test_metric(options = {})
-    Core::Domain::Metric.new(
+    Domain::Metric.new(
       name: options[:name] || "test.metric",
       value: options[:value] || 85.5,
       source: options[:source] || "test-source",

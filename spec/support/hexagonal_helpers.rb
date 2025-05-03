@@ -94,8 +94,7 @@ module HexagonalHelpers
       private
 
       def add_id_to_event(event)
-        Core::Domain::Event.new(
-          id: next_id,
+        Domain::EventFactory.create(
           name: event.name,
           source: event.source,
           timestamp: event.timestamp,
@@ -104,7 +103,7 @@ module HexagonalHelpers
       end
 
       def add_id_to_metric(metric)
-        Core::Domain::Metric.new(
+        Domain::Metric.new(
           id: next_id,
           name: metric.name,
           value: metric.value,
@@ -115,7 +114,7 @@ module HexagonalHelpers
       end
 
       def add_id_to_alert(alert)
-        Core::Domain::Alert.new(
+        Domain::Alert.new(
           id: next_id,
           name: alert.name,
           severity: alert.severity,
@@ -262,7 +261,7 @@ end
 RSpec.configure do |config|
   config.include HexagonalHelpers::Dependencies
 
-  config.before(:each) do
+  config.before do
     setup_test_container
   end
 end

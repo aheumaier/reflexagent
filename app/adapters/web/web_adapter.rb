@@ -1,6 +1,8 @@
 # frozen_string_literal: true
 
 require_relative "../../ports/ingestion_port"
+require_relative "../../core/domain/event_factory"
+
 module Web
   class WebAdapter
     include IngestionPort
@@ -13,6 +15,8 @@ module Web
     def receive_event(raw_payload, source:)
       # Parse the JSON payload
       parsed_payload = JSON.parse(raw_payload, symbolize_names: true)
+
+      # Process the event based on source
 
       # Create and return a domain event based on the source
       case source
@@ -46,52 +50,106 @@ module Web
 
     # Handle GitHub specific event mapping
     def handle_github_event(payload)
+      # Process the GitHub event
+
       # Determine event type from payload
       # GitHub webhooks can have various formats depending on the event type
       event_type = determine_github_event_type(payload)
       repository = payload.dig(:repository, :full_name) || "unknown"
 
-      Rails.logger.debug { "Creating GitHub event: #{event_type} for repo: #{repository}" }
-
-      # Create a domain event using the loaded Core::Domain::Event class
-      # Log before creating to help debug any issues
+      # Create a domain event using the EventFactory
       begin
-        event = Core::Domain::Event.new(
+        Domain::EventFactory.create(
           name: "github.#{event_type}",
           source: "github",
           data: payload,
           timestamp: Time.current
         )
-        Rails.logger.debug { "Successfully created event: #{event.id}" }
-        event
       rescue StandardError => e
         Rails.logger.error("Error creating event: #{e.message}")
-        Rails.logger.error(e.backtrace.join("\n"))
         raise e
       end
     end
 
     # Helper method to determine GitHub event type from payload
     def determine_github_event_type(payload)
-      if payload[:ref] && payload[:commits]
-        # This is a push event
-        "push"
-      elsif payload[:action] && payload[:issue]
-        # This is an issue event
-        "issue.#{payload[:action]}"
-      elsif payload[:action] && payload[:pull_request]
-        # This is a pull request event
-        "pull_request.#{payload[:action]}"
-      elsif payload[:action] && payload[:comment] && payload[:issue]
-        # This is an issue comment event
-        "issue_comment.#{payload[:action]}"
-      elsif payload[:action] && payload[:comment] && payload[:pull_request]
-        # This is a PR comment event
-        "pull_request_review_comment.#{payload[:action]}"
-      else
-        # Generic fallback
-        payload[:action] || "unknown"
-      end
+      # The payload may have string keys instead of symbols when coming from demo_events.rb
+      # We'll support both by checking for string keys as well
+      ref_type = payload[:ref_type] || payload["ref_type"]
+      ref = payload[:ref] || payload["ref"]
+      has_commits = payload.key?(:commits) || payload.key?("commits")
+      is_deleted = payload[:deleted] || payload["deleted"]
+
+      # SPECIAL FOR CREATE EVENT: Use the fact that no action field indicates it's a "create" event
+      # This is an important check for our branch creation events
+      return "create" if ref_type && ref && !has_commits && !payload.key?(:action) && !payload.key?("action")
+
+      # Check for branch/tag creation events (create event)
+      return "create" if ref_type && ref && !has_commits
+
+      # Check for branch/tag deletion events (delete event)
+      return "delete" if ref_type && ref && is_deleted
+
+      # Check for push events
+      return "push" if ref && has_commits
+
+      # Remaining checks use the same pattern...
+
+      action = payload[:action] || payload["action"]
+      deployment = payload[:deployment] || payload["deployment"]
+      deployment_status = payload[:deployment_status] || payload["deployment_status"]
+      workflow_run = payload[:workflow_run] || payload["workflow_run"]
+      workflow_job = payload[:workflow_job] || payload["workflow_job"]
+      issue = payload[:issue] || payload["issue"]
+      pull_request = payload[:pull_request] || payload["pull_request"]
+      comment = payload[:comment] || payload["comment"]
+      review = payload[:review] || payload["review"]
+      check_run = payload[:check_run] || payload["check_run"]
+      check_suite = payload[:check_suite] || payload["check_suite"]
+      repository = payload[:repository] || payload["repository"]
+
+      # Check for deployment events
+      return "deployment.#{action}" if deployment && action
+
+      # Check for deployment status events
+      return "deployment_status.#{action}" if deployment_status && action
+
+      # Check for workflow run events
+      return "workflow_run.#{action}" if workflow_run && action
+
+      # Check for workflow job events
+      return "workflow_job.#{action}" if workflow_job && action
+
+      # Check for issue events
+      return "issues.#{action}" if action && issue && !comment
+
+      # Check for pull request events
+      return "pull_request.#{action}" if action && pull_request && !comment && !review
+
+      # Check for issue comment events
+      return "issue_comment.#{action}" if action && comment && issue
+
+      # Check for PR comment events
+      return "pull_request_review_comment.#{action}" if action && comment && pull_request
+
+      # Check for pull request review events
+      return "pull_request_review.#{action}" if action && review && pull_request
+
+      # Check for check run events
+      return "check_run.#{action}" if action && check_run
+
+      # Check for check suite events
+      return "check_suite.#{action}" if action && check_suite
+
+      # Check for repository events
+      return "repository.#{action}" if action && repository && !issue && !pull_request
+
+      # Generic fallback
+      # If we have an action but couldn't categorize the event, use it
+      return "#{action}" if action
+
+      # Last resort fallback
+      "unknown"
     end
 
     # Handle Jira specific event mapping
@@ -99,7 +157,7 @@ module Web
       event_type = payload[:webhookEvent] || "unknown"
       issue_key = payload.dig(:issue, :key) || "unknown"
 
-      Core::Domain::Event.new(
+      Domain::EventFactory.create(
         name: "jira.#{event_type}",
         source: "jira",
         data: payload,
@@ -112,7 +170,7 @@ module Web
       event_type = payload[:object_kind] || "unknown"
       project = payload.dig(:project, :path_with_namespace) || "unknown"
 
-      Core::Domain::Event.new(
+      Domain::EventFactory.create(
         name: "gitlab.#{event_type}",
         source: "gitlab",
         data: payload,
@@ -125,7 +183,7 @@ module Web
       event_type = payload[:event_key] || "unknown"
       repository = payload.dig(:repository, :full_name) || "unknown"
 
-      Core::Domain::Event.new(
+      Domain::EventFactory.create(
         name: "bitbucket.#{event_type}",
         source: "bitbucket",
         data: payload,
@@ -138,7 +196,7 @@ module Web
       # Extract a reasonable event name or use a default
       event_type = payload[:type] || payload[:event] || payload[:action] || "event"
 
-      Core::Domain::Event.new(
+      Domain::EventFactory.create(
         name: "#{source}.#{event_type}",
         source: source,
         data: payload,

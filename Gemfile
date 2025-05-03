@@ -85,3 +85,11 @@ group :test do
   gem "shoulda-matchers", "~> 6.0"
   gem "simplecov", "~> 0.22.0", require: false
 end
+
+gem "sidekiq", "~> 7.1"
+gem "sidekiq-cron", "~> 1.10"
+gem "sidekiq-scheduler", "~> 5.0"
+
+gem "tailwindcss-rails", "~> 4.2"
+
+gem "tailwindcss-ruby", "~> 4.1"

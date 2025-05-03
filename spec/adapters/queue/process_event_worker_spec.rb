@@ -17,14 +17,14 @@ RSpec.describe Adapters::Queue::RedisQueueAdapter do
   end
 
   let(:event) do
-    Core::Domain::Event.new(
+    Domain::EventFactory.create(
       name: "server.cpu.usage",
       data: { value: 85.5, host: "web-01" },
       source: "monitoring-agent"
     )
   end
   let(:metric) do
-    Core::Domain::Metric.new(
+    Domain::Metric.new(
       name: "cpu.usage",
       value: 85.5,
       source: "web-01",

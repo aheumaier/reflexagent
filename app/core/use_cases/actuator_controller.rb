@@ -12,7 +12,7 @@ module UseCases
     # @param actuator [Core::Domain::Actuator] The actuator to register
     # @return [Boolean] True if registration was successful
     def register(actuator)
-      raise ArgumentError, "Only actuators can be registered" unless actuator.is_a?(Core::Domain::Actuator)
+      raise ArgumentError, "Only actuators can be registered" unless actuator.is_a?(Domain::Actuator)
 
       raise ArgumentError, "An actuator with name '#{actuator.name}' is already registered" if @actuators[actuator.name]
 

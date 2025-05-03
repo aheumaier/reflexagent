@@ -1,0 +1,46 @@
+<div class="bg-white overflow-hidden shadow rounded-lg h-full">
+  <div class="px-5 py-6 h-full flex flex-col">
+    <dt class="text-sm font-medium text-gray-500 truncate"><%= title %></dt>
+    <dd class="mt-2 flex justify-between items-end">
+      <div>
+        <span class="text-4xl font-bold text-gray-900"><%= value %></span>
+        <span class="ml-1 text-sm text-gray-500"><%= unit %></span>
+      </div>
+      
+      <% 
+      badge_class = case rating&.downcase
+      when 'elite'
+        'bg-green-100 text-green-800'
+      when 'high'
+        'bg-blue-100 text-blue-800'
+      when 'medium'
+        'bg-yellow-100 text-yellow-800'
+      when 'low'
+        'bg-red-100 text-red-800'
+      else
+        'bg-gray-100 text-gray-800'
+      end
+      
+      rating_display = rating&.upcase || 'UNKNOWN'
+      %>
+      
+      <span class="px-3 py-1.5 text-xs font-medium rounded-full <%= badge_class %>">
+        <%= rating_display %>
+      </span>
+    </dd>
+    
+    <div class="mt-4 text-sm text-gray-500 flex-grow">
+      <%= description %>
+    </div>
+    
+    <% if Rails.env.development? %>
+    <div class="mt-4 pt-3 border-t border-gray-100 text-xs text-gray-400">
+      <% if defined?(debug_info) && debug_info.present? %>
+        <% debug_info.each do |key, value| %>
+          <div><span class="font-medium"><%= key %>:</span> <%= value %></div>
+        <% end %>
+      <% end %>
+    </div>
+    <% end %>
+  </div>
+</div> 

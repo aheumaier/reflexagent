@@ -11,61 +11,82 @@ require_relative "use_cases/list_alerts"
 class UseCaseFactory
   class << self
     def create_process_event
-      Core::UseCases::ProcessEvent.new(
+      UseCases::ProcessEvent.new(
         ingestion_port: DependencyContainer.resolve(:ingestion_port),
-        storage_port: DependencyContainer.resolve(:storage_port),
+        storage_port: DependencyContainer.resolve(:event_repository),
         queue_port: DependencyContainer.resolve(:queue_port)
       )
     end
 
     def create_calculate_metrics
-      Core::UseCases::CalculateMetrics.new(
-        storage_port: DependencyContainer.resolve(:storage_port),
-        cache_port: DependencyContainer.resolve(:cache_port)
+      # CalculateMetrics needs both repositories - it finds events but saves metrics
+      # Create a temporary composite adapter for backward compatibility
+      composite_repository = Object.new
+
+      # Add event repository methods
+      event_repository = DependencyContainer.resolve(:event_repository)
+      metric_repository = DependencyContainer.resolve(:metric_repository)
+
+      # Define methods on our anonymous composite object
+      composite_repository.define_singleton_method(:find_event) do |id|
+        event_repository.find_event(id)
+      end
+
+      # Add metric repository methods
+      [:save_metric, :find_metric, :find_aggregate_metric, :update_metric].each do |method|
+        composite_repository.define_singleton_method(method) do |*args|
+          metric_repository.send(method, *args)
+        end
+      end
+
+      UseCases::CalculateMetrics.new(
+        storage_port: composite_repository,
+        cache_port: DependencyContainer.resolve(:cache_port),
+        metric_classifier: DependencyContainer.resolve(:metric_classifier)
       )
     end
 
     def create_detect_anomalies
-      Core::UseCases::DetectAnomalies.new(
-        storage_port: DependencyContainer.resolve(:storage_port),
+      UseCases::DetectAnomalies.new(
+        storage_port: DependencyContainer.resolve(:metric_repository),
         notification_port: DependencyContainer.resolve(:notification_port)
       )
     end
 
     def create_send_notification
-      Core::UseCases::SendNotification.new(
-        storage_port: DependencyContainer.resolve(:storage_port),
+      UseCases::SendNotification.new(
+        storage_port: DependencyContainer.resolve(:alert_repository),
         notification_port: DependencyContainer.resolve(:notification_port)
       )
     end
 
     def create_find_event
-      Core::UseCases::FindEvent.new(
-        storage_port: DependencyContainer.resolve(:storage_port)
+      UseCases::FindEvent.new(
+        storage_port: DependencyContainer.resolve(:event_repository)
       )
     end
 
     def create_find_metric
-      Core::UseCases::FindMetric.new(
-        storage_port: DependencyContainer.resolve(:storage_port)
+      UseCases::FindMetric.new(
+        storage_port: DependencyContainer.resolve(:metric_repository)
       )
     end
 
     def create_find_alert
-      Core::UseCases::FindAlert.new(
-        storage_port: DependencyContainer.resolve(:storage_port)
+      UseCases::FindAlert.new(
+        storage_port: DependencyContainer.resolve(:alert_repository)
       )
     end
 
     def create_list_metrics
-      Core::UseCases::ListMetrics.new(
-        storage_port: DependencyContainer.resolve(:storage_port)
+      UseCases::ListMetrics.new(
+        storage_port: DependencyContainer.resolve(:metric_repository)
       )
     end
 
     def create_list_alerts
-      Core::UseCases::ListAlerts.new(
-        storage_port: DependencyContainer.resolve(:storage_port)
+      UseCases::ListAlerts.new(
+        storage_port: DependencyContainer.resolve(:alert_repository)
       )
     end
   end

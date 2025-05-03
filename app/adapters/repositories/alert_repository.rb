@@ -1,6 +1,7 @@
 # frozen_string_literal: true
 
 require_relative "../../ports/storage_port"
+require_relative "../../core/domain/alert"
 
 module Repositories
   class AlertRepository

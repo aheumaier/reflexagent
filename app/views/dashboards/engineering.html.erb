@@ -1,0 +1,950 @@
+<div class="min-h-screen bg-gray-50">
+  <main class="max-w-full mx-auto">
+    <div class="px-2 py-2">
+      <!-- Use two-column layout with sidebar -->
+      <style>
+        /* Major layout containers */
+        .dashboard-container {
+          display: flex;
+          flex-direction: column;
+          width: 100%;
+        }
+        
+        /* Sidebar container */
+        .sidebar-container {
+          order: 1;
+          width: 100%;
+          margin-bottom: 1rem;
+          background-color: #f3f4f6;
+          border-radius: 0.5rem;
+          padding: 0.75rem;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+        
+        /* Main content container */
+        .main-content-container {
+          order: 2;
+          width: 100%;
+        }
+        
+        /* Desktop styles */
+        @media (min-width: 768px) {
+          .dashboard-container {
+            flex-direction: row;
+            gap: 1.5rem;
+          }
+          
+          .sidebar-container {
+            width: 300px;
+            flex-shrink: 0;
+            position: sticky;
+            top: 1rem;
+            height: calc(100vh - 7rem);
+            overflow-y: auto;
+            margin-bottom: 0;
+          }
+          
+          .main-content-container {
+            flex-grow: 1;
+            min-width: 0; /* Prevents overflow */
+          }
+        }
+        
+        /* Control chart and SVG icon sizes */
+        svg {
+          max-width: 18px;
+          max-height: 18px;
+          height: auto;
+          width: auto;
+        }
+        
+        /* Special rule for larger icons when needed */
+        .svg-lg svg {
+          max-width: 24px;
+          max-height: 24px;
+        }
+        
+        /* Reset sizing for chart SVGs */
+        [data-controller="chart"] svg,
+        .chart-container svg {
+          max-width: 100%;
+          max-height: 100%;
+        }
+        
+        .chart-container {
+          min-height: 220px;
+          height: 220px;
+          position: relative;
+          width: 100%;
+          margin: 0 auto;
+          padding: 0.5rem;
+        }
+        
+        /* Ensure charts don't exceed container */
+        [data-controller="chart"], 
+        .chart-container canvas {
+          position: relative;
+          height: 100%;
+          width: 100%;
+          border-radius: 0.375rem;
+          background-color: #fafafa;
+        }
+        
+        /* Sidebar styling */
+        .sidebar-section {
+          padding: 0.75rem;
+          border-left: 3px solid transparent;
+          margin-bottom: 0.25rem;
+          transition: all 0.2s ease;
+          border-radius: 0.25rem;
+        }
+        
+        .sidebar-section.active {
+          border-left-color: #4f46e5;
+          background-color: rgba(79, 70, 229, 0.1);
+        }
+        
+        .sidebar-section:hover:not(.active) {
+          background-color: rgba(0, 0, 0, 0.05);
+        }
+        
+        .sidebar-item {
+          background-color: rgba(243, 244, 246, 0.8);
+        }
+        
+        /* Mobile responsive adjustments */
+        @media (max-width: 767px) {
+          .chart-container {
+            min-height: 180px;
+            height: 180px;
+          }
+          
+          .sidebar-section {
+            padding: 0.5rem;
+          }
+          
+          .mobile-scroll {
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+          }
+        }
+      </style>
+
+      <div class="dashboard-container">
+        <!-- Sidebar -->
+        <div class="sidebar-container bg-white rounded-lg shadow-sm">
+          <div class="text-lg font-medium text-gray-900 px-3 py-2 mb-2">Dashboard Sections</div>
+          
+          <a href="#dora-metrics" class="sidebar-section active block rounded flex items-center space-x-2 sidebar-item" onclick="console.log('DORA metrics clicked'); document.querySelectorAll('.sidebar-section').forEach(e => e.classList.remove('active')); this.classList.add('active'); return true;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625z" />
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+            </svg>
+            <span>DORA Metrics</span>
+          </a>
+          
+          <a href="#repository-activity" class="sidebar-section block rounded flex items-center space-x-2 sidebar-item" onclick="console.log('Repository activity clicked'); document.querySelectorAll('.sidebar-section').forEach(e => e.classList.remove('active')); this.classList.add('active'); return true;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+            </svg>
+            <span>Repository Activity</span>
+          </a>
+          
+          <a href="#cicd-performance" class="sidebar-section block rounded flex items-center space-x-2 sidebar-item" onclick="console.log('CI/CD performance clicked'); document.querySelectorAll('.sidebar-section').forEach(e => e.classList.remove('active')); this.classList.add('active'); return true;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+            </svg>
+            <span>CI/CD Performance</span>
+          </a>
+          
+          <a href="#team-performance" class="sidebar-section block rounded flex items-center space-x-2 sidebar-item" onclick="console.log('Team performance clicked'); document.querySelectorAll('.sidebar-section').forEach(e => e.classList.remove('active')); this.classList.add('active'); return true;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+            </svg>
+            <span>Team Performance</span>
+          </a>
+          
+          <a href="#recent-alerts" class="sidebar-section block rounded flex items-center space-x-2 sidebar-item" onclick="console.log('Recent alerts clicked'); document.querySelectorAll('.sidebar-section').forEach(e => e.classList.remove('active')); this.classList.add('active'); return true;">
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+            </svg>
+            <span>Recent Alerts</span>
+          </a>
+          
+          <div class="mt-6 px-3">
+            
+    
+          </div>
+        </div>
+
+        <!-- Main content -->
+        <div class="main-content-container space-y-4">
+          <!-- DORA Metrics Section -->
+          <section id="dora-metrics" class="mb-6 bg-white p-5 rounded-lg shadow-sm">
+            <h2 class="text-xl font-semibold text-gray-800 mb-5 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-6 h-6 mr-2 text-indigo-600">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+              </svg>
+              DORA Metrics
+            </h2>
+            
+            <div class="mx-auto max-w-7xl">
+              <dl class="grid grid-cols-1 gap-x-8 gap-y-8 md:grid-cols-2">
+                <!-- Deployment Frequency -->
+                <div class="bg-white overflow-hidden shadow-sm rounded-lg px-6 py-6">
+                  <dt class="text-sm font-medium text-gray-500 flex items-center justify-between">
+                    <span>Deployment Frequency</span>
+                    <% 
+                    badge_class = case @dora_metrics[:deployment_frequency][:rating]&.to_s&.downcase
+                    when 'elite'
+                      'bg-green-100 text-green-800'
+                    when 'high'
+                      'bg-blue-100 text-blue-800'
+                    when 'medium'
+                      'bg-yellow-100 text-yellow-800'
+                    when 'low'
+                      'bg-red-100 text-red-800'
+                    else
+                      'bg-gray-100 text-gray-800'
+                    end
+                    
+                    rating_display = @dora_metrics[:deployment_frequency][:rating]&.to_s&.upcase || 'UNKNOWN'
+                    %>
+                    <span class="px-3 py-1.5 text-xs font-medium rounded-full <%= badge_class %>">
+                      <%= rating_display %>
+                    </span>
+                  </dt>
+                  <dd class="mt-2">
+                    <div class="flex items-baseline">
+                      <p class="text-4xl font-semibold text-gray-900">
+                        <%= @dora_metrics[:deployment_frequency][:value] %>
+                      </p>
+                      <p class="ml-2 text-sm text-gray-500">per day</p>
+                    </div>
+                    <p class="mt-3 text-sm text-gray-500">
+                      <%= @dora_metrics[:deployment_frequency][:days_with_deployments] %> days with deployments (<%= @dora_metrics[:deployment_frequency][:total_deployments] || 0 %> total) in the last <%= @dora_metrics[:deployment_frequency][:total_days] %> days
+                    </p>
+                  </dd>
+                </div>
+
+                <!-- Lead Time for Changes -->
+                <div class="bg-white overflow-hidden shadow-sm rounded-lg px-6 py-6">
+                  <dt class="text-sm font-medium text-gray-500 flex items-center justify-between">
+                    <span>Lead Time for Changes</span>
+                    <% 
+                    badge_class = case @dora_metrics[:lead_time][:rating]&.to_s&.downcase
+                    when 'elite'
+                      'bg-green-100 text-green-800'
+                    when 'high'
+                      'bg-blue-100 text-blue-800'
+                    when 'medium'
+                      'bg-yellow-100 text-yellow-800'
+                    when 'low'
+                      'bg-red-100 text-red-800'
+                    else
+                      'bg-gray-100 text-gray-800'
+                    end
+                    
+                    rating_display = @dora_metrics[:lead_time][:rating]&.to_s&.upcase || 'UNKNOWN'
+                    %>
+                    <span class="px-3 py-1.5 text-xs font-medium rounded-full <%= badge_class %>">
+                      <%= rating_display %>
+                    </span>
+                  </dt>
+                  <dd class="mt-2">
+                    <div class="flex items-baseline">
+                      <p class="text-4xl font-semibold text-gray-900">
+                        <%= @dora_metrics[:lead_time][:value] %>
+                      </p>
+                      <p class="ml-2 text-sm text-gray-500">hours</p>
+                    </div>
+                    <p class="mt-3 text-sm text-gray-500">
+                      Based on <%= @dora_metrics[:lead_time][:sample_size] %> changes
+                    </p>
+                  </dd>
+                </div>
+
+                <!-- Time to Restore Service -->
+                <div class="bg-white overflow-hidden shadow-sm rounded-lg px-6 py-6">
+                  <dt class="text-sm font-medium text-gray-500 flex items-center justify-between">
+                    <span>Time to Restore Service</span>
+                    <% 
+                    badge_class = case @dora_metrics[:time_to_restore][:rating]&.to_s&.downcase
+                    when 'elite'
+                      'bg-green-100 text-green-800'
+                    when 'high'
+                      'bg-blue-100 text-blue-800'
+                    when 'medium'
+                      'bg-yellow-100 text-yellow-800'
+                    when 'low'
+                      'bg-red-100 text-red-800'
+                    else
+                      'bg-gray-100 text-gray-800'
+                    end
+                    
+                    rating_display = @dora_metrics[:time_to_restore][:rating]&.to_s&.upcase || 'UNKNOWN'
+                    %>
+                    <span class="px-3 py-1.5 text-xs font-medium rounded-full <%= badge_class %>">
+                      <%= rating_display %>
+                    </span>
+                  </dt>
+                  <dd class="mt-2">
+                    <div class="flex items-baseline">
+                      <p class="text-4xl font-semibold text-gray-900">
+                        <%= @dora_metrics[:time_to_restore][:value] %>
+                      </p>
+                      <p class="ml-2 text-sm text-gray-500">hours</p>
+                    </div>
+                    <p class="mt-3 text-sm text-gray-500">
+                      Based on <%= @dora_metrics[:time_to_restore][:sample_size] %> incidents
+                    </p>
+                  </dd>
+                </div>
+
+                <!-- Change Failure Rate -->
+                <div class="bg-white overflow-hidden shadow-sm rounded-lg px-6 py-6">
+                  <dt class="text-sm font-medium text-gray-500 flex items-center justify-between">
+                    <span>Change Failure Rate</span>
+                    <% 
+                    badge_class = case @dora_metrics[:change_failure_rate][:rating]&.to_s&.downcase
+                    when 'elite'
+                      'bg-green-100 text-green-800'
+                    when 'high'
+                      'bg-blue-100 text-blue-800'
+                    when 'medium'
+                      'bg-yellow-100 text-yellow-800'
+                    when 'low'
+                      'bg-red-100 text-red-800'
+                    else
+                      'bg-gray-100 text-gray-800'
+                    end
+                    
+                    rating_display = @dora_metrics[:change_failure_rate][:rating]&.to_s&.upcase || 'UNKNOWN'
+                    %>
+                    <span class="px-3 py-1.5 text-xs font-medium rounded-full <%= badge_class %>">
+                      <%= rating_display %>
+                    </span>
+                  </dt>
+                  <dd class="mt-2">
+                    <div class="flex items-baseline">
+                      <p class="text-4xl font-semibold text-gray-900">
+                        <%= @dora_metrics[:change_failure_rate][:value] %>
+                      </p>
+                      <p class="ml-2 text-sm text-gray-500">%</p>
+                    </div>
+                    <p class="mt-3 text-sm text-gray-500">
+                      <%= @dora_metrics[:change_failure_rate][:failures] %> failures in <%= @dora_metrics[:change_failure_rate][:deployments] %> deployments
+                    </p>
+                  </dd>
+                </div>
+              </dl>
+
+              <% if Rails.env.development? %>
+                <div class="mt-6 p-4 bg-gray-50 rounded text-xs text-gray-500">
+                  <h3 class="font-medium mb-2">Debug Information:</h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <% if @dora_metrics[:deployment_frequency][:debug_info].present? %>
+                      <div>
+                        <h4 class="font-medium">Deployment Frequency:</h4>
+                        <% @dora_metrics[:deployment_frequency][:debug_info].each do |key, value| %>
+                          <div><span class="font-medium"><%= key %>:</span> <%= value %></div>
+                        <% end %>
+                      </div>
+                    <% end %>
+                  </div>
+                </div>
+              <% end %>
+            </div>
+          </section>
+          
+          <!-- Repository Activity -->
+          <section id="repository-activity" class="mb-4 bg-white p-4 rounded-lg shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-indigo-600">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+              </svg>
+              Repository Activity
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Push Counts Chart -->
+              <div class="bg-white p-4 rounded-lg border border-gray-100">
+                <h3 class="text-base font-medium text-gray-800 mb-3">Commits by Day</h3>
+                <div class="flex justify-between items-center mb-3">
+                  <div class="flex items-center">
+                    <div class="text-2xl font-semibold text-indigo-600">
+                      <% total_commits = @repo_metrics[:commit_volume].is_a?(Hash) ? @repo_metrics[:commit_volume].values.sum : 0 %>
+                      <%= total_commits %>
+                    </div>
+                    <div class="ml-2 text-sm text-gray-500">total commits</div>
+                  </div>
+                  <div class="text-sm text-gray-500">
+                    Last <%= @days %> days
+                  </div>
+                </div>
+                <% if total_commits == 0 %>
+                  <div class="text-sm text-gray-500 mb-2 italic text-center">No commit data available for the selected period</div>
+                <% end %>
+                <div class="chart-container bg-white rounded p-2">
+                  <canvas id="direct-chart"></canvas>
+                </div>
+              </div>
+              
+              <!-- Top Repositories -->
+              <div class="bg-white p-4 rounded-lg border border-gray-100">
+                <h3 class="text-base font-medium text-gray-800 mb-3">Most Active Repositories</h3>
+                <div class="h-64 overflow-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Repository</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Pushes</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <% @repo_metrics[:active_repos].each do |repo, count| %>
+                        <tr>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= repo %></td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= count %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+          
+          <!-- CI/CD Metrics -->
+          <section id="cicd-performance" class="mb-4 bg-white p-4 rounded-lg shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-indigo-600">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+              </svg>
+              CI/CD Performance
+            </h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <!-- Build Success Rate -->
+              <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                  <dt class="text-sm font-medium text-gray-500 truncate">Build Success Rate</dt>
+                  <dd class="mt-1 text-3xl font-semibold text-gray-900">
+                    <%= @cicd_metrics[:builds][:success_rate] %>%
+                  </dd>
+                  <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                    <div class="bg-green-600 h-2.5 rounded-full" style="width: <%= @cicd_metrics[:builds][:success_rate] %>%"></div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Average Build Duration -->
+              <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                  <dt class="text-sm font-medium text-gray-500 truncate">Avg Build Duration</dt>
+                  <dd class="mt-1 text-3xl font-semibold text-gray-900">
+                    <%= @cicd_metrics[:builds][:avg_duration]&.round(2) || 'N/A' %> <%= @cicd_metrics[:builds][:avg_duration] ? 'min' : '' %>
+                  </dd>
+                </div>
+              </div>
+              
+              <!-- Deploy Success Rate -->
+              <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                  <dt class="text-sm font-medium text-gray-500 truncate">Deploy Success Rate</dt>
+                  <dd class="mt-1 text-3xl font-semibold text-gray-900">
+                    <%= @cicd_metrics[:deployments][:success_rate] %>%
+                  </dd>
+                  <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
+                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: <%= @cicd_metrics[:deployments][:success_rate] %>%"></div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Deployment Count -->
+              <div class="bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                  <dt class="text-sm font-medium text-gray-500 truncate">Total Deployments</dt>
+                  <dd class="mt-1 text-3xl font-semibold text-gray-900">
+                    <%= @cicd_metrics[:deployments][:total].values.sum.to_i %>
+                  </dd>
+                </div>
+              </div>
+            </div>
+          </section>
+          
+          <!-- Team Performance -->
+          <section id="team-performance" class="mb-4 bg-white p-4 rounded-lg shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-indigo-600">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+              </svg>
+              Team Performance
+            </h2>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Team Velocity -->
+              <div class="bg-white p-4 rounded-lg border border-gray-100">
+                <h3 class="text-base font-medium text-gray-800 mb-3">Team Velocity</h3>
+                <div class="text-center mb-3">
+                  <div class="text-4xl font-bold text-indigo-600"><%= @team_metrics[:team_velocity] %></div>
+                  <div class="text-sm text-gray-500 mt-1">tasks per week (4-week average)</div>
+                </div>
+                
+                <!-- Velocity chart -->
+                <div class="chart-container bg-white rounded mt-4">
+                  <canvas id="velocity-chart"></canvas>
+                </div>
+              </div>
+              
+              <!-- Top Contributors -->
+              <div class="bg-white p-4 rounded-lg border border-gray-100">
+                <h3 class="text-base font-medium text-gray-800 mb-3">Top Contributors</h3>
+                <div class="h-64 overflow-auto">
+                  <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                      <tr>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
+                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commits</th>
+                      </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                      <% @team_metrics[:top_contributors].each do |author, count| %>
+                        <tr>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= author %></td>
+                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= count %></td>
+                        </tr>
+                      <% end %>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </section>
+          
+          <!-- Recent Alerts -->
+          <section id="recent-alerts" class="mb-4 bg-white p-4 rounded-lg shadow-sm">
+            <h2 class="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-5 h-5 mr-2 text-indigo-600">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 005.454-1.31A8.967 8.967 0 0118 9.75v-.7V9A6 6 0 006 9v.75a8.967 8.967 0 01-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 01-5.714 0m5.714 0a3 3 0 11-5.714 0" />
+              </svg>
+              Recent Alerts
+            </h2>
+            <div class="bg-white shadow overflow-hidden sm:rounded-md">
+              <ul class="divide-y divide-gray-200">
+                <% if @recent_alerts&.any? %>
+                  <% @recent_alerts.each do |alert| %>
+                    <li>
+                      <a href="#" class="block hover:bg-gray-50">
+                        <div class="px-4 py-4 sm:px-6">
+                          <div class="flex items-center justify-between">
+                            <p class="text-sm font-medium text-indigo-600 truncate">
+                              <%= alert.name %>
+                            </p>
+                            <div class="ml-2 flex-shrink-0 flex">
+                              <% 
+                              # Handle severity safely with proper defaults
+                              severity_class = case alert.severity&.to_s
+                                               when 'critical'
+                                                 'bg-red-100 text-red-800'
+                                               when 'warning'
+                                                 'bg-yellow-100 text-yellow-800'
+                                               when 'info'
+                                                 'bg-green-100 text-green-800'
+                                               else
+                                                 'bg-gray-100 text-gray-800'
+                                               end
+                              
+                              severity_text = alert.severity&.to_s&.upcase || 'UNKNOWN'
+                              %>
+                              <p class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full <%= severity_class %>">
+                                <%= severity_text %>
+                              </p>
+                            </div>
+                          </div>
+                          <div class="mt-2 sm:flex sm:justify-between">
+                            <div class="sm:flex">
+                              <p class="flex items-center text-sm text-gray-500">
+                                <%= alert.status || 'Unknown' %>
+                              </p>
+                            </div>
+                            <div class="mt-2 flex items-center text-sm text-gray-500 sm:mt-0">
+                              <p>
+                                <% if alert.timestamp %>
+                                  <%= time_ago_in_words(alert.timestamp) %> ago
+                                <% else %>
+                                  Recently
+                                <% end %>
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </a>
+                    </li>
+                  <% end %>
+                <% else %>
+                  <li class="px-4 py-6 text-center text-gray-500">
+                    No alerts in the selected time period
+                  </li>
+                <% end %>
+              </ul>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Add data-loading state to help with debugging
+    console.log('Dashboard data loaded');
+    document.body.setAttribute('data-dashboard-loaded', 'true');
+    
+    // Existing chart initialization code...
+    console.log('Initializing all direct charts');
+    
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+      console.error('Chart.js is not available');
+      document.querySelectorAll('.chart-container').forEach(container => {
+        container.innerHTML = '<div class="text-red-500 p-4 text-center">Chart.js library not loaded</div>';
+      });
+      return;
+    }
+    
+    try {
+      // Initialize direct charts if they exist and don't have a Stimulus controller
+      if (document.getElementById('direct-chart')) {
+        initializeCommitChart();
+      }
+      
+      if (document.getElementById('velocity-chart')) {
+        initializeVelocityChart();
+      }
+    } catch (error) {
+      console.error('Error initializing charts:', error);
+    }
+  });
+  
+  // Function to initialize the commit chart
+  function initializeCommitChart() {
+    const ctx = document.getElementById('direct-chart');
+    if (!ctx) return;
+    
+    console.log("Creating commit chart with real data");
+    
+    // Get real data from the controller
+    let commitData = {};
+    let hasRealData = false;
+    try {
+      commitData = <%= raw(@repo_metrics[:commit_volume].is_a?(Hash) ? @repo_metrics[:commit_volume].to_json : '{}') %>;
+      hasRealData = Object.keys(commitData).length > 0;
+    } catch (error) {
+      console.error("Error parsing commit data:", error);
+      commitData = {};
+    }
+    
+    // Convert data format for Chart.js
+    let labels = [];
+    let values = [];
+    
+    // Sort dates in ascending order
+    const sortedDates = Object.keys(commitData).sort();
+    
+    // Check if we have any data
+    if (sortedDates.length > 0) {
+      console.log("Found commit data for days:", sortedDates.length);
+      // Fill in missing dates with zeros
+      const startDate = new Date(sortedDates[0]);
+      const endDate = new Date(sortedDates[sortedDates.length - 1]);
+      
+      // Loop through each day between start and end
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        const dateStr = d.toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        // Format for display
+        const formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        labels.push(formattedDate);
+        
+        // Add value if exists, otherwise 0
+        values.push(commitData[dateStr] || 0);
+      }
+    } else {
+      // When no data is available, create a 7-day series with all zeros
+      const today = new Date();
+      for (let i = 6; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        const formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        labels.push(formattedDate);
+        values.push(0);
+      }
+      console.log("No commit data available, showing empty chart");
+    }
+    
+    const chartData = {
+      labels: labels,
+      datasets: [{
+        label: 'Commits',
+        data: values,
+        backgroundColor: 'rgba(79, 70, 229, 0.2)',
+        borderColor: 'rgba(79, 70, 229, 1)',
+        borderWidth: 2,
+        tension: 0.2
+      }]
+    };
+    
+    try {
+      new Chart(ctx, {
+        type: 'line',
+        data: chartData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0,
+                callback: function(value) {
+                  return value.toLocaleString();
+                }
+              },
+              title: {
+                display: true,
+                text: 'Number of Commits'
+              }
+            },
+            x: {
+              grid: {
+                display: false
+              },
+              ticks: {
+                maxRotation: 45,
+                minRotation: 45
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                title: function(tooltipItems) {
+                  return tooltipItems[0].label;
+                },
+                label: function(context) {
+                  return `Commits: ${context.raw.toLocaleString()}`;
+                }
+              }
+            }
+          }
+        },
+        plugins: [
+          {
+            id: 'emptyChart',
+            afterDraw(chart) {
+              const { datasets } = chart.data;
+              let isEmpty = true;
+              
+              // Check if all values are zero
+              datasets.forEach(dataset => {
+                if (dataset.data.some(value => value !== 0)) {
+                  isEmpty = false;
+                }
+              });
+              
+              if (isEmpty) {
+                const { ctx, chartArea: { left, top, width, height } } = chart;
+                chart.clear();
+                
+                // Draw the chart background
+                ctx.save();
+                ctx.fillStyle = 'white';
+                ctx.fillRect(left, top, width, height);
+                
+                // Draw the text
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#666';
+                
+                // Show different message based on if we have data points
+                if (hasRealData) {
+                  ctx.fillText('No commits recorded in this time period', left + width / 2, top + height / 2);
+                } else {
+                  ctx.fillText('No commit data available', left + width / 2, top + height / 2);
+                }
+                
+                ctx.restore();
+              }
+            }
+          }
+        ]
+      });
+      console.log("Commit chart created successfully");
+    } catch (error) {
+      console.error("Error creating commit chart:", error);
+      ctx.parentElement.innerHTML = `<div class="text-red-500 p-4">Error: ${error.message}</div>`;
+    }
+  }
+  
+  // Function to initialize the velocity chart
+  function initializeVelocityChart() {
+    const ctx = document.getElementById('velocity-chart');
+    if (!ctx) return;
+    
+    console.log("Creating velocity chart with real data");
+    
+    // Get the current velocity value from the UI
+    const velocityValue = parseInt(document.querySelector('.text-4xl.font-bold.text-indigo-600')?.textContent || '0');
+    
+    // Get task data from the controller
+    let taskData = {};
+    let hasTaskData = false;
+    
+    try {
+      // Get weekly task data from the backend
+      // This will be populated by the controller with actual data
+      taskData = {
+        <% 
+          # Calculate weekly task data for the last 4 weeks
+          start_time = 4.weeks.ago
+          
+          # Use direct SQL query to ensure we get correct task data
+          task_metrics = DomainMetric.where("name LIKE 'task.%.total'")
+                                    .where("recorded_at >= ?", start_time)
+                                    .order(recorded_at: :desc)
+          
+          # Group by week and calculate sums
+          weekly_data = task_metrics.group_by do |metric|
+            metric.recorded_at.beginning_of_week.strftime("%Y-%m-%d")
+          end.transform_values do |metrics|
+            metrics.sum(&:value).to_i
+          end
+          
+          # Sort by date and get last 4 weeks
+          sorted_weeks = weekly_data.sort_by { |date, _| date }.last(4)
+        %>
+        
+        <% sorted_weeks.each do |date, value| %>
+          "<%= date %>": <%= value %>,
+        <% end %>
+      };
+      
+      hasTaskData = Object.keys(taskData).length > 0;
+      console.log("Found task data:", taskData);
+    } catch (error) {
+      console.error("Error parsing task data:", error);
+      taskData = {};
+    }
+
+    // Prepare chart data
+    const labels = [];
+    const values = [];
+
+    if (hasTaskData) {
+      // Use actual data points from the backend
+      const sortedDates = Object.keys(taskData).sort();
+      
+      sortedDates.forEach(date => {
+        // Format date for display (e.g., "Week of May 1")
+        const dateObj = new Date(date);
+        const formattedDate = `Week of ${dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+        labels.push(formattedDate);
+        values.push(taskData[date]);
+      });
+    } else {
+      // Fallback to placeholder data if no real data available
+      labels.push('Week 1', 'Week 2', 'Week 3', 'Week 4');
+      values.push(0, 0, 0, velocityValue);
+    }
+
+    const chartData = {
+      labels: labels,
+      datasets: [{
+        label: 'Tasks Completed',
+        data: values,
+        backgroundColor: 'rgba(16, 185, 129, 0.2)',
+        borderColor: 'rgba(16, 185, 129, 1)',
+        borderWidth: 2,
+        tension: 0.2
+      }]
+    };
+
+    try {
+      new Chart(ctx, {
+        type: 'bar',
+        data: chartData,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: {
+            y: {
+              beginAtZero: true,
+              ticks: {
+                precision: 0,
+              }
+            }
+          },
+          plugins: {
+            legend: {
+              display: false
+            },
+            tooltip: {
+              callbacks: {
+                title: function(tooltipItems) {
+                  return tooltipItems[0].label;
+                },
+                label: function(context) {
+                  return `Tasks: ${context.raw}`;
+                }
+              }
+            }
+          }
+        },
+        plugins: [
+          {
+            id: 'emptyVelocityChart',
+            afterDraw(chart) {
+              const { datasets } = chart.data;
+              let isEmpty = true;
+              
+              // Check if all values are zero
+              datasets.forEach(dataset => {
+                if (dataset.data.some(value => value !== 0)) {
+                  isEmpty = false;
+                }
+              });
+              
+              if (isEmpty) {
+                const { ctx, chartArea: { left, top, width, height } } = chart;
+                chart.clear();
+                
+                // Draw the chart background
+                ctx.save();
+                ctx.fillStyle = 'white';
+                ctx.fillRect(left, top, width, height);
+                
+                // Draw the text
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#666';
+                ctx.fillText('No task data available', left + width / 2, top + height / 2);
+                ctx.restore();
+              }
+            }
+          }
+        ]
+      });
+      console.log("Velocity chart created successfully");
+    } catch (error) {
+      console.error("Error creating velocity chart:", error);
+      ctx.parentElement.innerHTML = `<div class="text-red-500 p-4">Error: ${error.message}</div>`;
+    }
+  }
+</script> 

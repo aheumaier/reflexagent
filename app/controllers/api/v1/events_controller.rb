@@ -4,6 +4,7 @@ module Api
       # Disable CSRF for webhooks; use token auth instead
       skip_before_action :verify_authenticity_token
       before_action :authenticate_source!, only: [:create]
+      before_action :store_headers, only: [:create]
 
       def show
         use_case = UseCaseFactory.create_find_event
@@ -25,6 +26,11 @@ module Api
 
         # Log incoming request at debug level
         Rails.logger.debug { "EventsController#create received #{source} webhook" }
+
+        # Log which headers we have for GitHub webhooks
+        if source == "github"
+          Rails.logger.info("GitHub webhook received with headers: #{relevant_github_headers.inspect}")
+        end
 
         begin
           # Quick validation of the payload (minimal processing)
@@ -70,10 +76,39 @@ module Api
           Rails.logger.error { "Error in EventsController#create: #{e.class.name} - #{e.message}" }
           Rails.logger.error { e.backtrace.join("\n") }
           render json: { error: "Internal server error" }, status: :internal_server_error
+        ensure
+          # Clear thread-local headers after processing
+          Thread.current[:http_headers] = nil
         end
       end
 
       private
+
+      def store_headers
+        # Store relevant headers in thread-local storage for the adapter to access
+        Thread.current[:http_headers] = relevant_headers
+      end
+
+      def relevant_headers
+        {
+          "X-GitHub-Event" => request.headers["X-GitHub-Event"],
+          "X-GitHub-Delivery" => request.headers["X-GitHub-Delivery"],
+          "X-Hub-Signature" => request.headers["X-Hub-Signature"],
+          "X-Hub-Signature-256" => request.headers["X-Hub-Signature-256"],
+          "User-Agent" => request.headers["User-Agent"],
+          "Content-Type" => request.headers["Content-Type"]
+        }.compact
+      end
+
+      def relevant_github_headers
+        headers = {}
+        headers["X-GitHub-Event"] = request.headers["X-GitHub-Event"] if request.headers["X-GitHub-Event"].present?
+        if request.headers["X-GitHub-Delivery"].present?
+          headers["X-GitHub-Delivery"] =
+            request.headers["X-GitHub-Delivery"]
+        end
+        headers
+      end
 
       def authenticate_source!
         # Check for either X-Webhook-Token header or Bearer token in Authorization

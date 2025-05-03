@@ -191,6 +191,12 @@ module Cache
     end
 
     def cache_metric(metric)
+      # Ensure metric has an ID
+      if metric.id.nil?
+        Rails.logger.error("Cannot cache metric without ID: #{metric.name}")
+        return metric
+      end
+
       self.class.with_redis do |redis|
         # Store the latest value for this metric name
         redis.set(
@@ -233,6 +239,7 @@ module Cache
         end
       end
 
+      Rails.logger.debug { "Cached metric: #{metric.id} (#{metric.name})" }
       metric
     end
 

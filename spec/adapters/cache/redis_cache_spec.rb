@@ -6,7 +6,7 @@ RSpec.describe Cache::RedisCache do
   let(:cache) { described_class.new }
   let(:redis) { described_class.redis }
   let(:metric) do
-    Core::Domain::Metric.new(
+    Domain::Metric.new(
       name: "cpu.usage",
       value: 85.5,
       source: "web-01",
@@ -72,7 +72,7 @@ RSpec.describe Cache::RedisCache do
       # Cache multiple metrics with different timestamps in a consistent order
       # Make sure timestamps are monotonically decreasing
       cache.cache_metric(
-        Core::Domain::Metric.new(
+        Domain::Metric.new(
           name: "cpu.usage",
           value: 90.0, # Most recent value should be highest for the test
           source: "web-01",
@@ -82,7 +82,7 @@ RSpec.describe Cache::RedisCache do
       )
 
       cache.cache_metric(
-        Core::Domain::Metric.new(
+        Domain::Metric.new(
           name: "cpu.usage",
           value: 85.0,
           source: "web-01",
@@ -92,7 +92,7 @@ RSpec.describe Cache::RedisCache do
       )
 
       cache.cache_metric(
-        Core::Domain::Metric.new(
+        Domain::Metric.new(
           name: "cpu.usage",
           value: 80.0, # Oldest value should be lowest for the test
           source: "web-01",
@@ -126,7 +126,7 @@ RSpec.describe Cache::RedisCache do
     before do
       # Cache multiple metrics with different names
       cache.cache_metric(
-        Core::Domain::Metric.new(
+        Domain::Metric.new(
           name: "cpu.usage",
           value: 85.5,
           source: "web-01",
@@ -135,7 +135,7 @@ RSpec.describe Cache::RedisCache do
       )
 
       cache.cache_metric(
-        Core::Domain::Metric.new(
+        Domain::Metric.new(
           name: "memory.usage",
           value: 70.3,
           source: "web-01",
