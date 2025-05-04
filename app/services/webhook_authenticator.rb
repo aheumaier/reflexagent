@@ -43,15 +43,35 @@ class WebhookAuthenticator
     # and accessed through Rails.application.credentials or ENV
     case source
     when "github"
+      # Log all environment variables related to GitHub to help debug
+      github_env_vars = ENV.keys.grep(/GITHUB/).map { |k| "#{k}: #{ENV[k] ? 'set' : 'not set'}" }
+      Rails.logger.info("All GitHub-related ENV variables: #{github_env_vars.join(', ')}")
+
+      # Check specific environment variables
       github_secret = ENV.fetch("GITHUB_WEBHOOK_SECRET", nil)
+      github_secret_key = ENV.fetch("GITHUB_WEBHOOK_SECRET_KEY", nil)
+      github_secret_token = ENV.fetch("GITHUB_SECRET_TOKEN", nil)
+
+      # Check credentials
       credential_secret = defined?(Rails) && Rails.application.try(:credentials).try(:dig, :github, :webhook_secret)
 
-      Rails.logger.info("GitHub webhook secret - From ENV: #{github_secret ? 'Present' : 'Missing'}")
-      Rails.logger.info("GitHub webhook secret - From credentials: #{credential_secret ? 'Present' : 'Missing'}")
+      # Log detailed information about all possible secret locations
+      Rails.logger.info("GitHub webhook secret sources:")
+      Rails.logger.info("- GITHUB_WEBHOOK_SECRET ENV: #{github_secret ? 'Present' : 'Missing'}")
+      Rails.logger.info("- GITHUB_WEBHOOK_SECRET_KEY ENV: #{github_secret_key ? 'Present' : 'Missing'}")
+      Rails.logger.info("- GITHUB_SECRET_TOKEN ENV: #{github_secret_token ? 'Present' : 'Missing'}")
+      Rails.logger.info("- Rails credentials github.webhook_secret: #{credential_secret ? 'Present' : 'Missing'}")
 
-      github_secret ||
-        credential_secret ||
+      # Try all possible environment variable names
+      secret = github_secret || github_secret_key || github_secret_token || credential_secret
+
+      if secret
+        Rails.logger.info("GitHub webhook secret found (first 4 chars): #{secret.first(4)}****")
+        secret
+      else
+        Rails.logger.warn("No GitHub webhook secret found in any location, using demo_secret_token")
         "demo_secret_token"
+      end
     when "jira"
       ENV["JIRA_WEBHOOK_SECRET"] ||
         (defined?(Rails) && Rails.application.try(:credentials).try(:dig, :jira, :webhook_secret)) ||

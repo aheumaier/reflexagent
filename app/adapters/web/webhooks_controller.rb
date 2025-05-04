@@ -16,6 +16,18 @@ module Web
 
       Rails.logger.info("Received webhook from source: #{source}")
 
+      # For GitHub webhooks, get all relevant headers
+      if source == "github"
+        github_headers = {}
+        request.headers.each do |key, value|
+          github_headers[key] = value if key.to_s.downcase.include?("github") ||
+                                         key.to_s.downcase.include?("hub") ||
+                                         key.to_s.downcase == "x-hub-signature" ||
+                                         key.to_s.downcase == "x-hub-signature-256"
+        end
+        Rails.logger.info("GitHub webhook headers: #{github_headers.inspect}")
+      end
+
       # Validate the signature if present
       signature = request.headers["X-Hub-Signature-256"] || request.headers["X-Hub-Signature"]
 
@@ -30,6 +42,7 @@ module Web
       render json: { status: "received" }, status: :accepted
     rescue StandardError => e
       Rails.logger.error("Webhook processing error: #{e.message}")
+      Rails.logger.error(e.backtrace.join("\n"))
       render json: { error: e.message }, status: :internal_server_error
     end
 
@@ -43,7 +56,12 @@ module Web
       # For debugging purposes
       begin
         parsed_payload = JSON.parse(payload)
-        Rails.logger.debug { "Event type: #{parsed_payload['type'] || parsed_payload['action'] || 'unknown'}" }
+        event_type = parsed_payload["type"] ||
+                     parsed_payload["action"] ||
+                     parsed_payload["event"] ||
+                     (parsed_payload["ref"] && "push") ||
+                     "unknown"
+        Rails.logger.debug { "Event type: #{event_type}" }
       rescue JSON::ParserError => e
         Rails.logger.error("Failed to parse webhook payload: #{e.message}")
       end
@@ -65,24 +83,40 @@ module Web
 
       # For GitHub webhooks, verify the signature
       if source == "github" && signature.present?
-        # GitHub uses HMAC SHA-256 for X-Hub-Signature-256 or HMAC SHA-1 for X-Hub-Signature
+        # GitHub prefers SHA-256 over SHA-1
         if signature.start_with?("sha256=")
-          # SHA-256 signature
-          digest = OpenSSL::Digest.new("sha256")
-          signature_type = "sha256="
+          # SHA-256 signature validation
+          expected_signature = "sha256=" + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new("sha256"), secret, payload)
+
+          # Log signature details (first few chars only for security)
+          Rails.logger.info("Validating GitHub SHA-256 signature")
+          Rails.logger.debug { "Payload first 50 chars: #{payload[0..50]}..." }
+          Rails.logger.debug { "Secret first 4 chars: #{secret[0..3]}..." }
+          Rails.logger.info("Signature comparison - Expected: #{expected_signature[0..15]}... Received: #{signature[0..15]}...")
+
+          # Use secure comparison to prevent timing attacks as recommended by GitHub
+          result = Rack::Utils.secure_compare(expected_signature, signature)
+          Rails.logger.info("SHA-256 signature validation result: #{result ? 'Valid' : 'Invalid'}")
+          return result
+        elsif signature.start_with?("sha1=")
+          # SHA-1 signature validation (legacy)
+          expected_signature = "sha1=" + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new("sha1"), secret, payload)
+
+          # Log signature details
+          Rails.logger.info("Validating GitHub SHA-1 signature (legacy)")
+          Rails.logger.debug { "Payload first 50 chars: #{payload[0..50]}..." }
+          Rails.logger.debug { "Secret first 4 chars: #{secret[0..3]}..." }
+          Rails.logger.info("Signature comparison - Expected: #{expected_signature[0..15]}... Received: #{signature[0..15]}...")
+
+          # Use secure comparison
+          result = Rack::Utils.secure_compare(expected_signature, signature)
+          Rails.logger.info("SHA-1 signature validation result: #{result ? 'Valid' : 'Invalid'}")
+          return result
         else
-          # SHA-1 signature (legacy)
-          digest = OpenSSL::Digest.new("sha1")
-          signature_type = "sha1="
+          # Unknown signature format
+          Rails.logger.warn("Unknown GitHub signature format: #{signature[0..10]}...")
+          return false
         end
-
-        # Calculate expected signature
-        hmac = OpenSSL::HMAC.hexdigest(digest, secret, payload)
-        expected_signature = "#{signature_type}#{hmac}"
-
-        # Compare signatures
-        Rails.logger.info("Signature comparison - Expected: #{expected_signature[0..15]}... Received: #{signature[0..15]}...")
-        return ActiveSupport::SecurityUtils.secure_compare(expected_signature, signature)
       end
 
       # For other sources, implement appropriate signature validation
@@ -99,6 +133,18 @@ module Web
       source = params[:source]
 
       Rails.logger.info("Authenticating webhook from source: #{source}")
+
+      # GitHub uses signature-based authentication
+      if source == "github"
+        signature = request.headers["X-Hub-Signature-256"] || request.headers["X-Hub-Signature"]
+
+        if signature.present?
+          # We'll validate the signature in the validate_webhook_signature method
+          return true
+        end
+
+        Rails.logger.warn("GitHub webhook received with no signature headers")
+      end
 
       # Skip authentication in development
       return true if Rails.env.local?

@@ -111,20 +111,102 @@ module Api
       end
 
       def authenticate_source!
-        # Check for either X-Webhook-Token header or Bearer token in Authorization
-        token = request.headers["X-Webhook-Token"] ||
-                auth_header_token
-
         source = params[:source]
 
         # Log authentication attempt
         Rails.logger.info("Webhook authentication attempt for source: #{source}")
-        Rails.logger.info("Token present: #{!token.nil?}")
-        Rails.logger.info("Authorization header present: #{!request.headers['Authorization'].nil?}")
-        Rails.logger.info("X-Webhook-Token header present: #{!request.headers['X-Webhook-Token'].nil?}")
 
         # Always allow in development/test mode
         return true if Rails.env.local?
+
+        # For GitHub webhooks, use signature validation
+        if source == "github"
+          Rails.logger.info("GitHub webhook headers: #{relevant_github_headers.inspect}")
+
+          # Check for signature headers - prefer SHA-256 over SHA-1
+          signature = request.headers["X-Hub-Signature-256"]
+
+          Rails.logger.info("GitHub SHA-256 signature present: #{!signature.nil?}")
+
+          if signature.present?
+            # Get the webhook secret
+            secret = WebhookAuthenticator.secret_for("github")
+
+            if secret.nil?
+              Rails.logger.warn("No GitHub webhook secret configured")
+              head :unauthorized
+              return false
+            end
+
+            # Get raw payload
+            payload = request.raw_post
+
+            # Verify the signature using HMAC-SHA256
+            expected_signature = "sha256=" + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new("sha256"), secret, payload)
+
+            # Log signature details (first 10 chars only for security)
+            Rails.logger.info("Signature comparison - Expected: #{expected_signature[0..15]}... Received: #{signature[0..15]}...")
+
+            # Use secure comparison to prevent timing attacks
+            is_valid = Rack::Utils.secure_compare(expected_signature, signature)
+
+            unless is_valid
+              Rails.logger.warn("GitHub signature validation failed")
+              head :unauthorized
+              return false
+            end
+
+            Rails.logger.info("GitHub signature validation successful")
+            return true
+          else
+            # Fall back to SHA-1 for legacy support
+            signature = request.headers["X-Hub-Signature"]
+
+            if signature.present?
+              Rails.logger.info("Falling back to SHA-1 signature validation")
+
+              # Get the webhook secret
+              secret = WebhookAuthenticator.secret_for("github")
+
+              if secret.nil?
+                Rails.logger.warn("No GitHub webhook secret configured")
+                head :unauthorized
+                return false
+              end
+
+              # Get raw payload
+              payload = request.raw_post
+
+              # Verify the signature using HMAC-SHA1
+              expected_signature = "sha1=" + OpenSSL::HMAC.hexdigest(OpenSSL::Digest.new("sha1"), secret, payload)
+
+              # Log signature details (first 10 chars only for security)
+              Rails.logger.info("Signature comparison - Expected: #{expected_signature[0..15]}... Received: #{signature[0..15]}...")
+
+              # Use secure comparison to prevent timing attacks
+              is_valid = Rack::Utils.secure_compare(expected_signature, signature)
+
+              unless is_valid
+                Rails.logger.warn("GitHub SHA-1 signature validation failed")
+                head :unauthorized
+                return false
+              end
+
+              Rails.logger.info("GitHub SHA-1 signature validation successful")
+              return true
+            else
+              Rails.logger.warn("No GitHub signature headers found")
+            end
+          end
+        end
+
+        # For other sources, fall back to token authentication
+        token = request.headers["X-Webhook-Token"] ||
+                auth_header_token
+
+        Rails.logger.info("Token present: #{!token.nil?}")
+        Rails.logger.info("Authorization header present: #{!request.headers['Authorization'].nil?}")
+        Rails.logger.info("X-Webhook-Token header present: #{!request.headers['X-Webhook-Token'].nil?}")
 
         # Authenticate the token for the given source
         is_valid = token && WebhookAuthenticator.valid?(token, source)
@@ -132,7 +214,7 @@ module Api
         unless is_valid
           Rails.logger.warn("Webhook authentication failed for source: #{source}")
           head :unauthorized
-          return
+          return false
         end
 
         true
