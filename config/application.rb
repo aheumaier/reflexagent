@@ -24,6 +24,9 @@ module ReflexAgent
     # config.time_zone = "Central Time (US & Canada)"
     # config.eager_load_paths << Rails.root.join("extras")
 
+    # Set application version
+    config.version = ENV.fetch("APP_VERSION", "1.0.0")
+
     config.active_job.queue_adapter = :sidekiq
   end
 end
