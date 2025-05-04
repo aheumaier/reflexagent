@@ -31,11 +31,12 @@ test:
 
 production:
   <<: *default
-  host: dpg-d09kdure5dus73boghi0-a
-  port: 5432
+  url: <%= ENV["DATABASE_URL"] %>
   database: reflex_agent_production
   username: reflex_agent_production_user
-  password: Dl6S9x0DT6kwCGNJXnmGbNJySh0vLlv3
+  password: <%= ENV["REFLEX_AGENT_DATABASE_PASSWORD"] || "Dl6S9x0DT6kwCGNJXnmGbNJySh0vLlv3" %>
+  host: <%= ENV["DB_HOST"] || "dpg-d09kdure5dus73boghi0-a.frankfurt-postgres.render.com" %>
+  port: <%= ENV["DB_PORT"] || 5432 %>
 
   # The specified database role being used to connect to PostgreSQL.
   # To create additional roles in PostgreSQL see `$ createuser --help`.
@@ -91,8 +92,3 @@ test:
 # Read https://guides.rubyonrails.org/configuring.html#configuring-a-database
 # for a full overview on how database connection configuration can be specified.
 #
-production:
-  <<: *default
-  database: reflex_agent_production
-  username: reflex_agent
-  password: <%= ENV["REFLEX_AGENT_DATABASE_PASSWORD"] %>
