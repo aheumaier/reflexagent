@@ -115,13 +115,27 @@ module Api
         token = request.headers["X-Webhook-Token"] ||
                 auth_header_token
 
+        source = params[:source]
+
+        # Log authentication attempt
+        Rails.logger.info("Webhook authentication attempt for source: #{source}")
+        Rails.logger.info("Token present: #{!token.nil?}")
+        Rails.logger.info("Authorization header present: #{!request.headers['Authorization'].nil?}")
+        Rails.logger.info("X-Webhook-Token header present: #{!request.headers['X-Webhook-Token'].nil?}")
+
         # Always allow in development/test mode
         return true if Rails.env.local?
 
         # Authenticate the token for the given source
-        return if token && WebhookAuthenticator.valid?(token, params[:source])
+        is_valid = token && WebhookAuthenticator.valid?(token, source)
 
-        head :unauthorized
+        unless is_valid
+          Rails.logger.warn("Webhook authentication failed for source: #{source}")
+          head :unauthorized
+          return
+        end
+
+        true
       end
 
       def auth_header_token
