@@ -150,7 +150,7 @@ flowchart TD
 
 1. **Webhook arrives** → `ProcessEvent` → **enqueue**
 2. **Worker** pulls job → `CalculateMetrics` → persist & cache
-3. Immediately after: `DetectAnomalies` → if threshold crossed → `Alert` → `SendNotification`
+3. Scheduled all some minutes: `DetectAnomalies` → if threshold crossed → `Alert` → `SendNotification`
 4. On demand or schedule, a `RunAgentCycle` Use Case can trigger AI-driven perception & action via your `ReflexiveAgent` model and record those outcomes.
 5. **Dashboard** reads cached metrics and stored alerts to give teams real-time visibility.
 

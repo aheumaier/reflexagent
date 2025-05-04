@@ -11,20 +11,27 @@ class WebhookAuthenticator
     # In development mode, skip authentication
     return true if Rails.env.local?
 
-    # In production, validate the token against the expected value for the source
-    token == case source
-             when "github"
-               ENV.fetch("GITHUB_WEBHOOK_TOKEN", nil)
-             when "jira"
-               ENV.fetch("JIRA_WEBHOOK_TOKEN", nil)
-             when "gitlab"
-               ENV.fetch("GITLAB_WEBHOOK_TOKEN", nil)
-             when "bitbucket"
-               ENV.fetch("BITBUCKET_WEBHOOK_TOKEN", nil)
-             else
-               # For unknown sources, always require a custom token
-               ENV.fetch("#{source.upcase}_WEBHOOK_TOKEN", nil)
-             end
+    expected_token = case source
+                     when "github"
+                       Rails.logger.info("GitHub webhook validation - Token received: #{token&.first(4)}*****")
+                       github_token = ENV.fetch("GITHUB_WEBHOOK_TOKEN", nil)
+                       Rails.logger.info("GitHub webhook validation - Expected token from ENV: #{github_token&.first(4)}*****")
+                       Rails.logger.info("GitHub webhook ENV keys available: #{ENV.keys.grep(/GITHUB/).join(', ')}")
+                       github_token
+                     when "jira"
+                       ENV.fetch("JIRA_WEBHOOK_TOKEN", nil)
+                     when "gitlab"
+                       ENV.fetch("GITLAB_WEBHOOK_TOKEN", nil)
+                     when "bitbucket"
+                       ENV.fetch("BITBUCKET_WEBHOOK_TOKEN", nil)
+                     else
+                       # For unknown sources, always require a custom token
+                       ENV.fetch("#{source.upcase}_WEBHOOK_TOKEN", nil)
+                     end
+
+    is_valid = token == expected_token
+    Rails.logger.info("Webhook authentication for #{source} - Result: #{is_valid ? 'Valid' : 'Invalid'}")
+    is_valid
   end
 
   # Get the configured secret for a webhook source
@@ -36,8 +43,14 @@ class WebhookAuthenticator
     # and accessed through Rails.application.credentials or ENV
     case source
     when "github"
-      ENV["GITHUB_WEBHOOK_SECRET"] ||
-        (defined?(Rails) && Rails.application.try(:credentials).try(:dig, :github, :webhook_secret)) ||
+      github_secret = ENV.fetch("GITHUB_WEBHOOK_SECRET", nil)
+      credential_secret = defined?(Rails) && Rails.application.try(:credentials).try(:dig, :github, :webhook_secret)
+
+      Rails.logger.info("GitHub webhook secret - From ENV: #{github_secret ? 'Present' : 'Missing'}")
+      Rails.logger.info("GitHub webhook secret - From credentials: #{credential_secret ? 'Present' : 'Missing'}")
+
+      github_secret ||
+        credential_secret ||
         "demo_secret_token"
     when "jira"
       ENV["JIRA_WEBHOOK_SECRET"] ||
