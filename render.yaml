@@ -13,6 +13,8 @@ services:
         value: true
       - key: RAILS_LOG_TO_STDOUT
         value: true
+      - key: APP_VERSION
+        value: "1.0.0"
       - key: RAILS_MASTER_KEY
         sync: false
       - key: DATABASE_URL
@@ -41,6 +43,8 @@ services:
     envVars:
       - key: RAILS_ENV
         value: production
+      - key: APP_VERSION
+        value: "1.0.0"
       - key: DATABASE_URL
         value: postgresql://reflex_agent_production_user:Dl6S9x0DT6kwCGNJXnmGbNJySh0vLlv3@dpg-d09kdure5dus73boghi0-a.frankfurt-postgres.render.com/reflex_agent_production
       - key: REDIS_URL

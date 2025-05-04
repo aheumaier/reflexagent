@@ -8,7 +8,7 @@ class HealthController < ApplicationController
   def index
     render json: {
       status: "ok",
-      version: Rails.application.config.version || "unknown",
+      version: app_version,
       timestamp: Time.current.iso8601,
       environment: Rails.env,
       database: database_status,
@@ -18,6 +18,15 @@ class HealthController < ApplicationController
   end
 
   private
+
+  def app_version
+    # Try different ways to get the version
+    return ENV["APP_VERSION"] if ENV["APP_VERSION"].present?
+    return Rails.application.config.version if Rails.application.config.respond_to?(:version)
+    return Rails.application.engine_version.to_s if Rails.application.respond_to?(:engine_version)
+
+    "unknown"
+  end
 
   def database_status
     ActiveRecord::Base.connection.execute("SELECT 1")
