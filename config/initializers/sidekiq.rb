@@ -13,6 +13,14 @@ module Core
   end
 end
 
+# Calculate Redis connection pools based on available connections (Render Free tier: 50 max connections)
+# Reserve ~10 connections for other app needs, leaving 40 for Sidekiq
+sidekiq_concurrency = ENV.fetch("SIDEKIQ_CONCURRENCY", 2).to_i
+# Reserve 2 connections per worker thread, plus a few for scheduler
+server_redis_size = [sidekiq_concurrency + 2, 4].min
+# Reserve fewer connections for client operations
+client_redis_size = [3, 4].min
+
 # Configure Sidekiq
 Sidekiq.configure_server do |config|
   # Set Redis connection
@@ -20,7 +28,7 @@ Sidekiq.configure_server do |config|
 
   config.redis = {
     url: redis_url,
-    size: ENV.fetch("SIDEKIQ_REDIS_POOL_SIZE", 10).to_i,
+    size: ENV.fetch("SIDEKIQ_REDIS_POOL_SIZE", server_redis_size).to_i,
     network_timeout: ENV.fetch("REDIS_TIMEOUT", 5).to_i,
     ssl_params: { verify_mode: OpenSSL::SSL::VERIFY_NONE }
   }
@@ -78,7 +86,7 @@ Sidekiq.configure_client do |config|
 
   config.redis = {
     url: redis_url,
-    size: ENV.fetch("SIDEKIQ_CLIENT_REDIS_POOL_SIZE", 5).to_i,
+    size: ENV.fetch("SIDEKIQ_CLIENT_REDIS_POOL_SIZE", client_redis_size).to_i,
     network_timeout: ENV.fetch("REDIS_TIMEOUT", 5).to_i,
     ssl_params: { verify_mode: OpenSSL::SSL::VERIFY_NONE }
   }
@@ -90,5 +98,7 @@ Sidekiq.default_job_options = {
   "retry" => 3
 }
 
-# Log Sidekiq initialization
+# Log Sidekiq initialization with connection pool sizes
 Rails.logger.info "Sidekiq initialized with Redis URL: #{ENV.fetch('REDIS_URL', 'redis://localhost:6379/0')}"
+Rails.logger.info "Server Redis pool size: #{ENV.fetch('SIDEKIQ_REDIS_POOL_SIZE', server_redis_size)}"
+Rails.logger.info "Client Redis pool size: #{ENV.fetch('SIDEKIQ_CLIENT_REDIS_POOL_SIZE', client_redis_size)}"
