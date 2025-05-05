@@ -35,17 +35,6 @@ module Domain
       }
     end
 
-    private
-
-    # Validates that the event data is well-formed
-    # @raise [ArgumentError] If any validations fail
-    def validate!
-      raise ArgumentError, "Event name cannot be blank" if name.nil? || name.strip.empty?
-      raise ArgumentError, "Event source cannot be blank" if source.nil? || source.strip.empty?
-      raise ArgumentError, "Event data must be a Hash" unless data.is_a?(Hash)
-      raise ArgumentError, "Event timestamp must be a Time" unless timestamp.is_a?(Time)
-    end
-
     # Equality methods for testing
     def ==(other)
       return false unless other.is_a?(Event)
@@ -76,6 +65,17 @@ module Domain
         data: data.dup,
         timestamp: timestamp
       )
+    end
+
+    private
+
+    # Validates that the event data is well-formed
+    # @raise [ArgumentError] If any validations fail
+    def validate!
+      raise ArgumentError, "Event name cannot be blank" if name.nil? || name.strip.empty?
+      raise ArgumentError, "Event source cannot be blank" if source.nil? || source.strip.empty?
+      raise ArgumentError, "Event data must be a Hash" unless data.is_a?(Hash)
+      raise ArgumentError, "Event timestamp must be a Time" unless timestamp.is_a?(Time)
     end
   end
 end

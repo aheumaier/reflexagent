@@ -6,7 +6,7 @@ module HexagonalHelpers
   module MockPorts
     # Mock implementation of StoragePort for testing
     class MockStoragePort
-      include Ports::StoragePort
+      include StoragePort
 
       attr_reader :saved_events, :saved_metrics, :saved_alerts
 
@@ -132,7 +132,7 @@ module HexagonalHelpers
 
     # Mock implementation of CachePort for testing
     class MockCachePort
-      include Ports::CachePort
+      include CachePort
 
       attr_reader :cached_metrics
 
@@ -169,7 +169,7 @@ module HexagonalHelpers
 
     # Mock implementation of NotificationPort for testing
     class MockNotificationPort
-      include Ports::NotificationPort
+      include NotificationPort
 
       attr_reader :sent_alerts, :sent_messages
 
@@ -192,7 +192,7 @@ module HexagonalHelpers
 
     # Mock implementation of QueuePort for testing
     class MockQueuePort
-      include Ports::QueuePort
+      include QueuePort
 
       attr_reader :enqueued_events, :enqueued_metrics
 
