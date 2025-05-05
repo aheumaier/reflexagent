@@ -19,7 +19,7 @@ RSpec.describe Api::V1::EventsController, type: :controller do
 
   let(:domain_event) do
     instance_double(
-      Core::Domain::Event,
+      Domain::Event,
       id: "event-123",
       source: "github",
       name: "github.push",

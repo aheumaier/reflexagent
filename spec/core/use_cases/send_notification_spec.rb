@@ -16,7 +16,7 @@ RSpec.describe Core::UseCases::SendNotification do
   end
 
   let(:alert) do
-    alert = Core::Domain::Alert.new(
+    alert = Domain::Alert.new(
       id: "alert-123",
       name: "High CPU Usage",
       severity: :warning,

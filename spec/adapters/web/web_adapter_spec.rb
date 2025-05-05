@@ -46,7 +46,7 @@ RSpec.describe Adapters::Web::WebAdapter do
         event = adapter.receive_event(github_commit_payload, source: "github")
 
         # Verify the returned event
-        expect(event).to be_a(Core::Domain::Event)
+        expect(event).to be_a(Domain::Event)
         expect(event.source).to eq("github")
         expect(event.name).to eq("github.unknown") # "push" events often don't have an action field
         expect(event.timestamp).to eq(frozen_time)
@@ -102,7 +102,7 @@ RSpec.describe Adapters::Web::WebAdapter do
       it "correctly parses a pull request event" do
         event = adapter.receive_event(github_pr_payload, source: "github")
 
-        expect(event).to be_a(Core::Domain::Event)
+        expect(event).to be_a(Domain::Event)
         expect(event.source).to eq("github")
         expect(event.name).to eq("github.opened")
         expect(event.data[:pull_request][:title]).to eq("Add new metrics calculation algorithm")
@@ -132,7 +132,7 @@ RSpec.describe Adapters::Web::WebAdapter do
 
         event = adapter.receive_event(jira_payload, source: "jira")
 
-        expect(event).to be_a(Core::Domain::Event)
+        expect(event).to be_a(Domain::Event)
         expect(event.source).to eq("jira")
         expect(event.name).to eq("jira.jira:issue_updated")
       end
@@ -149,7 +149,7 @@ RSpec.describe Adapters::Web::WebAdapter do
 
         event = adapter.receive_event(gitlab_payload, source: "gitlab")
 
-        expect(event).to be_a(Core::Domain::Event)
+        expect(event).to be_a(Domain::Event)
         expect(event.source).to eq("gitlab")
         expect(event.name).to eq("gitlab.push")
       end
@@ -164,7 +164,7 @@ RSpec.describe Adapters::Web::WebAdapter do
 
         event = adapter.receive_event(custom_payload, source: "custom_source")
 
-        expect(event).to be_a(Core::Domain::Event)
+        expect(event).to be_a(Domain::Event)
         expect(event.source).to eq("custom_source")
         expect(event.name).to eq("custom_source.custom_event")
       end

@@ -36,7 +36,7 @@ RSpec.describe "Event Processing Pipeline", type: :integration do
       process_event_use_case = instance_double(Core::UseCases::ProcessEvent)
       allow(UseCaseFactory).to receive(:create_process_event).and_return(process_event_use_case)
       allow(process_event_use_case).to receive(:call).with(valid_payload, source: source)
-                                                     .and_return(instance_double(Core::Domain::Event, id: event_id))
+                                                     .and_return(instance_double(Domain::Event, id: event_id))
 
       # Process the raw event
       processed = queue_adapter.process_raw_event_batch(worker_id)

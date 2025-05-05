@@ -4,12 +4,12 @@ RSpec.describe Adapters::Queue::RedisQueueAdapter, type: :adapter do
   let(:adapter) { described_class.new }
   let(:redis) { instance_double(Redis) }
   let(:event) do
-    instance_double(Core::Domain::Event, id: SecureRandom.uuid, name: "test.event", source: "test",
-                                         timestamp: Time.current)
+    instance_double(Domain::Event, id: SecureRandom.uuid, name: "test.event", source: "test",
+                                   timestamp: Time.current)
   end
   let(:metric) do
-    instance_double(Core::Domain::Metric, id: SecureRandom.uuid, name: "test_metric", value: 42.0,
-                                          timestamp: Time.current)
+    instance_double(Domain::Metric, id: SecureRandom.uuid, name: "test_metric", value: 42.0,
+                                    timestamp: Time.current)
   end
   let(:raw_payload) { '{"key": "value"}' }
   let(:source) { "github" }

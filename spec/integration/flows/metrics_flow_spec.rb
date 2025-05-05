@@ -121,17 +121,17 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
 
       # Basic expectations about the created metric
       expect(metric).not_to be_nil
-      expect(metric).to be_a(Core::Domain::Metric)
+      expect(metric).to be_a(Domain::Metric)
       expect(metric.name).to include("#{event.name}_count")
 
       # Skip source check since it will be dynamic and may not match
       # expect(metric.source).to eq(event.source)
 
       # Verify the metric was stored using an argument matcher
-      expect(@storage_port).to have_received(:save_metric).with(an_instance_of(Core::Domain::Metric))
+      expect(@storage_port).to have_received(:save_metric).with(an_instance_of(Domain::Metric))
 
       # Verify the metric was cached
-      expect(@cache_port).to have_received(:cache_metric).with(an_instance_of(Core::Domain::Metric))
+      expect(@cache_port).to have_received(:cache_metric).with(an_instance_of(Domain::Metric))
     end
   end
 
@@ -157,11 +157,11 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
 
       # Should have created an alert since the value is high
       expect(alert).not_to be_nil
-      expect(alert).to be_a(Core::Domain::Alert)
+      expect(alert).to be_a(Domain::Alert)
       expect(alert.metric).to eq(high_value_metric)
 
       # Should have saved the alert
-      expect(@storage_port).to have_received(:save_alert).with(an_instance_of(Core::Domain::Alert))
+      expect(@storage_port).to have_received(:save_alert).with(an_instance_of(Domain::Alert))
 
       # Should have sent a notification
       expect(@notification_port).to have_received(:send_alert).with(alert)

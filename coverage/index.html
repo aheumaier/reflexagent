@@ -6322,7 +6322,7 @@
 
             
 
-            <code class="ruby">      # @param event [Core::Domain::Event] The event to process</code>
+            <code class="ruby">      # @param event [Domain::Event] The event to process</code>
           </li>
         </div>
       
@@ -6462,7 +6462,7 @@
 
             
 
-            <code class="ruby">      # @param event [Core::Domain::Event] The event to process</code>
+            <code class="ruby">      # @param event [Domain::Event] The event to process</code>
           </li>
         </div>
       
@@ -6592,7 +6592,7 @@
 
             
 
-            <code class="ruby">      # @param metric [Core::Domain::Metric] The metric to analyze</code>
+            <code class="ruby">      # @param metric [Domain::Metric] The metric to analyze</code>
           </li>
         </div>
       
@@ -10562,7 +10562,7 @@
 
             
 
-            <code class="ruby">      # @param event [Core::Domain::Event] The event to serialize</code>
+            <code class="ruby">      # @param event [Domain::Event] The event to serialize</code>
           </li>
         </div>
       
@@ -10702,7 +10702,7 @@
 
             
 
-            <code class="ruby">      # @param metric [Core::Domain::Metric] The metric to serialize</code>
+            <code class="ruby">      # @param metric [Domain::Metric] The metric to serialize</code>
           </li>
         </div>
       
@@ -11526,7 +11526,7 @@
 
             
 
-            <code class="ruby">      # @param event [Core::Domain::Event] The event to save</code>
+            <code class="ruby">      # @param event [Domain::Event] The event to save</code>
           </li>
         </div>
       
@@ -11536,7 +11536,7 @@
 
             
 
-            <code class="ruby">      # @return [Core::Domain::Event] The saved event</code>
+            <code class="ruby">      # @return [Domain::Event] The saved event</code>
           </li>
         </div>
       
@@ -11776,7 +11776,7 @@
 
             
 
-            <code class="ruby">            event = Core::Domain::Event.new(</code>
+            <code class="ruby">            event = Domain::Event.new(</code>
           </li>
         </div>
       
@@ -12006,7 +12006,7 @@
 
             
 
-            <code class="ruby">      # @return [Core::Domain::Event, nil] The event if found, nil otherwise</code>
+            <code class="ruby">      # @return [Domain::Event, nil] The event if found, nil otherwise</code>
           </li>
         </div>
       
@@ -13036,7 +13036,7 @@
 
             
 
-            <code class="ruby">      # Convert a DomainEvent record to a Core::Domain::Event</code>
+            <code class="ruby">      # Convert a DomainEvent record to a Domain::Event</code>
           </li>
         </div>
       
@@ -13056,7 +13056,7 @@
 
             
 
-            <code class="ruby">        Core::Domain::Event.new(</code>
+            <code class="ruby">        Domain::Event.new(</code>
           </li>
         </div>
       
@@ -14735,7 +14735,7 @@
 
             
 
-            <code class="ruby">      # @return [Core::Domain::Event] A domain event</code>
+            <code class="ruby">      # @return [Domain::Event] A domain event</code>
           </li>
         </div>
       
@@ -15175,7 +15175,7 @@
 
             
 
-            <code class="ruby">        # Create a domain event using the loaded Core::Domain::Event class</code>
+            <code class="ruby">        # Create a domain event using the loaded Domain::Event class</code>
           </li>
         </div>
       
@@ -15205,7 +15205,7 @@
 
             
 
-            <code class="ruby">          event = Core::Domain::Event.new(</code>
+            <code class="ruby">          event = Domain::Event.new(</code>
           </li>
         </div>
       
@@ -15635,7 +15635,7 @@
 
             
 
-            <code class="ruby">        Core::Domain::Event.new(</code>
+            <code class="ruby">        Domain::Event.new(</code>
           </li>
         </div>
       
@@ -15765,7 +15765,7 @@
 
             
 
-            <code class="ruby">        Core::Domain::Event.new(</code>
+            <code class="ruby">        Domain::Event.new(</code>
           </li>
         </div>
       
@@ -15895,7 +15895,7 @@
 
             
 
-            <code class="ruby">        Core::Domain::Event.new(</code>
+            <code class="ruby">        Domain::Event.new(</code>
           </li>
         </div>
       
@@ -16025,7 +16025,7 @@
 
             
 
-            <code class="ruby">        Core::Domain::Event.new(</code>
+            <code class="ruby">        Domain::Event.new(</code>
           </li>
         </div>
       
@@ -18631,7 +18631,7 @@
 
             
 
-            <code class="ruby">        Core::Domain::Event.new(</code>
+            <code class="ruby">        Domain::Event.new(</code>
           </li>
         </div>
       
@@ -21984,7 +21984,7 @@
 
             
 
-            <code class="ruby">        !metric.nil? &amp;&amp; metric.is_a?(Core::Domain::Metric) &amp;&amp;</code>
+            <code class="ruby">        !metric.nil? &amp;&amp; metric.is_a?(Domain::Metric) &amp;&amp;</code>
           </li>
         </div>
       
@@ -22084,7 +22084,7 @@
 
             
 
-            <code class="ruby">        raise ArgumentError, &quot;Metric must be a Core::Domain::Metric&quot; unless metric.is_a?(Core::Domain::Metric)</code>
+            <code class="ruby">        raise ArgumentError, &quot;Metric must be a Domain::Metric&quot; unless metric.is_a?(Domain::Metric)</code>
           </li>
         </div>
       
@@ -28578,7 +28578,7 @@
 
             
 
-            <code class="ruby">        if defined?(Core::Domain::Actuator) &amp;&amp; actuator.is_a?(Core::Domain::Actuator) ||</code>
+            <code class="ruby">        if defined?(Domain::Actuator) &amp;&amp; actuator.is_a?(Domain::Actuator) ||</code>
           </li>
         </div>
       
@@ -28628,7 +28628,7 @@
 
             
 
-            <code class="ruby">          raise ArgumentError, &quot;Actuator must implement proper interfaces or be a Core::Domain::Actuator&quot;</code>
+            <code class="ruby">          raise ArgumentError, &quot;Actuator must implement proper interfaces or be a Domain::Actuator&quot;</code>
           </li>
         </div>
       
@@ -32123,7 +32123,7 @@
 
             
 
-            <code class="ruby">      # @param actuator [Core::Domain::Actuator] The actuator to register</code>
+            <code class="ruby">      # @param actuator [Domain::Actuator] The actuator to register</code>
           </li>
         </div>
       
@@ -32157,7 +32157,7 @@
 
             
 
-            <code class="ruby">        raise ArgumentError, &quot;Only actuators can be registered&quot; unless actuator.is_a?(Core::Domain::Actuator)</code>
+            <code class="ruby">        raise ArgumentError, &quot;Only actuators can be registered&quot; unless actuator.is_a?(Domain::Actuator)</code>
           </li>
         </div>
       
@@ -32403,7 +32403,7 @@
 
             
 
-            <code class="ruby">      # @return [Array&lt;Core::Domain::Actuator&gt;] Array of matching actuators</code>
+            <code class="ruby">      # @return [Array&lt;Domain::Actuator&gt;] Array of matching actuators</code>
           </li>
         </div>
       
@@ -34383,7 +34383,7 @@
 
             
 
-            <code class="ruby">          alert = Core::Domain::Alert.new(</code>
+            <code class="ruby">          alert = Domain::Alert.new(</code>
           </li>
         </div>
       
@@ -35035,7 +35035,7 @@
 
             
 
-            <code class="ruby">      # @return [Core::Domain::Event, nil] The event if found, nil otherwise</code>
+            <code class="ruby">      # @return [Domain::Event, nil] The event if found, nil otherwise</code>
           </li>
         </div>
       
@@ -35759,7 +35759,7 @@
 
             
 
-            <code class="ruby">      # @return [Core::Domain::Event] The processed domain event</code>
+            <code class="ruby">      # @return [Domain::Event] The processed domain event</code>
           </li>
         </div>
       
@@ -38693,7 +38693,7 @@
 
             
 
-            <code class="ruby">    Core::Domain::Alert.new(</code>
+            <code class="ruby">    Domain::Alert.new(</code>
           </li>
         </div>
       
@@ -40212,7 +40212,7 @@
 
             
 
-            <code class="ruby">    # @return [Core::Domain::Event]</code>
+            <code class="ruby">    # @return [Domain::Event]</code>
           </li>
         </div>
       
@@ -40594,7 +40594,7 @@
 
             
 
-            <code class="ruby">    # @param event [Core::Domain::Event] The event to process</code>
+            <code class="ruby">    # @param event [Domain::Event] The event to process</code>
           </li>
         </div>
       
@@ -40664,7 +40664,7 @@
 
             
 
-            <code class="ruby">    # @param metric [Core::Domain::Metric] The metric to analyze</code>
+            <code class="ruby">    # @param metric [Domain::Metric] The metric to analyze</code>
           </li>
         </div>
       
@@ -40995,7 +40995,7 @@
 
             
 
-            <code class="ruby">    # @param event [Core::Domain::Event] The event to save</code>
+            <code class="ruby">    # @param event [Domain::Event] The event to save</code>
           </li>
         </div>
       
@@ -41005,7 +41005,7 @@
 
             
 
-            <code class="ruby">    # @return [Core::Domain::Event] The saved event</code>
+            <code class="ruby">    # @return [Domain::Event] The saved event</code>
           </li>
         </div>
       
@@ -41085,7 +41085,7 @@
 
             
 
-            <code class="ruby">    # @return [Core::Domain::Event, nil] The event if found, nil otherwise</code>
+            <code class="ruby">    # @return [Domain::Event, nil] The event if found, nil otherwise</code>
           </li>
         </div>
       

@@ -1,13 +1,13 @@
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe Core::Domain::Metric do
+RSpec.describe Domain::Metric do
   include_context "metric examples"
 
-  describe '#initialize' do
-    context 'with all attributes' do
+  describe "#initialize" do
+    context "with all attributes" do
       subject { metric }
 
-      it 'sets all attributes correctly' do
+      it "sets all attributes correctly" do
         expect(subject.id).to eq(metric_id)
         expect(subject.name).to eq(metric_name)
         expect(subject.value).to eq(metric_value)
@@ -17,7 +17,7 @@ RSpec.describe Core::Domain::Metric do
       end
     end
 
-    context 'with required attributes only' do
+    context "with required attributes only" do
       subject do
         described_class.new(
           name: metric_name,
@@ -26,7 +26,7 @@ RSpec.describe Core::Domain::Metric do
         )
       end
 
-      it 'sets required attributes correctly' do
+      it "sets required attributes correctly" do
         expect(subject.id).to be_nil
         expect(subject.name).to eq(metric_name)
         expect(subject.value).to eq(metric_value)
@@ -36,7 +36,7 @@ RSpec.describe Core::Domain::Metric do
       end
     end
 
-    context 'with empty dimensions' do
+    context "with empty dimensions" do
       subject do
         described_class.new(
           name: metric_name,
@@ -46,15 +46,15 @@ RSpec.describe Core::Domain::Metric do
         )
       end
 
-      it 'handles empty dimensions correctly' do
+      it "handles empty dimensions correctly" do
         expect(subject.dimensions).to eq({})
       end
     end
 
-    context 'with different value types' do
+    context "with different value types" do
       subject { metric_value_type }
 
-      context 'with integer value' do
+      context "with integer value" do
         let(:metric_value_type) do
           described_class.new(
             name: metric_name,
@@ -63,12 +63,12 @@ RSpec.describe Core::Domain::Metric do
           )
         end
 
-        it 'accepts integer values' do
+        it "accepts integer values" do
           expect(subject.value).to eq(42)
         end
       end
 
-      context 'with float value' do
+      context "with float value" do
         let(:metric_value_type) do
           described_class.new(
             name: metric_name,
@@ -77,12 +77,12 @@ RSpec.describe Core::Domain::Metric do
           )
         end
 
-        it 'accepts float values' do
+        it "accepts float values" do
           expect(subject.value).to eq(42.5)
         end
       end
 
-      context 'with large value' do
+      context "with large value" do
         let(:large_value) { 9_123_456_789 }
         let(:metric_value_type) do
           described_class.new(
@@ -92,15 +92,13 @@ RSpec.describe Core::Domain::Metric do
           )
         end
 
-        it 'handles large values correctly' do
+        it "handles large values correctly" do
           expect(subject.value).to eq(large_value)
         end
       end
     end
 
-    context 'with custom timestamp' do
-      let(:custom_time) { Time.new(2023, 1, 1, 12, 0, 0) }
-
+    context "with custom timestamp" do
       subject do
         described_class.new(
           name: metric_name,
@@ -110,16 +108,18 @@ RSpec.describe Core::Domain::Metric do
         )
       end
 
-      it 'uses the provided timestamp' do
+      let(:custom_time) { Time.new(2023, 1, 1, 12, 0, 0) }
+
+      it "uses the provided timestamp" do
         expect(subject.timestamp).to eq(custom_time)
       end
     end
   end
 
-  describe 'attributes' do
+  describe "attributes" do
     subject { metric }
 
-    it 'has read-only attributes' do
+    it "has read-only attributes" do
       expect(subject).to respond_to(:id)
       expect(subject).to respond_to(:name)
       expect(subject).to respond_to(:value)
@@ -137,102 +137,102 @@ RSpec.describe Core::Domain::Metric do
     end
   end
 
-  describe 'factory' do
+  describe "factory" do
     subject { build(:metric) }
 
-    it 'creates a valid metric' do
+    it "creates a valid metric" do
       expect(subject).to be_a(described_class)
       expect(subject.id).not_to be_nil
       expect(subject.name).not_to be_nil
       expect(subject.value).not_to be_nil
     end
 
-    context 'with traits' do
+    context "with traits" do
       subject { build(:metric, :cpu_usage) }
 
-      it 'creates a metric with the specified trait' do
-        expect(subject.name).to eq('cpu_usage')
-        expect(subject.dimensions[:host]).to eq('web-1')
+      it "creates a metric with the specified trait" do
+        expect(subject.name).to eq("cpu_usage")
+        expect(subject.dimensions[:host]).to eq("web-1")
       end
     end
 
-    context 'with overrides' do
-      subject { build(:metric, name: 'custom.metric', value: 999, dimensions: { custom: 'dimension' }) }
+    context "with overrides" do
+      subject { build(:metric, name: "custom.metric", value: 999, dimensions: { custom: "dimension" }) }
 
-      it 'allows overriding default values' do
-        expect(subject.name).to eq('custom.metric')
+      it "allows overriding default values" do
+        expect(subject.name).to eq("custom.metric")
         expect(subject.value).to eq(999)
-        expect(subject.dimensions).to eq({ custom: 'dimension' })
+        expect(subject.dimensions).to eq({ custom: "dimension" })
       end
     end
   end
 
   # Tests for the new validation methods
-  describe '#valid?' do
-    it 'returns true for a valid metric' do
+  describe "#valid?" do
+    it "returns true for a valid metric" do
       expect(metric).to be_valid
     end
 
-    it 'raises an error for a metric with empty name' do
-      expect {
+    it "raises an error for a metric with empty name" do
+      expect do
         described_class.new(
-          name: '',
+          name: "",
           value: metric_value,
           source: metric_source,
           dimensions: metric_dimensions
         )
-      }.to raise_error(ArgumentError, "Name cannot be empty")
+      end.to raise_error(ArgumentError, "Name cannot be empty")
     end
 
-    it 'raises an error for a metric with nil value' do
-      expect {
+    it "raises an error for a metric with nil value" do
+      expect do
         described_class.new(
           name: metric_name,
           value: nil,
           source: metric_source,
           dimensions: metric_dimensions
         )
-      }.to raise_error(ArgumentError, "Value cannot be nil")
+      end.to raise_error(ArgumentError, "Value cannot be nil")
     end
 
-    it 'raises an error for a metric with empty source' do
-      expect {
+    it "raises an error for a metric with empty source" do
+      expect do
         described_class.new(
           name: metric_name,
           value: metric_value,
-          source: '',
+          source: "",
           dimensions: metric_dimensions
         )
-      }.to raise_error(ArgumentError, "Source cannot be empty")
+      end.to raise_error(ArgumentError, "Source cannot be empty")
     end
 
-    it 'raises an error for a metric with invalid timestamp' do
-      expect {
+    it "raises an error for a metric with invalid timestamp" do
+      expect do
         described_class.new(
           name: metric_name,
           value: metric_value,
           source: metric_source,
-          timestamp: 'invalid',
+          timestamp: "invalid",
           dimensions: metric_dimensions
         )
-      }.to raise_error(ArgumentError, "Timestamp must be a Time object")
+      end.to raise_error(ArgumentError, "Timestamp must be a Time object")
     end
 
-    it 'raises an error for a metric with invalid dimensions' do
-      expect {
+    it "raises an error for a metric with invalid dimensions" do
+      expect do
         described_class.new(
           name: metric_name,
           value: metric_value,
           source: metric_source,
-          dimensions: 'invalid'
+          dimensions: "invalid"
         )
-      }.to raise_error(ArgumentError, "Dimensions must be a hash")
+      end.to raise_error(ArgumentError, "Dimensions must be a hash")
     end
   end
 
   # Tests for equality methods
-  describe '#==' do
-    it 'returns true for identical metrics' do
+  describe "#==" do
+    it "returns true for identical metrics" do
       metric1 = described_class.new(
         id: metric_id,
         name: metric_name,
@@ -254,7 +254,7 @@ RSpec.describe Core::Domain::Metric do
       expect(metric1).to eq(metric2)
     end
 
-    it 'returns false for metrics with different attributes' do
+    it "returns false for metrics with different attributes" do
       metric1 = described_class.new(
         id: metric_id,
         name: metric_name,
@@ -265,7 +265,7 @@ RSpec.describe Core::Domain::Metric do
       )
 
       metric2 = described_class.new(
-        id: 'different-id',
+        id: "different-id",
         name: metric_name,
         value: metric_value,
         source: metric_source,
@@ -276,13 +276,13 @@ RSpec.describe Core::Domain::Metric do
       expect(metric1).not_to eq(metric2)
     end
 
-    it 'returns false for different types' do
-      expect(metric).not_to eq('not a metric')
+    it "returns false for different types" do
+      expect(metric).not_to eq("not a metric")
     end
   end
 
-  describe '#hash' do
-    it 'returns the same hash for identical metrics' do
+  describe "#hash" do
+    it "returns the same hash for identical metrics" do
       metric1 = described_class.new(
         id: metric_id,
         name: metric_name,
@@ -304,7 +304,7 @@ RSpec.describe Core::Domain::Metric do
       expect(metric1.hash).to eq(metric2.hash)
     end
 
-    it 'returns different hash for different metrics' do
+    it "returns different hash for different metrics" do
       metric1 = described_class.new(
         id: metric_id,
         name: metric_name,
@@ -315,7 +315,7 @@ RSpec.describe Core::Domain::Metric do
       )
 
       metric2 = described_class.new(
-        id: 'different-id',
+        id: "different-id",
         name: metric_name,
         value: metric_value,
         source: metric_source,
@@ -328,15 +328,15 @@ RSpec.describe Core::Domain::Metric do
   end
 
   # Tests for business logic methods
-  describe '#numeric?' do
-    it 'returns true when value is a number' do
+  describe "#numeric?" do
+    it "returns true when value is a number" do
       expect(metric.numeric?).to be true
     end
 
-    it 'returns false when value is not a number' do
+    it "returns false when value is not a number" do
       string_metric = described_class.new(
         name: metric_name,
-        value: 'not a number',
+        value: "not a number",
         source: metric_source,
         dimensions: metric_dimensions
       )
@@ -345,8 +345,8 @@ RSpec.describe Core::Domain::Metric do
     end
   end
 
-  describe '#age' do
-    it 'returns the age of the metric' do
+  describe "#age" do
+    it "returns the age of the metric" do
       current_time = Time.now
       allow(Time).to receive(:now).and_return(current_time)
 
@@ -363,8 +363,8 @@ RSpec.describe Core::Domain::Metric do
     end
   end
 
-  describe '#to_h' do
-    it 'returns a hash representation of the metric' do
+  describe "#to_h" do
+    it "returns a hash representation of the metric" do
       expected_hash = {
         id: metric_id,
         name: metric_name,
@@ -378,9 +378,9 @@ RSpec.describe Core::Domain::Metric do
     end
   end
 
-  describe '#with_id' do
-    it 'creates a new metric with the specified id' do
-      new_id = 'new-id'
+  describe "#with_id" do
+    it "creates a new metric with the specified id" do
+      new_id = "new-id"
       new_metric = metric.with_id(new_id)
 
       expect(new_metric).not_to eq(metric)
@@ -393,8 +393,8 @@ RSpec.describe Core::Domain::Metric do
     end
   end
 
-  describe '#with_value' do
-    it 'creates a new metric with the specified value' do
+  describe "#with_value" do
+    it "creates a new metric with the specified value" do
       new_value = 99.9
       new_metric = metric.with_value(new_value)
 

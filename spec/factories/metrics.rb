@@ -1,5 +1,5 @@
 FactoryBot.define do
-  factory :metric, class: 'Core::Domain::Metric' do
+  factory :metric, class: 'Domain::Metric' do
     id { SecureRandom.uuid }
     name { 'response_time' }
     value { 150.5 }

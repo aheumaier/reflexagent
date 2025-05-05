@@ -68,7 +68,7 @@ module Queuing
     end
 
     # Enqueues a job to process metric calculations for an event
-    # @param event [Core::Domain::Event] The event to process
+    # @param event [Domain::Event] The event to process
     # @return [Boolean] True if the job was enqueued successfully
     def enqueue_metric_calculation(event)
       # Only pass the event ID to the job, not the entire serialized event
@@ -83,7 +83,7 @@ module Queuing
     end
 
     # Enqueues a job to process anomaly detection for a metric
-    # @param metric [Core::Domain::Metric] The metric to analyze
+    # @param metric [Domain::Metric] The metric to analyze
     # @return [Boolean] True if the job was enqueued successfully
     def enqueue_anomaly_detection(metric)
       # Convert metric to hash with string keys for Sidekiq
@@ -138,7 +138,7 @@ module Queuing
 
     # Serializes an event for storage in Redis
     # This is a placeholder method that should be implemented
-    # @param event [Core::Domain::Event] The event to serialize
+    # @param event [Domain::Event] The event to serialize
     # @return [Hash] A hash representation of the event
     def serialize_event(event)
       {
@@ -153,7 +153,7 @@ module Queuing
 
     # Serializes a metric for storage in Redis
     # This is a placeholder method that should be implemented
-    # @param metric [Core::Domain::Metric] The metric to serialize
+    # @param metric [Domain::Metric] The metric to serialize
     # @return [Hash] A hash representation of the metric
     def serialize_metric(metric)
       {

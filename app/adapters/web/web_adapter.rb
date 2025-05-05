@@ -11,7 +11,7 @@ module Web
     # Parses the raw payload and creates a Domain Event
     # @param raw_payload [String] The raw JSON webhook payload
     # @param source [String] The source system (github, jira, gitlab, etc.)
-    # @return [Core::Domain::Event] A domain event
+    # @return [Domain::Event] A domain event
     def receive_event(raw_payload, source:)
       # Parse the JSON payload
       parsed_payload = JSON.parse(raw_payload, symbolize_names: true)

@@ -17,8 +17,8 @@ module Repositories
 
     # Save an event to the database
     #
-    # @param event [Core::Domain::Event] The event to save
-    # @return [Core::Domain::Event] The saved event
+    # @param event [Domain::Event] The event to save
+    # @return [Domain::Event] The saved event
     def save_event(event)
       ActiveRecord::Base.transaction do
         # Ensure we have a valid UUID for aggregate_id
@@ -61,7 +61,7 @@ module Repositories
     # Find an event by ID
     #
     # @param id [String, Integer, Hash] The ID of the event to find
-    # @return [Core::Domain::Event, nil] The event if found, nil otherwise
+    # @return [Domain::Event, nil] The event if found, nil otherwise
     def find_event(id)
       # Handle the case where a hash is passed
       id = id["id"] if id.is_a?(Hash) && id.key?("id")

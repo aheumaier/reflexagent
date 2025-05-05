@@ -11,7 +11,7 @@ RSpec.describe Core::UseCases::ProcessEvent do
 
   let(:raw_payload) { { key: "value" }.to_json }
   let(:source) { "github" }
-  let(:event) { instance_double(Core::Domain::Event, id: "event-123", name: "github.push", source: "github") }
+  let(:event) { instance_double(Domain::Event, id: "event-123", name: "github.push", source: "github") }
 
   describe "#call" do
     before do

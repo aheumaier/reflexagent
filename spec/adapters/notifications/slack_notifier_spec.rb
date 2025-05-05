@@ -14,7 +14,7 @@ RSpec.describe Adapters::Notifications::SlackNotifier do
     )
   end
   let(:alert) do
-    Core::Domain::Alert.new(
+    Domain::Alert.new(
       name: "High CPU Usage",
       severity: :warning,
       metric: metric,

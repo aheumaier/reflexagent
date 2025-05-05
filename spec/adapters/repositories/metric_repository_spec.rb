@@ -22,7 +22,7 @@ RSpec.describe Adapters::Repositories::MetricRepository do
       end.to change(DomainMetric, :count).by(1)
 
       # Verify the returned metric has the correct values
-      expect(@result).to be_a(Core::Domain::Metric)
+      expect(@result).to be_a(Domain::Metric)
       expect(@result.name).to eq("cpu.usage")
       expect(@result.value).to eq(85.5)
       expect(@result.source).to eq("web-01")

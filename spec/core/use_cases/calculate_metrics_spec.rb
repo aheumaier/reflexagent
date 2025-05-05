@@ -39,7 +39,7 @@ RSpec.describe Core::UseCases::CalculateMetrics do
     it "creates metrics based on the event" do
       result = use_case.call(event.id)
 
-      expect(result).to be_a(Core::Domain::Metric)
+      expect(result).to be_a(Domain::Metric)
       expect(mock_storage_port.saved_metrics.size).to eq(1)
       expect(mock_storage_port.saved_metrics.first.name).to eq("server.cpu.usage_count")
       expect(mock_storage_port.saved_metrics.first.value).to eq(1)
@@ -89,7 +89,7 @@ RSpec.describe Core::UseCases::CalculateMetrics do
 
       # Verify injected dependencies are working
       result = factory_created.call(event.id)
-      expect(result).to be_a(Core::Domain::Metric)
+      expect(result).to be_a(Domain::Metric)
       expect(mock_storage_port.saved_metrics.size).to eq(1)
       expect(mock_cache_port.cached_metrics.size).to eq(1)
     end

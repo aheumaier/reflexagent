@@ -9,7 +9,7 @@ module UseCases
     # Process a raw webhook payload
     # @param raw_payload [String] The raw JSON webhook payload
     # @param source [String] The source of the webhook (github, jira, etc.)
-    # @return [Core::Domain::Event] The processed domain event
+    # @return [Domain::Event] The processed domain event
     def call(raw_payload, source:)
       Rails.logger.debug { "ProcessEvent.call starting for #{source} event" }
 

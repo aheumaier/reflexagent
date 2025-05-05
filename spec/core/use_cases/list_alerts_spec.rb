@@ -1,4 +1,4 @@
-require 'rails_helper'
+require "rails_helper"
 
 RSpec.describe Core::UseCases::ListAlerts do
   include_context "with all mock ports"
@@ -6,25 +6,25 @@ RSpec.describe Core::UseCases::ListAlerts do
 
   let(:alerts) do
     [
-      Core::Domain::Alert.new(
-        id: 'alert-1',
-        name: 'High CPU Usage',
+      Domain::Alert.new(
+        id: "alert-1",
+        name: "High CPU Usage",
         severity: :warning,
         metric: metric,
         threshold: 80.0,
         status: :active
       ),
-      Core::Domain::Alert.new(
-        id: 'alert-2',
-        name: 'Database Latency',
+      Domain::Alert.new(
+        id: "alert-2",
+        name: "Database Latency",
         severity: :critical,
         metric: metric,
         threshold: 100.0,
         status: :acknowledged
       ),
-      Core::Domain::Alert.new(
-        id: 'alert-3',
-        name: 'Memory Usage',
+      Domain::Alert.new(
+        id: "alert-3",
+        name: "Memory Usage",
         severity: :info,
         metric: metric,
         threshold: 75.0,
@@ -46,9 +46,9 @@ RSpec.describe Core::UseCases::ListAlerts do
     )
   end
 
-  describe '#call' do
-    context 'without filters' do
-      it 'returns all alerts' do
+  describe "#call" do
+    context "without filters" do
+      it "returns all alerts" do
         result = use_case.call
 
         expect(result).to eq(alerts)
@@ -56,8 +56,8 @@ RSpec.describe Core::UseCases::ListAlerts do
       end
     end
 
-    context 'with severity filter' do
-      it 'returns alerts filtered by severity' do
+    context "with severity filter" do
+      it "returns alerts filtered by severity" do
         result = use_case.call({ severity: :warning })
 
         expect(result.size).to eq(1)
@@ -65,8 +65,8 @@ RSpec.describe Core::UseCases::ListAlerts do
       end
     end
 
-    context 'with status filter' do
-      it 'returns alerts filtered by status' do
+    context "with status filter" do
+      it "returns alerts filtered by status" do
         result = use_case.call({ status: :active })
 
         expect(result.size).to eq(1)
@@ -75,8 +75,8 @@ RSpec.describe Core::UseCases::ListAlerts do
     end
   end
 
-  describe 'factory method' do
-    it 'creates the use case with dependencies injected' do
+  describe "factory method" do
+    it "creates the use case with dependencies injected" do
       # Register our mock with the container
       DependencyContainer.register(:storage_port, mock_storage_port)
 

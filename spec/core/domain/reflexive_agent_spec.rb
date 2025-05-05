@@ -1,11 +1,10 @@
-require 'rails_helper'
+require "rails_helper"
 
 # We need to define a mock Sensor class first
 
 module Core
-    module Domain
-
-    unless defined?(Core::Domain::Sensor)
+  module Domain
+    unless defined?(Domain::Sensor)
       class Sensor
         attr_reader :name
 
@@ -18,8 +17,8 @@ module Core
         end
       end
     end
-      # Mock Actuator for this test only - it needs to match the signature of our real Actuator
-    unless defined?(Core::Domain::Actuator)
+    # Mock Actuator for this test only - it needs to match the signature of our real Actuator
+    unless defined?(Domain::Actuator)
       class Actuator
         attr_reader :name, :properties
 
@@ -44,10 +43,9 @@ module Core
   end
 end
 
-
-RSpec.describe Core::Domain::ReflexiveAgent do
-  let(:test_sensor) { Core::Domain::Sensor.new("test_sensor") }
-  let(:test_actuator) { Core::Domain::Actuator.new(name: "test_actuator") }
+RSpec.describe Domain::ReflexiveAgent do
+  let(:test_sensor) { Domain::Sensor.new("test_sensor") }
+  let(:test_actuator) { Domain::Actuator.new(name: "test_actuator") }
 
   before do
     # Make the test_sensor return useful data
@@ -110,7 +108,7 @@ RSpec.describe Core::Domain::ReflexiveAgent do
         result = agent.perceive_and_act
 
         expect(result[:actions]).to include(action)
-        expect(result[:results].first[:status]).to eq('success')
+        expect(result[:results].first[:status]).to eq("success")
       end
     end
   end
@@ -154,7 +152,7 @@ RSpec.describe Core::Domain::ReflexiveAgent do
       expect(result).to have_key(:percepts)
       expect(result).to have_key(:actions)
       expect(result).to have_key(:results)
-      expect(result[:results].first[:status]).to eq('success')
+      expect(result[:results].first[:status]).to eq("success")
       expect(result[:results].first[:actuator]).to eq("test_actuator")
     end
   end

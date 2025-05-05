@@ -1,13 +1,13 @@
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe Core::Domain::Alert do
+RSpec.describe Domain::Alert do
   include_context "alert examples"
 
-  describe '#initialize' do
-    context 'with all attributes' do
+  describe "#initialize" do
+    context "with all attributes" do
       subject { alert }
 
-      it 'sets all attributes correctly' do
+      it "sets all attributes correctly" do
         expect(subject.id).to eq(alert_id)
         expect(subject.name).to eq(alert_name)
         expect(subject.severity).to eq(alert_severity)
@@ -18,7 +18,7 @@ RSpec.describe Core::Domain::Alert do
       end
     end
 
-    context 'with required attributes only' do
+    context "with required attributes only" do
       subject do
         described_class.new(
           name: alert_name,
@@ -28,7 +28,7 @@ RSpec.describe Core::Domain::Alert do
         )
       end
 
-      it 'sets required attributes correctly' do
+      it "sets required attributes correctly" do
         expect(subject.id).to be_nil
         expect(subject.name).to eq(alert_name)
         expect(subject.severity).to eq(alert_severity)
@@ -39,7 +39,7 @@ RSpec.describe Core::Domain::Alert do
       end
     end
 
-    context 'with valid severities' do
+    context "with valid severities" do
       described_class::SEVERITIES.each do |severity|
         context "with #{severity} severity" do
           subject do
@@ -58,7 +58,7 @@ RSpec.describe Core::Domain::Alert do
       end
     end
 
-    context 'with valid statuses' do
+    context "with valid statuses" do
       described_class::STATUSES.each do |status|
         context "with #{status} status" do
           subject do
@@ -78,9 +78,7 @@ RSpec.describe Core::Domain::Alert do
       end
     end
 
-    context 'with custom timestamp' do
-      let(:custom_time) { Time.new(2023, 1, 1, 12, 0, 0) }
-
+    context "with custom timestamp" do
       subject do
         described_class.new(
           name: alert_name,
@@ -91,26 +89,28 @@ RSpec.describe Core::Domain::Alert do
         )
       end
 
-      it 'uses the provided timestamp' do
+      let(:custom_time) { Time.new(2023, 1, 1, 12, 0, 0) }
+
+      it "uses the provided timestamp" do
         expect(subject.timestamp).to eq(custom_time)
       end
     end
   end
 
-  describe 'constants' do
-    it 'defines valid severities' do
+  describe "constants" do
+    it "defines valid severities" do
       expect(described_class::SEVERITIES).to eq([:info, :warning, :critical].freeze)
     end
 
-    it 'defines valid statuses' do
+    it "defines valid statuses" do
       expect(described_class::STATUSES).to eq([:active, :acknowledged, :resolved].freeze)
     end
   end
 
-  describe 'attributes' do
+  describe "attributes" do
     subject { alert }
 
-    it 'has read-only attributes' do
+    it "has read-only attributes" do
       expect(subject).to respond_to(:id)
       expect(subject).to respond_to(:name)
       expect(subject).to respond_to(:severity)
@@ -130,20 +130,20 @@ RSpec.describe Core::Domain::Alert do
     end
   end
 
-  describe 'factory' do
+  describe "factory" do
     subject { build(:alert) }
 
-    it 'creates a valid alert' do
+    it "creates a valid alert" do
       expect(subject).to be_a(described_class)
       expect(subject.id).not_to be_nil
       expect(subject.name).not_to be_nil
       expect(subject.severity).to be_in(described_class::SEVERITIES)
-      expect(subject.metric).to be_a(Core::Domain::Metric)
+      expect(subject.metric).to be_a(Domain::Metric)
       expect(subject.threshold).not_to be_nil
       expect(subject.status).to be_in(described_class::STATUSES)
     end
 
-    context 'with severity traits' do
+    context "with severity traits" do
       {
         warning: :warning,
         critical: :critical,
@@ -159,7 +159,7 @@ RSpec.describe Core::Domain::Alert do
       end
     end
 
-    context 'with status traits' do
+    context "with status traits" do
       {
         active: :active,
         acknowledged: :acknowledged,
@@ -175,41 +175,41 @@ RSpec.describe Core::Domain::Alert do
       end
     end
 
-    context 'with alert type traits' do
-      context 'with high_response_time trait' do
+    context "with alert type traits" do
+      context "with high_response_time trait" do
         subject { build(:alert, :high_response_time) }
 
-        it 'creates a response time alert' do
-          expect(subject.name).to eq('High Response Time')
-          expect(subject.metric.name).to eq('response_time')
+        it "creates a response time alert" do
+          expect(subject.name).to eq("High Response Time")
+          expect(subject.metric.name).to eq("response_time")
           expect(subject.threshold).to eq(100)
         end
       end
 
-      context 'with high_cpu_usage trait' do
+      context "with high_cpu_usage trait" do
         subject { build(:alert, :high_cpu_usage) }
 
-        it 'creates a CPU usage alert' do
-          expect(subject.name).to eq('High CPU Usage')
-          expect(subject.metric.name).to eq('cpu_usage')
+        it "creates a CPU usage alert" do
+          expect(subject.name).to eq("High CPU Usage")
+          expect(subject.metric.name).to eq("cpu_usage")
           expect(subject.threshold).to eq(80)
         end
       end
     end
 
-    context 'with overrides' do
+    context "with overrides" do
       subject do
         build(
           :alert,
-          name: 'Custom Alert',
+          name: "Custom Alert",
           severity: :info,
           threshold: 42,
           status: :acknowledged
         )
       end
 
-      it 'allows overriding default values' do
-        expect(subject.name).to eq('Custom Alert')
+      it "allows overriding default values" do
+        expect(subject.name).to eq("Custom Alert")
         expect(subject.severity).to eq(:info)
         expect(subject.threshold).to eq(42)
         expect(subject.status).to eq(:acknowledged)
@@ -217,14 +217,14 @@ RSpec.describe Core::Domain::Alert do
     end
   end
 
-  describe '#message' do
-    it 'returns the message for the alert' do
+  describe "#message" do
+    it "returns the message for the alert" do
       expect(alert.message).to eq("#{alert_name} - #{metric.name} exceeded threshold of #{alert_threshold}")
     end
   end
 
-  describe '#details' do
-    it 'returns the details for the alert' do
+  describe "#details" do
+    it "returns the details for the alert" do
       expected_details = {
         metric_name: metric.name,
         metric_value: metric.value,
@@ -236,87 +236,87 @@ RSpec.describe Core::Domain::Alert do
     end
   end
 
-  describe '#created_at' do
-    it 'returns the created_at timestamp for the alert' do
+  describe "#created_at" do
+    it "returns the created_at timestamp for the alert" do
       expect(alert.created_at).to eq(alert_timestamp)
     end
   end
 
   # Tests for the new validation methods
-  describe '#valid?' do
-    it 'returns true for a valid alert' do
+  describe "#valid?" do
+    it "returns true for a valid alert" do
       expect(alert).to be_valid
     end
 
-    it 'raises an error for an alert with empty name' do
-      expect {
+    it "raises an error for an alert with empty name" do
+      expect do
         described_class.new(
-          name: '',
+          name: "",
           severity: alert_severity,
           metric: metric,
           threshold: alert_threshold
         )
-      }.to raise_error(ArgumentError, "Name cannot be empty")
+      end.to raise_error(ArgumentError, "Name cannot be empty")
     end
 
-    it 'raises an error for an alert with invalid severity' do
-      expect {
+    it "raises an error for an alert with invalid severity" do
+      expect do
         described_class.new(
           name: alert_name,
           severity: :invalid,
           metric: metric,
           threshold: alert_threshold
         )
-      }.to raise_error(ArgumentError, /Severity must be one of/)
+      end.to raise_error(ArgumentError, /Severity must be one of/)
     end
 
-    it 'raises an error for an alert with nil metric' do
-      expect {
+    it "raises an error for an alert with nil metric" do
+      expect do
         described_class.new(
           name: alert_name,
           severity: alert_severity,
           metric: nil,
           threshold: alert_threshold
         )
-      }.to raise_error(ArgumentError, "Metric cannot be nil")
+      end.to raise_error(ArgumentError, "Metric cannot be nil")
     end
 
-    it 'raises an error for an alert with wrong metric type' do
-      expect {
+    it "raises an error for an alert with wrong metric type" do
+      expect do
         described_class.new(
           name: alert_name,
           severity: alert_severity,
           metric: "not a metric",
           threshold: alert_threshold
         )
-      }.to raise_error(ArgumentError, "Metric must be a Core::Domain::Metric")
+      end.to raise_error(ArgumentError, "Metric must be a Domain::Metric")
     end
 
-    it 'raises an error for an alert with nil threshold' do
-      expect {
+    it "raises an error for an alert with nil threshold" do
+      expect do
         described_class.new(
           name: alert_name,
           severity: alert_severity,
           metric: metric,
           threshold: nil
         )
-      }.to raise_error(ArgumentError, "Threshold cannot be nil")
+      end.to raise_error(ArgumentError, "Threshold cannot be nil")
     end
 
-    it 'raises an error for an alert with invalid timestamp' do
-      expect {
+    it "raises an error for an alert with invalid timestamp" do
+      expect do
         described_class.new(
           name: alert_name,
           severity: alert_severity,
           metric: metric,
           threshold: alert_threshold,
-          timestamp: 'invalid'
+          timestamp: "invalid"
         )
-      }.to raise_error(ArgumentError, "Timestamp must be a Time object")
+      end.to raise_error(ArgumentError, "Timestamp must be a Time object")
     end
 
-    it 'raises an error for an alert with invalid status' do
-      expect {
+    it "raises an error for an alert with invalid status" do
+      expect do
         described_class.new(
           name: alert_name,
           severity: alert_severity,
@@ -324,13 +324,13 @@ RSpec.describe Core::Domain::Alert do
           threshold: alert_threshold,
           status: :invalid
         )
-      }.to raise_error(ArgumentError, /Status must be one of/)
+      end.to raise_error(ArgumentError, /Status must be one of/)
     end
   end
 
   # Tests for equality methods
-  describe '#==' do
-    it 'returns true for identical alerts' do
+  describe "#==" do
+    it "returns true for identical alerts" do
       alert1 = described_class.new(
         id: alert_id,
         name: alert_name,
@@ -354,7 +354,7 @@ RSpec.describe Core::Domain::Alert do
       expect(alert1).to eq(alert2)
     end
 
-    it 'returns false for alerts with different attributes' do
+    it "returns false for alerts with different attributes" do
       alert1 = described_class.new(
         id: alert_id,
         name: alert_name,
@@ -366,7 +366,7 @@ RSpec.describe Core::Domain::Alert do
       )
 
       alert2 = described_class.new(
-        id: 'different-id',
+        id: "different-id",
         name: alert_name,
         severity: alert_severity,
         metric: metric,
@@ -378,13 +378,13 @@ RSpec.describe Core::Domain::Alert do
       expect(alert1).not_to eq(alert2)
     end
 
-    it 'returns false for different types' do
-      expect(alert).not_to eq('not an alert')
+    it "returns false for different types" do
+      expect(alert).not_to eq("not an alert")
     end
   end
 
-  describe '#hash' do
-    it 'returns the same hash for identical alerts' do
+  describe "#hash" do
+    it "returns the same hash for identical alerts" do
       alert1 = described_class.new(
         id: alert_id,
         name: alert_name,
@@ -408,7 +408,7 @@ RSpec.describe Core::Domain::Alert do
       expect(alert1.hash).to eq(alert2.hash)
     end
 
-    it 'returns different hash for different alerts' do
+    it "returns different hash for different alerts" do
       alert1 = described_class.new(
         id: alert_id,
         name: alert_name,
@@ -420,7 +420,7 @@ RSpec.describe Core::Domain::Alert do
       )
 
       alert2 = described_class.new(
-        id: 'different-id',
+        id: "different-id",
         name: alert_name,
         severity: alert_severity,
         metric: metric,
@@ -434,8 +434,8 @@ RSpec.describe Core::Domain::Alert do
   end
 
   # Tests for business logic methods
-  describe '#acknowledge' do
-    it 'changes the status to acknowledged' do
+  describe "#acknowledge" do
+    it "changes the status to acknowledged" do
       active_alert = described_class.new(
         name: alert_name,
         severity: alert_severity,
@@ -450,7 +450,7 @@ RSpec.describe Core::Domain::Alert do
       expect(active_alert.status).to eq(:active) # Original should be unchanged
     end
 
-    it 'returns the same alert if already acknowledged' do
+    it "returns the same alert if already acknowledged" do
       acknowledged_alert = described_class.new(
         name: alert_name,
         severity: alert_severity,
@@ -465,8 +465,8 @@ RSpec.describe Core::Domain::Alert do
     end
   end
 
-  describe '#resolve' do
-    it 'changes the status to resolved' do
+  describe "#resolve" do
+    it "changes the status to resolved" do
       active_alert = described_class.new(
         name: alert_name,
         severity: alert_severity,
@@ -481,7 +481,7 @@ RSpec.describe Core::Domain::Alert do
       expect(active_alert.status).to eq(:active) # Original should be unchanged
     end
 
-    it 'returns the same alert if already resolved' do
+    it "returns the same alert if already resolved" do
       resolved_alert = described_class.new(
         name: alert_name,
         severity: alert_severity,
@@ -496,8 +496,8 @@ RSpec.describe Core::Domain::Alert do
     end
   end
 
-  describe '#escalate' do
-    it 'changes the severity to a higher level' do
+  describe "#escalate" do
+    it "changes the severity to a higher level" do
       warning_alert = described_class.new(
         name: alert_name,
         severity: :warning,
@@ -511,7 +511,7 @@ RSpec.describe Core::Domain::Alert do
       expect(warning_alert.severity).to eq(:warning) # Original should be unchanged
     end
 
-    it 'returns the same alert if trying to escalate to a lower severity' do
+    it "returns the same alert if trying to escalate to a lower severity" do
       critical_alert = described_class.new(
         name: alert_name,
         severity: :critical,
@@ -524,7 +524,7 @@ RSpec.describe Core::Domain::Alert do
       expect(result).to be(critical_alert)
     end
 
-    it 'returns the same alert if trying to escalate to an invalid severity' do
+    it "returns the same alert if trying to escalate to an invalid severity" do
       warning_alert = described_class.new(
         name: alert_name,
         severity: :warning,
@@ -538,8 +538,8 @@ RSpec.describe Core::Domain::Alert do
     end
   end
 
-  describe 'status query methods' do
-    it 'returns true for active? when status is active' do
+  describe "status query methods" do
+    it "returns true for active? when status is active" do
       active_alert = described_class.new(
         name: alert_name,
         severity: alert_severity,
@@ -553,7 +553,7 @@ RSpec.describe Core::Domain::Alert do
       expect(active_alert.resolved?).to be false
     end
 
-    it 'returns true for acknowledged? when status is acknowledged' do
+    it "returns true for acknowledged? when status is acknowledged" do
       acknowledged_alert = described_class.new(
         name: alert_name,
         severity: alert_severity,
@@ -567,7 +567,7 @@ RSpec.describe Core::Domain::Alert do
       expect(acknowledged_alert.resolved?).to be false
     end
 
-    it 'returns true for resolved? when status is resolved' do
+    it "returns true for resolved? when status is resolved" do
       resolved_alert = described_class.new(
         name: alert_name,
         severity: alert_severity,
@@ -582,8 +582,8 @@ RSpec.describe Core::Domain::Alert do
     end
   end
 
-  describe 'severity query methods' do
-    it 'returns true for info? when severity is info' do
+  describe "severity query methods" do
+    it "returns true for info? when severity is info" do
       info_alert = described_class.new(
         name: alert_name,
         severity: :info,
@@ -596,7 +596,7 @@ RSpec.describe Core::Domain::Alert do
       expect(info_alert.critical?).to be false
     end
 
-    it 'returns true for warning? when severity is warning' do
+    it "returns true for warning? when severity is warning" do
       warning_alert = described_class.new(
         name: alert_name,
         severity: :warning,
@@ -609,7 +609,7 @@ RSpec.describe Core::Domain::Alert do
       expect(warning_alert.critical?).to be false
     end
 
-    it 'returns true for critical? when severity is critical' do
+    it "returns true for critical? when severity is critical" do
       critical_alert = described_class.new(
         name: alert_name,
         severity: :critical,
@@ -623,8 +623,8 @@ RSpec.describe Core::Domain::Alert do
     end
   end
 
-  describe '#to_h' do
-    it 'returns a hash representation of the alert' do
+  describe "#to_h" do
+    it "returns a hash representation of the alert" do
       expected_hash = {
         id: alert_id,
         name: alert_name,
@@ -639,9 +639,9 @@ RSpec.describe Core::Domain::Alert do
     end
   end
 
-  describe '#with_id' do
-    it 'creates a new alert with the specified id' do
-      new_id = 'new-id'
+  describe "#with_id" do
+    it "creates a new alert with the specified id" do
+      new_id = "new-id"
       new_alert = alert.with_id(new_id)
 
       expect(new_alert).not_to eq(alert)

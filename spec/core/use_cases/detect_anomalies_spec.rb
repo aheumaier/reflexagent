@@ -48,7 +48,7 @@ RSpec.describe Core::UseCases::DetectAnomalies do
       it "creates and saves an alert" do
         result = use_case.call(anomalous_metric.id)
 
-        expect(result).to be_a(Core::Domain::Alert)
+        expect(result).to be_a(Domain::Alert)
         expect(mock_storage_port.saved_alerts.size).to eq(1)
 
         alert = mock_storage_port.saved_alerts.first
@@ -111,7 +111,7 @@ RSpec.describe Core::UseCases::DetectAnomalies do
 
       # Verify injected dependencies are working
       result = factory_created.call(anomalous_metric.id)
-      expect(result).to be_a(Core::Domain::Alert)
+      expect(result).to be_a(Domain::Alert)
       expect(mock_storage_port.saved_alerts.size).to eq(1)
       expect(mock_notification_port.sent_alerts.size).to eq(1)
     end

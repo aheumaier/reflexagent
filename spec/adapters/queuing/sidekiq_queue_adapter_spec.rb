@@ -5,8 +5,8 @@ require "rails_helper"
 RSpec.describe Queuing::SidekiqQueueAdapter, type: :adapter do
   subject(:adapter) { described_class.new }
 
-  let(:event) { instance_double(Core::Domain::Event, id: "event-123", type: "test", data: {}, metadata: {}) }
-  let(:metric) { instance_double(Core::Domain::Metric, id: "metric-123", name: "test_metric", value: 42) }
+  let(:event) { instance_double(Domain::Event, id: "event-123", type: "test", data: {}, metadata: {}) }
+  let(:metric) { instance_double(Domain::Metric, id: "metric-123", name: "test_metric", value: 42) }
   let(:raw_payload) { '{"test":"data"}' }
   let(:source) { "github" }
 

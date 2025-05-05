@@ -66,7 +66,7 @@ RSpec.shared_context "alert examples" do
   let(:alert_status) { :active }
 
   let(:alert) do
-    Core::Domain::Alert.new(
+    Domain::Alert.new(
       id: alert_id,
       name: alert_name,
       severity: alert_severity,
@@ -78,7 +78,7 @@ RSpec.shared_context "alert examples" do
   end
 
   let(:alert_without_id) do
-    Core::Domain::Alert.new(
+    Domain::Alert.new(
       name: alert_name,
       severity: alert_severity,
       metric: metric,

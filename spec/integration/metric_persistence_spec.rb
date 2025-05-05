@@ -29,7 +29,7 @@ RSpec.describe "Metric Persistence", type: :integration do
       saved_metric = repository.save_metric(metric)
 
       # Verify the metric was returned correctly
-      expect(saved_metric).to be_a(Core::Domain::Metric)
+      expect(saved_metric).to be_a(Domain::Metric)
       expect(saved_metric.id).not_to be_nil
       expect(saved_metric.name).to eq("test.metric")
       expect(saved_metric.value).to eq(85.5)

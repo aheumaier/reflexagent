@@ -1,5 +1,5 @@
 FactoryBot.define do
-  factory :event, class: 'Core::Domain::Event' do
+  factory :event, class: 'Domain::Event' do
     id { SecureRandom.uuid }
     name { 'user.login' }
     source { 'web_api' }

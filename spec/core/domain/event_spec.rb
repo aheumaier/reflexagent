@@ -1,13 +1,13 @@
-require 'rails_helper'
+require "rails_helper"
 
-RSpec.describe Core::Domain::Event do
+RSpec.describe Domain::Event do
   include_context "event examples"
 
-  describe '#initialize' do
-    context 'with all attributes' do
+  describe "#initialize" do
+    context "with all attributes" do
       subject { event }
 
-      it 'sets all attributes correctly' do
+      it "sets all attributes correctly" do
         expect(subject.id).to eq(event_id)
         expect(subject.name).to eq(event_name)
         expect(subject.source).to eq(event_source)
@@ -16,7 +16,7 @@ RSpec.describe Core::Domain::Event do
       end
     end
 
-    context 'with required attributes only' do
+    context "with required attributes only" do
       subject do
         described_class.new(
           name: event_name,
@@ -24,7 +24,7 @@ RSpec.describe Core::Domain::Event do
         )
       end
 
-      it 'sets required attributes correctly' do
+      it "sets required attributes correctly" do
         expect(subject.id).to be_nil
         expect(subject.name).to eq(event_name)
         expect(subject.source).to eq(event_source)
@@ -33,7 +33,7 @@ RSpec.describe Core::Domain::Event do
       end
     end
 
-    context 'with empty data' do
+    context "with empty data" do
       subject do
         described_class.new(
           name: event_name,
@@ -42,14 +42,12 @@ RSpec.describe Core::Domain::Event do
         )
       end
 
-      it 'handles empty data correctly' do
+      it "handles empty data correctly" do
         expect(subject.data).to eq({})
       end
     end
 
-    context 'with custom timestamp' do
-      let(:custom_time) { Time.new(2023, 1, 1, 12, 0, 0) }
-
+    context "with custom timestamp" do
       subject do
         described_class.new(
           name: event_name,
@@ -58,16 +56,18 @@ RSpec.describe Core::Domain::Event do
         )
       end
 
-      it 'uses the provided timestamp' do
+      let(:custom_time) { Time.new(2023, 1, 1, 12, 0, 0) }
+
+      it "uses the provided timestamp" do
         expect(subject.timestamp).to eq(custom_time)
       end
     end
   end
 
-  describe 'attributes' do
+  describe "attributes" do
     subject { event }
 
-    it 'has read-only attributes' do
+    it "has read-only attributes" do
       expect(subject).to respond_to(:id)
       expect(subject).to respond_to(:name)
       expect(subject).to respond_to(:source)
@@ -83,69 +83,69 @@ RSpec.describe Core::Domain::Event do
     end
   end
 
-  describe 'factory' do
+  describe "factory" do
     subject { build(:event) }
 
-    it 'creates a valid event' do
+    it "creates a valid event" do
       expect(subject).to be_a(described_class)
       expect(subject.id).not_to be_nil
       expect(subject.name).not_to be_nil
       expect(subject.source).not_to be_nil
     end
 
-    context 'with traits' do
+    context "with traits" do
       subject { build(:event, :purchase) }
 
-      it 'creates an event with the specified trait' do
-        expect(subject.name).to eq('order.purchase')
+      it "creates an event with the specified trait" do
+        expect(subject.name).to eq("order.purchase")
         expect(subject.data[:order_id]).to eq(456)
       end
     end
 
-    context 'with overrides' do
-      subject { build(:event, name: 'custom.event', data: { custom: 'value' }) }
+    context "with overrides" do
+      subject { build(:event, name: "custom.event", data: { custom: "value" }) }
 
-      it 'allows overriding default values' do
-        expect(subject.name).to eq('custom.event')
-        expect(subject.data).to eq({ custom: 'value' })
+      it "allows overriding default values" do
+        expect(subject.name).to eq("custom.event")
+        expect(subject.data).to eq({ custom: "value" })
       end
     end
   end
 
   # Tests for the new validation methods
-  describe '#valid?' do
-    it 'returns true for a valid event' do
+  describe "#valid?" do
+    it "returns true for a valid event" do
       expect(event).to be_valid
     end
 
-    it 'returns false for an event with empty name' do
-      expect {
-        described_class.new(name: '', source: event_source)
-      }.to raise_error(ArgumentError, "Name cannot be empty")
+    it "returns false for an event with empty name" do
+      expect do
+        described_class.new(name: "", source: event_source)
+      end.to raise_error(ArgumentError, "Name cannot be empty")
     end
 
-    it 'returns false for an event with empty source' do
-      expect {
-        described_class.new(name: event_name, source: '')
-      }.to raise_error(ArgumentError, "Source cannot be empty")
+    it "returns false for an event with empty source" do
+      expect do
+        described_class.new(name: event_name, source: "")
+      end.to raise_error(ArgumentError, "Source cannot be empty")
     end
 
-    it 'returns false for an event with invalid timestamp' do
-      expect {
-        described_class.new(name: event_name, source: event_source, timestamp: 'invalid')
-      }.to raise_error(ArgumentError, "Timestamp must be a Time object")
+    it "returns false for an event with invalid timestamp" do
+      expect do
+        described_class.new(name: event_name, source: event_source, timestamp: "invalid")
+      end.to raise_error(ArgumentError, "Timestamp must be a Time object")
     end
 
-    it 'returns false for an event with invalid data' do
-      expect {
-        described_class.new(name: event_name, source: event_source, data: 'invalid')
-      }.to raise_error(ArgumentError, "Data must be a hash")
+    it "returns false for an event with invalid data" do
+      expect do
+        described_class.new(name: event_name, source: event_source, data: "invalid")
+      end.to raise_error(ArgumentError, "Data must be a hash")
     end
   end
 
   # Tests for equality methods
-  describe '#==' do
-    it 'returns true for identical events' do
+  describe "#==" do
+    it "returns true for identical events" do
       event1 = described_class.new(
         id: event_id,
         name: event_name,
@@ -165,7 +165,7 @@ RSpec.describe Core::Domain::Event do
       expect(event1).to eq(event2)
     end
 
-    it 'returns false for events with different attributes' do
+    it "returns false for events with different attributes" do
       event1 = described_class.new(
         id: event_id,
         name: event_name,
@@ -175,7 +175,7 @@ RSpec.describe Core::Domain::Event do
       )
 
       event2 = described_class.new(
-        id: 'different-id',
+        id: "different-id",
         name: event_name,
         source: event_source,
         timestamp: event_timestamp,
@@ -185,13 +185,13 @@ RSpec.describe Core::Domain::Event do
       expect(event1).not_to eq(event2)
     end
 
-    it 'returns false for different types' do
-      expect(event).not_to eq('not an event')
+    it "returns false for different types" do
+      expect(event).not_to eq("not an event")
     end
   end
 
-  describe '#hash' do
-    it 'returns the same hash for identical events' do
+  describe "#hash" do
+    it "returns the same hash for identical events" do
       event1 = described_class.new(
         id: event_id,
         name: event_name,
@@ -211,7 +211,7 @@ RSpec.describe Core::Domain::Event do
       expect(event1.hash).to eq(event2.hash)
     end
 
-    it 'returns different hash for different events' do
+    it "returns different hash for different events" do
       event1 = described_class.new(
         id: event_id,
         name: event_name,
@@ -221,7 +221,7 @@ RSpec.describe Core::Domain::Event do
       )
 
       event2 = described_class.new(
-        id: 'different-id',
+        id: "different-id",
         name: event_name,
         source: event_source,
         timestamp: event_timestamp,
@@ -233,8 +233,8 @@ RSpec.describe Core::Domain::Event do
   end
 
   # Tests for business logic methods
-  describe '#age' do
-    it 'returns the age of the event' do
+  describe "#age" do
+    it "returns the age of the event" do
       current_time = Time.now
       allow(Time).to receive(:now).and_return(current_time)
 
@@ -249,8 +249,8 @@ RSpec.describe Core::Domain::Event do
     end
   end
 
-  describe '#to_h' do
-    it 'returns a hash representation of the event' do
+  describe "#to_h" do
+    it "returns a hash representation of the event" do
       expected_hash = {
         id: event_id,
         name: event_name,
@@ -263,9 +263,9 @@ RSpec.describe Core::Domain::Event do
     end
   end
 
-  describe '#with_id' do
-    it 'creates a new event with the specified id' do
-      new_id = 'new-id'
+  describe "#with_id" do
+    it "creates a new event with the specified id" do
+      new_id = "new-id"
       new_event = event.with_id(new_id)
 
       expect(new_event).not_to eq(event)

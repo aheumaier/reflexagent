@@ -8,7 +8,7 @@ module UseCases
     # Find an event by its ID
     #
     # @param id [String] The ID of the event to find
-    # @return [Core::Domain::Event, nil] The event if found, nil otherwise
+    # @return [Domain::Event, nil] The event if found, nil otherwise
     def call(id)
       @storage_port.find_event(id)
     end

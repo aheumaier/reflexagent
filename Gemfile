@@ -93,3 +93,5 @@ gem "sidekiq-scheduler", "~> 5.0"
 gem "tailwindcss-rails", "~> 4.2"
 
 gem "tailwindcss-ruby", "~> 4.1"
+
+gem "chromable", "~> 0.3.5"

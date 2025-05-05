@@ -9,7 +9,7 @@ module UseCases
     end
 
     # Register a new actuator with the controller
-    # @param actuator [Core::Domain::Actuator] The actuator to register
+    # @param actuator [Domain::Actuator] The actuator to register
     # @return [Boolean] True if registration was successful
     def register(actuator)
       raise ArgumentError, "Only actuators can be registered" unless actuator.is_a?(Domain::Actuator)
@@ -33,7 +33,7 @@ module UseCases
 
     # Find actuators by criteria
     # @param criteria [Hash] A hash of criteria to search for (e.g. location: 'kitchen')
-    # @return [Array<Core::Domain::Actuator>] Array of matching actuators
+    # @return [Array<Domain::Actuator>] Array of matching actuators
     def find_actuators(criteria = {})
       return @actuators.values if criteria.empty?
 

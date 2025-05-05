@@ -1,5 +1,5 @@
 FactoryBot.define do
-  factory :alert, class: 'Core::Domain::Alert' do
+  factory :alert, class: 'Domain::Alert' do
     id { SecureRandom.uuid }
     name { 'High Response Time' }
     severity { :warning }

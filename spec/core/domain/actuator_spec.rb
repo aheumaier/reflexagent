@@ -1,27 +1,25 @@
-require 'rails_helper'
-require_relative '../../../app/core/domain/actuator'
+require "rails_helper"
+require_relative "../../../app/core/domain/actuator"
 
 # Load our specific implementation rather than any mock version
-RSpec.describe Core::Domain::Actuator do
+RSpec.describe Domain::Actuator do
   # Force reload the implementation directly from the file
-  before(:each) do
+  before do
     # Save the current implementation if it exists
-    if defined?(Core::Domain::Actuator)
-      @original_actuator = Core::Domain::Actuator
-    end
+    @original_actuator = Domain::Actuator if defined?(Domain::Actuator)
 
     # Reload our implementation
-    load File.expand_path('../../../app/core/domain/actuator.rb', __dir__)
+    load File.expand_path("../../../app/core/domain/actuator.rb", __dir__)
 
     # Store the freshly loaded implementation
-    @actuator_class = Core::Domain::Actuator
+    @actuator_class = Domain::Actuator
   end
 
   # Restore original implementation after each test to avoid breaking other tests
-  after(:each) do
+  after do
     if defined?(@original_actuator)
-      Core::Domain.send(:remove_const, :Actuator)
-      Core::Domain.const_set(:Actuator, @original_actuator)
+      Domain.send(:remove_const, :Actuator)
+      Domain.const_set(:Actuator, @original_actuator)
     end
   end
 
@@ -93,15 +91,15 @@ RSpec.describe Core::Domain::Actuator do
     end
 
     it "raises ArgumentError when required params are missing" do
-      expect {
+      expect do
         actuator.validate_required_params(params, [:param1, :param3])
-      }.to raise_error(ArgumentError, "Missing required parameters: param3")
+      end.to raise_error(ArgumentError, "Missing required parameters: param3")
     end
 
     it "raises ArgumentError listing all missing params" do
-      expect {
+      expect do
         actuator.validate_required_params(params, [:param3, :param4])
-      }.to raise_error(ArgumentError, "Missing required parameters: param3, param4")
+      end.to raise_error(ArgumentError, "Missing required parameters: param3, param4")
     end
   end
 

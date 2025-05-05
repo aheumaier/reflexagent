@@ -1,13 +1,13 @@
-require 'rails_helper'
-require_relative '../../app/adapters/repositories/alert_repository'
-require_relative '../../app/models/domain_alert'
-require_relative '../../app/core/domain/alert'
-require_relative '../../app/core/domain/metric'
+require "rails_helper"
+require_relative "../../app/adapters/repositories/alert_repository"
+require_relative "../../app/models/domain_alert"
+require_relative "../../app/core/domain/alert"
+require_relative "../../app/core/domain/metric"
 
 RSpec.describe "Alert Persistence", type: :integration do
   include_context "alert examples"
 
-  let(:repository) { ::Adapters::Repositories::AlertRepository.new }
+  let(:repository) { Adapters::Repositories::AlertRepository.new }
 
   describe "end-to-end persistence" do
     before do
@@ -40,7 +40,7 @@ RSpec.describe "Alert Persistence", type: :integration do
       retrieved_alert = repository.find_alert(domain_alert.id)
 
       # Verify domain model conversion worked correctly
-      expect(retrieved_alert).to be_a(Core::Domain::Alert)
+      expect(retrieved_alert).to be_a(Domain::Alert)
       expect(retrieved_alert.id).to eq(domain_alert.id)
       expect(retrieved_alert.name).to eq(alert.name)
       expect(retrieved_alert.severity).to eq(alert.severity)
@@ -48,7 +48,7 @@ RSpec.describe "Alert Persistence", type: :integration do
       expect(retrieved_alert.threshold).to eq(alert.threshold)
 
       # Verify metric conversion
-      expect(retrieved_alert.metric).to be_a(Core::Domain::Metric)
+      expect(retrieved_alert.metric).to be_a(Domain::Metric)
       expect(retrieved_alert.metric.name).to eq(alert.metric.name)
       expect(retrieved_alert.metric.value).to eq(alert.metric.value)
       expect(retrieved_alert.metric.source).to eq(alert.metric.source)

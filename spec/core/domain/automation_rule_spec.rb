@@ -1,6 +1,6 @@
-require 'rails_helper'
+require "rails_helper"
 
-# RSpec.describe Core::Domain::AutomationRule do
+# RSpec.describe Domain::AutomationRule do
 #   let(:valid_id) { "rule-123" }
 #   let(:valid_name) { "Temperature Control Rule" }
 #   let(:valid_description) { "Turn on AC when temperature exceeds threshold" }
