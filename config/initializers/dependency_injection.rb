@@ -43,6 +43,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/core/domain/classifiers/base_classifier"
     require_relative "../../app/core/domain/classifiers/github_event_classifier"
     require_relative "../../app/core/domain/classifiers/jira_event_classifier"
+    require_relative "../../app/core/domain/classifiers/bitbucket_event_classifier"
 
     # Load extractors
     require_relative "../../app/core/domain/extractors/dimension_extractor"
@@ -115,6 +116,9 @@ Rails.application.config.after_initialize do
     # Register the Jira event classifier
     jira_classifier = Domain::Classifiers::JiraEventClassifier.new(dimension_extractor)
 
+    # Register the Bitbucket event classifier
+    bitbucket_classifier = Domain::Classifiers::BitbucketEventClassifier.new(dimension_extractor)
+
     # Register source-specific classifiers
     DependencyContainer.register(
       :github_classifier,
@@ -126,13 +130,19 @@ Rails.application.config.after_initialize do
       jira_classifier
     )
 
+    DependencyContainer.register(
+      :bitbucket_classifier,
+      bitbucket_classifier
+    )
+
     # Register the MetricClassifier with source-specific classifiers
     DependencyContainer.register(
       :metric_classifier,
       Domain::Classifiers::MetricClassifier.new(
         {
           github: github_classifier,
-          jira: jira_classifier
+          jira: jira_classifier,
+          bitbucket: bitbucket_classifier
         },
         dimension_extractor
       )

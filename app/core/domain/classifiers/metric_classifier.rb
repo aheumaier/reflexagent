@@ -196,8 +196,52 @@ module Domain
       # @param event [Domain::Event] Bitbucket event to classify
       # @return [Hash] Classification result
       def classify_bitbucket_event(event)
-        # Default implementation - will be enhanced in the future
-        { metrics: [] }
+        event_subtype = event.name.sub("bitbucket.", "")
+
+        case event_subtype
+        when /^repo:push$/
+          {
+            metrics: [
+              {
+                name: "bitbucket.push.total",
+                value: 1,
+                dimensions: extract_bitbucket_dimensions(event)
+              },
+              {
+                name: "bitbucket.push.commits",
+                value: extract_bitbucket_commit_count(event),
+                dimensions: extract_bitbucket_dimensions(event)
+              }
+            ]
+          }
+        when /^pullrequest:(created|approved|merged|rejected)$/
+          action = ::Regexp.last_match(1)
+          {
+            metrics: [
+              {
+                name: "bitbucket.pullrequest.total",
+                value: 1,
+                dimensions: extract_bitbucket_dimensions(event).merge(action: action)
+              },
+              {
+                name: "bitbucket.pullrequest.#{action}",
+                value: 1,
+                dimensions: extract_bitbucket_dimensions(event)
+              }
+            ]
+          }
+        else
+          # Generic Bitbucket event
+          {
+            metrics: [
+              {
+                name: "bitbucket.#{event_subtype}.total",
+                value: 1,
+                dimensions: extract_bitbucket_dimensions(event)
+              }
+            ]
+          }
+        end
       end
 
       # Fallback method for CI events when no CI classifier is provided
@@ -238,6 +282,19 @@ module Domain
 
       def extract_jira_issue_type(event)
         event.data.dig(:issue, :fields, :issuetype, :name) || "unknown"
+      end
+
+      def extract_bitbucket_dimensions(event)
+        data = event.data
+        {
+          repository: data.dig(:repository, :full_name) || "unknown",
+          source: event.source
+        }
+      end
+
+      def extract_bitbucket_commit_count(event)
+        changes = event.data.dig(:push, :changes) || []
+        changes.sum { |change| change.dig(:commits)&.size || 0 }
       end
     end
   end
