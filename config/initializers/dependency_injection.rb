@@ -138,13 +138,11 @@ Rails.application.config.after_initialize do
     # Register the MetricClassifier with source-specific classifiers
     DependencyContainer.register(
       :metric_classifier,
-      Domain::Classifiers::MetricClassifier.new(
-        {
-          github: github_classifier,
-          jira: jira_classifier,
-          bitbucket: bitbucket_classifier
-        },
-        dimension_extractor
+      Domain::MetricClassifier.new(
+        github_classifier: github_classifier,
+        jira_classifier: jira_classifier,
+        bitbucket_classifier: bitbucket_classifier,
+        dimension_extractor: dimension_extractor
       )
     )
 
