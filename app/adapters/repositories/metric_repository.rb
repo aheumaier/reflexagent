@@ -250,48 +250,197 @@ module Repositories
         return save_metric(metric) # Fall back to creating a new one
       end
 
-      # Find the database record
-      begin
-        domain_metric = DomainMetric.find_by_id_only(metric.id.to_i)
+      # Find the existing record
+      domain_metric = DomainMetric.find_by_id_only(metric.id.to_i)
 
-        if domain_metric
-          # Update the values
-          domain_metric.update!(
-            value: metric.value,
-            dimensions: metric.dimensions,
-            recorded_at: metric.timestamp
-          )
-
-          # Update the cache
-          @metrics_cache[metric.id] = metric
-
-          Rails.logger.debug { "Updated metric: #{metric.id} (#{metric.name})" }
-          metric
-        else
-          # If not found, create a new one
-          Rails.logger.warn { "Metric #{metric.id} not found for update, creating new" }
-          save_metric(metric)
-        end
-      rescue StandardError => e
-        Rails.logger.error { "Error updating metric #{metric.id}: #{e.message}" }
-        Rails.logger.error { e.backtrace.join("\n") }
-        save_metric(metric) # Fall back to creating a new one
+      unless domain_metric
+        Rails.logger.warn { "Metric not found for update, creating new: #{metric.id}" }
+        return save_metric(metric)
       end
+
+      # Update the record
+      domain_metric.update!(
+        name: metric.name,
+        value: metric.value,
+        source: metric.source,
+        dimensions: metric.dimensions,
+        recorded_at: metric.timestamp
+      )
+
+      # Update cache
+      @metrics_cache[metric.id] = metric
+
+      # Return the updated metric
+      metric
     end
 
-    # Find unique values for a particular field in metric dimensions
-    # @param metric_name [String] The metric name to search in
-    # @param dimensions [Hash] Base dimensions to filter by
-    # @param value_field [String] The dimension field to extract unique values from
-    # @return [Array] Array of unique values
     def find_unique_values(metric_name, dimensions, value_field)
       # Get all metrics matching criteria
       metrics = find_metrics_by_name_and_dimensions(metric_name, dimensions)
 
-      # Extract unique values for the specified field
-      metrics.map { |m| m.dimensions[value_field.to_s] || m.dimensions[value_field.to_sym] }
-             .compact
-             .uniq
+      # Extract and return unique values for the specified field
+      metrics.map { |m| m.dimensions[value_field] }.uniq.compact
+    end
+
+    # Implement commit metrics analysis methods
+
+    # Find hotspot directories for the given time period
+    # @param since [Time] The start time for analysis
+    # @param repository [String, nil] Optional repository filter
+    # @param limit [Integer] Maximum number of results to return
+    # @return [Array<Hash>] Array of directory hotspots with counts
+    def hotspot_directories(since:, repository: nil, limit: 10)
+      base_query = CommitMetric.since(since)
+      base_query = base_query.by_repository(repository) if repository.present?
+
+      Rails.logger.debug { "Finding hotspot directories since #{since}" }
+
+      # Get hotspot directories from the CommitMetric model
+      hotspots = base_query.hotspot_directories(since: since, limit: limit)
+
+      # Format the results as hashes
+      hotspots.map do |hotspot|
+        {
+          directory: hotspot.directory,
+          count: hotspot.change_count
+        }
+      end
+    end
+
+    # Find hotspot file types for the given time period
+    # @param since [Time] The start time for analysis
+    # @param repository [String, nil] Optional repository filter
+    # @param limit [Integer] Maximum number of results to return
+    # @return [Array<Hash>] Array of file type hotspots with counts
+    def hotspot_filetypes(since:, repository: nil, limit: 10)
+      base_query = CommitMetric.since(since)
+      base_query = base_query.by_repository(repository) if repository.present?
+
+      Rails.logger.debug { "Finding hotspot filetypes since #{since}" }
+
+      # Get hotspot file types from the CommitMetric model
+      hotspots = base_query.hotspot_files_by_extension(since: since, limit: limit)
+
+      # Format the results as hashes
+      hotspots.map do |hotspot|
+        {
+          filetype: hotspot.filetype,
+          count: hotspot.change_count
+        }
+      end
+    end
+
+    # Find distribution of commit types for the given time period
+    # @param since [Time] The start time for analysis
+    # @param repository [String, nil] Optional repository filter
+    # @return [Array<Hash>] Array of commit types with counts
+    def commit_type_distribution(since:, repository: nil)
+      base_query = CommitMetric.since(since)
+      base_query = base_query.by_repository(repository) if repository.present?
+
+      Rails.logger.debug { "Finding commit type distribution since #{since}" }
+
+      # Get commit type distribution from the CommitMetric model
+      distribution = base_query.commit_type_distribution(since: since)
+
+      # Format the results as hashes
+      distribution.map do |type|
+        {
+          type: type.commit_type,
+          count: type.count
+        }
+      end
+    end
+
+    # Find most active authors for the given time period
+    # @param since [Time] The start time for analysis
+    # @param repository [String, nil] Optional repository filter
+    # @param limit [Integer] Maximum number of results to return
+    # @return [Array<Hash>] Array of authors with commit counts
+    def author_activity(since:, repository: nil, limit: 10)
+      base_query = CommitMetric.since(since)
+      base_query = base_query.by_repository(repository) if repository.present?
+
+      Rails.logger.debug { "Finding author activity since #{since}" }
+
+      # Get author activity from the CommitMetric model
+      authors = base_query.author_activity(since: since, limit: limit)
+
+      # Format the results as hashes
+      authors.map do |author|
+        {
+          author: author.author,
+          commit_count: author.commit_count
+        }
+      end
+    end
+
+    # Find lines changed by author for the given time period
+    # @param since [Time] The start time for analysis
+    # @param repository [String, nil] Optional repository filter
+    # @return [Array<Hash>] Array of authors with lines added/removed
+    def lines_changed_by_author(since:, repository: nil)
+      base_query = CommitMetric.since(since)
+      base_query = base_query.by_repository(repository) if repository.present?
+
+      Rails.logger.debug { "Finding lines changed by author since #{since}" }
+
+      # Get lines changed by author from the CommitMetric model
+      authors = base_query.lines_changed_by_author(since: since)
+
+      # Format the results as hashes
+      authors.map do |author|
+        {
+          author: author.author,
+          lines_added: author.lines_added.to_i,
+          lines_deleted: author.lines_deleted.to_i,
+          lines_changed: author.lines_added.to_i + author.lines_deleted.to_i
+        }
+      end
+    end
+
+    # Find breaking changes by author for the given time period
+    # @param since [Time] The start time for analysis
+    # @param repository [String, nil] Optional repository filter
+    # @return [Array<Hash>] Array of authors with breaking change counts
+    def breaking_changes_by_author(since:, repository: nil)
+      base_query = CommitMetric.since(since)
+      base_query = base_query.by_repository(repository) if repository.present?
+
+      Rails.logger.debug { "Finding breaking changes by author since #{since}" }
+
+      # Get breaking changes by author from the CommitMetric model
+      authors = base_query.breaking_changes_by_author(since: since)
+
+      # Format the results as hashes
+      authors.map do |author|
+        {
+          author: author.author,
+          breaking_count: author.breaking_count
+        }
+      end
+    end
+
+    # Find commit activity by day for the given time period
+    # @param since [Time] The start time for analysis
+    # @param repository [String, nil] Optional repository filter
+    # @return [Array<Hash>] Array of days with commit counts
+    def commit_activity_by_day(since:, repository: nil)
+      base_query = CommitMetric.since(since)
+      base_query = base_query.by_repository(repository) if repository.present?
+
+      Rails.logger.debug { "Finding commit activity by day since #{since}" }
+
+      # Get commit activity by day from the CommitMetric model
+      activity = base_query.commit_activity_by_day(since: since)
+
+      # Format the results as hashes
+      activity.map do |day|
+        {
+          date: day.day,
+          commit_count: day.commit_count
+        }
+      end
     end
   end
 end
