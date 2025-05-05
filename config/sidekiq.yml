@@ -1,5 +1,5 @@
 ---
-:concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 2).to_i %>
+:concurrency: <%= ENV.fetch("SIDEKIQ_CONCURRENCY", 10).to_i %>
 :timeout: 25
 :verbose: false
 :queues:

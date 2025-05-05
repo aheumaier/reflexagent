@@ -64,29 +64,34 @@ module Domain
 
       def classify_push_event(event)
         dimensions = extract_dimensions(event)
+
         metrics = []
 
-        # Basic push metrics (existing)
+        # Basic push metrics
         metrics << create_metric(
           name: "github.push.total",
           value: 1,
           dimensions: dimensions
         )
 
+        # Count number of commits
+        commit_count = @dimension_extractor ? @dimension_extractor.extract_commit_count(event) : 1
         metrics << create_metric(
           name: "github.push.commits",
-          value: @dimension_extractor ? @dimension_extractor.extract_commit_count(event) : 1,
+          value: commit_count,
           dimensions: dimensions
         )
 
+        # Track commits per author
         metrics << create_metric(
-          name: "github.push.unique_authors",
-          value: 1,
+          name: "github.push.by_author",
+          value: commit_count,
           dimensions: dimensions.merge(
             author: @dimension_extractor ? @dimension_extractor.extract_author(event) : "unknown"
           )
         )
 
+        # Track push by branch
         metrics << create_metric(
           name: "github.push.branch_activity",
           value: 1,
@@ -95,14 +100,14 @@ module Domain
           )
         )
 
-        # Enhanced metrics for conventional commits
+        # Enhanced metrics for commits
         if @dimension_extractor && event.data[:commits]
-          # Process each commit for conventional commit metrics
+          # Process each commit for commit type metrics
           event.data[:commits].each do |commit|
             commit_parts = @dimension_extractor.extract_conventional_commit_parts(commit)
 
-            # Only track conventional commits with proper type
-            next unless commit_parts[:commit_conventional]
+            # Track commit messages by type (conventional or inferred)
+            next unless commit_parts[:commit_type].present?
 
             # Track by commit type (feat, fix, chore, etc.)
             metrics << create_metric(
@@ -110,9 +115,22 @@ module Domain
               value: 1,
               dimensions: dimensions.merge(
                 type: commit_parts[:commit_type],
-                scope: commit_parts[:commit_scope] || "none"
+                scope: commit_parts[:commit_scope] || "none",
+                conventional: commit_parts[:commit_conventional] ? "true" : "false"
               )
             )
+
+            # If this was an inferred type (non-conventional), track it separately for analysis
+            if !commit_parts[:commit_conventional] && commit_parts[:commit_type_inferred]
+              metrics << create_metric(
+                name: "github.push.inferred_commit_type",
+                value: 1,
+                dimensions: dimensions.merge(
+                  type: commit_parts[:commit_type],
+                  message_sample: commit_parts[:commit_description].truncate(50)
+                )
+              )
+            end
 
             # Track breaking changes separately
             next unless commit_parts[:commit_breaking]

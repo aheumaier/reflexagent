@@ -14,6 +14,11 @@ require "time"
 WEBHOOK_HOST = ENV["WEBHOOK_HOST"] || "localhost"
 WEBHOOK_PORT = ENV["WEBHOOK_PORT"] || "3000"
 WEBHOOK_TOKEN = ENV["WEBHOOK_TOKEN"] || "Test1234"
+BATCH_SIZE = (ENV["BATCH_SIZE"] || "10").to_i
+EVENTS_COUNT = (ENV["EVENTS_COUNT"] || "150").to_i
+SEND_DELAY = (ENV["SEND_DELAY"] || "0.1").to_f # seconds between batches
+DAYS_TO_SIMULATE = (ENV["DAYS_TO_SIMULATE"] || "14").to_i
+TEAM_SIZE = 8 # Number of team members
 
 # Base API URL
 BASE_URL = "http://#{WEBHOOK_HOST}:#{WEBHOOK_PORT}/api/v1"
@@ -44,6 +49,17 @@ def send_webhook(source, payload, auth_type = "token")
   puts "Body: #{response.body}\n\n"
 
   response
+end
+
+# Send a batch of webhooks
+def send_webhook_batch(events_batch)
+  threads = []
+  events_batch.each do |event|
+    threads << Thread.new do
+      send_webhook(event[:source], event[:payload])
+    end
+  end
+  threads.each(&:join)
 end
 
 # Generate a random ID with a timestamp to ensure uniqueness
@@ -80,7 +96,7 @@ def github_push_payload(repository_name, repo_owner, timestamp, branch = "main")
       }
     },
     pusher: {
-      name: ["alice", "bob", "charlie", "dana", "evan"].sample,
+      name: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
       email: "developer-#{random_suffix}@example.com"
     },
     commits: Array.new(commit_count) do |i|
@@ -91,8 +107,8 @@ def github_push_payload(repository_name, repo_owner, timestamp, branch = "main")
                   "Improve performance"].sample,
         timestamp: commit_timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
         author: {
-          name: ["Alice Smith", "Bob Johnson", "Charlie Davis", "Dana Lee", "Evan Brown"].sample,
-          email: ["alice", "bob", "charlie", "dana", "evan"].sample + "@example.com"
+          name: ["Alice Smith", "Bob Johnson", "Charlie Davis", "Dana Lee", "Evan Brown", "Frank Wilson", "Grace Taylor", "Hector Rodriguez"].sample,
+          email: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample + "@example.com"
         }
       }
     end
@@ -111,7 +127,7 @@ def github_pull_request_payload(action, repository_name, repo_owner, timestamp, 
       state: action == "closed" ? "closed" : "open",
       title: ["Add new feature", "Fix bug", "Update documentation", "Refactor code", "Improve performance"].sample,
       user: {
-        login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+        login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
         id: rand(1000..9999)
       },
       body: "This PR addresses some important changes",
@@ -139,7 +155,7 @@ def github_pull_request_payload(action, repository_name, repo_owner, timestamp, 
       }
     },
     sender: {
-      login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+      login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
       id: rand(1000..9999)
     }
   }
@@ -163,7 +179,7 @@ def github_create_payload(repository_name, repo_owner, timestamp, ref_type, ref)
       }
     },
     sender: {
-      login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+      login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
       id: rand(1000..9999)
     },
     created_at: timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -212,8 +228,8 @@ def github_check_run_payload(action, status, conclusion, repository_name, repo_o
       }
     },
     sender: {
-      login: "github-actions[bot]",
-      id: 41_898_282
+      login: ["github-actions[bot]", "alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
+      id: rand(1000..9999)
     }
   }
 end
@@ -248,7 +264,7 @@ def github_workflow_run_payload(action, status, conclusion, repository_name, rep
       }
     },
     sender: {
-      login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+      login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
       id: rand(1000..9999)
     }
   }
@@ -266,7 +282,7 @@ def github_deployment_payload(repository_name, repo_owner, timestamp, environmen
       description: "Deploy to #{environment}",
       created_at: timestamp.strftime("%Y-%m-%dT%H:%M:%SZ"),
       creator: {
-        login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+        login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
         id: rand(1000..9999)
       },
       sha: SecureRandom.hex(20),
@@ -282,7 +298,7 @@ def github_deployment_payload(repository_name, repo_owner, timestamp, environmen
       }
     },
     sender: {
-      login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+      login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
       id: rand(1000..9999)
     }
   }
@@ -299,7 +315,7 @@ def github_deployment_status_payload(repository_name, repo_owner, timestamp, env
       id: rand(1_000_000..9_999_999),
       state: state,
       creator: {
-        login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+        login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
         id: rand(1000..9999)
       },
       description: if state == "success"
@@ -321,7 +337,7 @@ def github_deployment_status_payload(repository_name, repo_owner, timestamp, env
       description: "Deploy to #{environment}",
       created_at: (timestamp - (rand(1..5) * 60)).strftime("%Y-%m-%dT%H:%M:%SZ"), # minutes converted to seconds
       creator: {
-        login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+        login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
         id: rand(1000..9999)
       },
       sha: SecureRandom.hex(20),
@@ -337,7 +353,7 @@ def github_deployment_status_payload(repository_name, repo_owner, timestamp, env
       }
     },
     sender: {
-      login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+      login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
       id: rand(1000..9999)
     }
   }
@@ -363,13 +379,13 @@ def ci_event_payload(operation, status, repository_name, start_time, end_time)
   }
 end
 
-# Generate engineering workflow events (100 events over 8 days)
-def generate_engineering_workflow_events(num_events = 100, days = 8)
+# Generate engineering workflow events (150 events over 14 days)
+def generate_engineering_workflow_events(num_events = 150, days = 14)
   events = []
   repositories = ["api-service", "frontend", "data-processor", "auth-service", "monitoring-tools"]
   repo_owner = "acme"
 
-  # Define time range (8 days ago until now)
+  # Define time range (14 days ago until now)
   end_time = Time.now.utc
   start_time = end_time - (days * 24 * 60 * 60)
 
@@ -625,7 +641,7 @@ def github_issue_payload(action, repository_name, repo_owner, timestamp, issue_n
               "Update API documentation", "Optimize database queries", "Improve UI responsiveness",
               "Add unit tests", "Fix security vulnerability"].sample,
       user: {
-        login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+        login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
         id: rand(1000..9999)
       },
       labels: selected_labels.map do |name|
@@ -637,7 +653,7 @@ def github_issue_payload(action, repository_name, repo_owner, timestamp, issue_n
       state: issue_state,
       assignee: if rand > 0.3
                   {
-                    login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+                    login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
                     id: rand(1000..9999)
                   }
                 else
@@ -667,7 +683,7 @@ def github_issue_payload(action, repository_name, repo_owner, timestamp, issue_n
       }
     },
     sender: {
-      login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+      login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
       id: rand(1000..9999)
     }
   }
@@ -704,7 +720,7 @@ def github_project_card_payload(action, repository_name, repo_owner, timestamp, 
       content_url: content_url,
       content_type: content_type,
       creator: {
-        login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+        login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
         id: rand(1000..9999)
       }
     },
@@ -718,7 +734,7 @@ def github_project_card_payload(action, repository_name, repo_owner, timestamp, 
       }
     },
     sender: {
-      login: ["alice", "bob", "charlie", "dana", "evan"].sample,
+      login: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
       id: rand(1000..9999)
     }
   }
@@ -733,18 +749,18 @@ def task_event_payload(action, repository_name, issue_number, timestamp)
     type: ["feature", "bug", "enhancement", "refactor", "documentation"].sample,
     project: ["Engineering Backlog", "Q2 Goals", "Current Sprint"].sample,
     points: rand(1..5),
-    assigned_to: ["alice", "bob", "charlie", "dana", "evan"].sample,
+    assigned_to: ["alice", "bob", "charlie", "dana", "evan", "frank", "grace", "hector"].sample,
     timestamp: timestamp.strftime("%Y-%m-%dT%H:%M:%SZ")
   }
 end
 
 # Generate a week of engineering project progress
-def generate_project_progress_events(days = 7)
+def generate_project_progress_events(days = 14)
   events = []
   repositories = ["api-service", "frontend", "data-processor", "auth-service", "monitoring-tools"]
   repo_owner = "acme"
 
-  # Define time range (7 days ago until now)
+  # Define time range (14 days ago until now)
   end_time = Time.now.utc
   start_time = end_time - (days * 24 * 60 * 60)
 
@@ -882,32 +898,49 @@ if __FILE__ == $PROGRAM_NAME
   # Print intro
   puts "ReflexAgent Webhook Demo - Enhanced GitHub Engineering Workflow"
   puts "=============================================================="
+  puts "Configuration:"
+  puts "  Events Count: #{EVENTS_COUNT}"
+  puts "  Days to Simulate: #{DAYS_TO_SIMULATE}"
+  puts "  Batch Size: #{BATCH_SIZE}"
+  puts "  Send Delay: #{SEND_DELAY}s"
+  puts "  Team Size: #{TEAM_SIZE}"
+  puts "  Webhook URL: #{BASE_URL}/events"
+  puts "=============================================================="
   puts "Generating engineering workflow events..."
 
   # Generate events
-  workflow_events = generate_engineering_workflow_events(80, 8)
-  project_events = generate_project_progress_events(7)
+  workflow_events = generate_engineering_workflow_events(EVENTS_COUNT, DAYS_TO_SIMULATE)
+  project_events = generate_project_progress_events(DAYS_TO_SIMULATE)
   combined_events = (workflow_events + project_events).sort_by { |e| e[:timestamp] }
 
-  puts "Generated #{workflow_events.size} workflow events spanning 8 days"
-  puts "Generated #{project_events.size} project management events spanning 7 days"
+  puts "Generated #{workflow_events.size} workflow events spanning #{DAYS_TO_SIMULATE} days"
+  puts "Generated #{project_events.size} project management events spanning #{DAYS_TO_SIMULATE} days"
   puts "Sending #{combined_events.size} total events to #{BASE_URL}/events\n\n"
 
-  # Send each event
-  combined_events.each_with_index do |event, index|
-    if event[:name] == "create"
-      puts "\n[#{index + 1}/#{combined_events.size}] Sending #{event[:source]} #{event[:name]} event (#{event[:timestamp].strftime('%Y-%m-%d %H:%M:%S')})..."
-      puts "DEBUG EVENT: Source: #{event[:source]}, Name: #{event[:name]}"
-      puts "DEBUG PAYLOAD: #{event[:payload].inspect}"
-    else
-      puts "[#{index + 1}/#{combined_events.size}] Sending #{event[:source]} #{event[:name]} event (#{event[:timestamp].strftime('%Y-%m-%d %H:%M:%S')})..."
-    end
+  # Send events in batches
+  start_time = Time.now
+  batches = combined_events.each_slice(BATCH_SIZE).to_a
 
-    send_webhook(event[:source], event[:payload])
+  batches.each_with_index do |batch, batch_index|
+    batch_start = Time.now
+    puts "Sending batch #{batch_index + 1}/#{batches.size} (#{batch.size} events)..."
 
-    # Small delay to prevent overwhelming the server
-    sleep(0.5)
+    # Process this batch
+    send_webhook_batch(batch)
+
+    # Show batch complete and time
+    batch_duration = Time.now - batch_start
+    events_per_second = batch.size / batch_duration
+    puts "Batch #{batch_index + 1} complete. Sent #{batch.size} events in #{batch_duration.round(2)}s (#{events_per_second.round(2)} events/s)"
+
+    # Sleep between batches if configured
+    sleep(SEND_DELAY) if SEND_DELAY > 0 && batch_index < batches.size - 1
   end
 
-  puts "All done! Check your application logs for details on processing."
+  total_duration = Time.now - start_time
+  events_per_second = combined_events.size / total_duration
+
+  puts "\nAll done! Sent #{combined_events.size} events in #{total_duration.round(2)}s"
+  puts "Average rate: #{events_per_second.round(2)} events/s"
+  puts "Check your application logs for details on processing."
 end

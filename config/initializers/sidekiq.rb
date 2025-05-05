@@ -15,11 +15,13 @@ end
 
 # Calculate Redis connection pools based on available connections (Render Free tier: 50 max connections)
 # Reserve ~10 connections for other app needs, leaving 40 for Sidekiq
-sidekiq_concurrency = ENV.fetch("SIDEKIQ_CONCURRENCY", 2).to_i
+sidekiq_concurrency = ENV.fetch("SIDEKIQ_CONCURRENCY", 5).to_i
 # Reserve 2 connections per worker thread, plus a few for scheduler
-server_redis_size = [sidekiq_concurrency + 2, 4].min
+server_redis_size = 10
+# [sidekiq_concurrency + 2, 4].min
 # Reserve fewer connections for client operations
-client_redis_size = [3, 4].min
+client_redis_size = 10
+# [3, 4].min
 
 # Configure Sidekiq
 Sidekiq.configure_server do |config|

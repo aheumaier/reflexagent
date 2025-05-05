@@ -291,12 +291,32 @@ RSpec.describe Domain::Extractors::DimensionExtractor do
       end
     end
 
-    it "handles non-conventional commit messages" do
+    it "handles non-conventional commit messages with type inference" do
       commit = { message: "Fixed the login bug" }
       result = extractor.extract_conventional_commit_parts(commit)
 
       expect(result[:commit_conventional]).to be(false)
       expect(result[:commit_description]).to eq("Fixed the login bug")
+      expect(result[:commit_type]).to eq("fix")
+      expect(result[:commit_type_inferred]).to be(true)
+    end
+
+    it "infers type from non-conventional commit with feature-like message" do
+      commit = { message: "Add new user registration form" }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_conventional]).to be(false)
+      expect(result[:commit_type]).to eq("feat")
+      expect(result[:commit_type_inferred]).to be(true)
+    end
+
+    it "infers type from non-conventional commit with refactor-like message" do
+      commit = { message: "Refactored the authentication flow" }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_conventional]).to be(false)
+      expect(result[:commit_type]).to eq("refactor")
+      expect(result[:commit_type_inferred]).to be(true)
     end
 
     it "handles empty or nil messages" do
@@ -305,6 +325,84 @@ RSpec.describe Domain::Extractors::DimensionExtractor do
 
       expect(result[:commit_conventional]).to be(false)
       expect(result[:commit_description]).to eq("")
+      # Should default to chore for empty messages
+      expect(result[:commit_type]).to eq("chore")
+    end
+  end
+
+  describe "#infer_commit_type" do
+    it "infers 'fix' from bug-related messages" do
+      expect(extractor.infer_commit_type("Fixed a bug in login")).to eq("fix")
+      expect(extractor.infer_commit_type("Bug fix for payment processing")).to eq("fix")
+      expect(extractor.infer_commit_type("Resolve issue with signup form")).to eq("fix")
+      expect(extractor.infer_commit_type("Patch security vulnerability")).to eq("fix")
+    end
+
+    it "infers 'feat' from feature-related messages" do
+      expect(extractor.infer_commit_type("Added new dashboard")).to eq("feat")
+      expect(extractor.infer_commit_type("Implement user preferences")).to eq("feat")
+      expect(extractor.infer_commit_type("New export functionality")).to eq("feat")
+      expect(extractor.infer_commit_type("Introducing dark mode")).to eq("feat")
+    end
+
+    it "infers 'docs' from documentation-related messages" do
+      expect(extractor.infer_commit_type("Update README with installation steps")).to eq("docs")
+      expect(extractor.infer_commit_type("Documentation for API endpoints")).to eq("docs")
+      expect(extractor.infer_commit_type("Add comments to complex functions")).to eq("docs")
+    end
+
+    it "infers 'style' from style-related messages" do
+      expect(extractor.infer_commit_type("Format code according to style guide")).to eq("style")
+      expect(extractor.infer_commit_type("Fix indentation in module")).to eq("style")
+      expect(extractor.infer_commit_type("CSS styling for buttons")).to eq("style")
+    end
+
+    it "infers 'refactor' from refactoring-related messages" do
+      expect(extractor.infer_commit_type("Refactor user service")).to eq("refactor")
+      expect(extractor.infer_commit_type("Simplify authentication logic")).to eq("refactor")
+      expect(extractor.infer_commit_type("Clean up redundant code")).to eq("refactor")
+    end
+
+    it "infers 'test' from testing-related messages" do
+      expect(extractor.infer_commit_type("Add unit tests for auth service")).to eq("test")
+      expect(extractor.infer_commit_type("Testing payment workflow")).to eq("test")
+      expect(extractor.infer_commit_type("Improve test coverage")).to eq("test")
+    end
+
+    it "infers 'chore' from maintenance-related messages" do
+      expect(extractor.infer_commit_type("Update dependencies")).to eq("chore")
+      expect(extractor.infer_commit_type("Version bump to 2.1.0")).to eq("chore")
+      expect(extractor.infer_commit_type("Maintenance for CI pipeline")).to eq("chore")
+    end
+
+    it "infers 'perf' from performance-related messages" do
+      expect(extractor.infer_commit_type("Optimize database queries")).to eq("perf")
+      expect(extractor.infer_commit_type("Performance improvements for search")).to eq("perf")
+      expect(extractor.infer_commit_type("Speed up page load times")).to eq("perf")
+    end
+
+    it "uses file context to determine commit type" do
+      # Test files
+      expect(extractor.infer_commit_type("Updated test case", modified: ["spec/models/user_spec.rb"])).to eq("test")
+
+      # Documentation files
+      expect(extractor.infer_commit_type("Updated installation steps", added: ["README.md"])).to eq("docs")
+
+      # Style files
+      expect(extractor.infer_commit_type("Adjust button colors",
+                                         modified: ["app/assets/stylesheets/buttons.scss"])).to eq("style")
+    end
+
+    it "handles special cases for WIP and Merge commits" do
+      expect(extractor.infer_commit_type("WIP")).to eq("chore")
+      expect(extractor.infer_commit_type("Merge pull request #123")).to eq("chore")
+      expect(extractor.infer_commit_type("Merge branch 'feature/xyz' into main")).to eq("chore")
+    end
+
+    it "uses fallback patterns for ambiguous messages" do
+      expect(extractor.infer_commit_type("Remove obsolete code")).to eq("refactor")
+      expect(extractor.infer_commit_type("Update translations")).to eq("chore")
+      expect(extractor.infer_commit_type("Something completely unrelated")).to eq("chore")
     end
   end
 
