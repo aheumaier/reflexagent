@@ -61,39 +61,160 @@ module Domain
 
       def classify_push_event(event)
         dimensions = extract_dimensions(event)
+        metrics = []
 
-        {
-          metrics: [
-            # Count of push events
-            create_metric(
-              name: "github.push.total",
-              value: 1,
-              dimensions: dimensions
-            ),
-            # Count of commits in this push
-            create_metric(
-              name: "github.push.commits",
-              value: @dimension_extractor ? @dimension_extractor.extract_commit_count(event) : 1,
-              dimensions: dimensions
-            ),
-            # Track unique authors
-            create_metric(
-              name: "github.push.unique_authors",
+        # Basic push metrics (existing)
+        metrics << create_metric(
+          name: "github.push.total",
+          value: 1,
+          dimensions: dimensions
+        )
+
+        metrics << create_metric(
+          name: "github.push.commits",
+          value: @dimension_extractor ? @dimension_extractor.extract_commit_count(event) : 1,
+          dimensions: dimensions
+        )
+
+        metrics << create_metric(
+          name: "github.push.unique_authors",
+          value: 1,
+          dimensions: dimensions.merge(
+            author: @dimension_extractor ? @dimension_extractor.extract_author(event) : "unknown"
+          )
+        )
+
+        metrics << create_metric(
+          name: "github.push.branch_activity",
+          value: 1,
+          dimensions: dimensions.merge(
+            branch: @dimension_extractor ? @dimension_extractor.extract_branch(event) : "unknown"
+          )
+        )
+
+        # Enhanced metrics for conventional commits
+        if @dimension_extractor && event.data[:commits]
+          # Process each commit for conventional commit metrics
+          event.data[:commits].each do |commit|
+            commit_parts = @dimension_extractor.extract_conventional_commit_parts(commit)
+
+            # Only track conventional commits with proper type
+            next unless commit_parts[:commit_conventional]
+
+            # Track by commit type (feat, fix, chore, etc.)
+            metrics << create_metric(
+              name: "github.push.commit_type",
               value: 1,
               dimensions: dimensions.merge(
-                author: @dimension_extractor ? @dimension_extractor.extract_author(event) : "unknown"
-              )
-            ),
-            # Track commits by branch
-            create_metric(
-              name: "github.push.branch_activity",
-              value: 1,
-              dimensions: dimensions.merge(
-                branch: @dimension_extractor ? @dimension_extractor.extract_branch(event) : "unknown"
+                type: commit_parts[:commit_type],
+                scope: commit_parts[:commit_scope] || "none"
               )
             )
-          ]
-        }
+
+            # Track breaking changes separately
+            next unless commit_parts[:commit_breaking]
+
+            metrics << create_metric(
+              name: "github.push.breaking_change",
+              value: 1,
+              dimensions: dimensions.merge(
+                type: commit_parts[:commit_type],
+                scope: commit_parts[:commit_scope] || "none",
+                author: @dimension_extractor.extract_author(event)
+              )
+            )
+          end
+
+          # Extract file changes and add file-based metrics
+          file_changes = @dimension_extractor.extract_file_changes(event)
+
+          # Track overall file changes
+          metrics << create_metric(
+            name: "github.push.files_added",
+            value: file_changes[:files_added],
+            dimensions: dimensions
+          )
+
+          metrics << create_metric(
+            name: "github.push.files_modified",
+            value: file_changes[:files_modified],
+            dimensions: dimensions
+          )
+
+          metrics << create_metric(
+            name: "github.push.files_removed",
+            value: file_changes[:files_removed],
+            dimensions: dimensions
+          )
+
+          # Track top directory changes
+          if file_changes[:top_directory].present?
+            metrics << create_metric(
+              name: "github.push.directory_hotspot",
+              value: file_changes[:top_directory_count],
+              dimensions: dimensions.merge(
+                directory: file_changes[:top_directory]
+              )
+            )
+
+            # Track each directory in the hotspot list
+            if file_changes[:directory_hotspots].present?
+              file_changes[:directory_hotspots].each do |dir, count|
+                metrics << create_metric(
+                  name: "github.push.directory_changes",
+                  value: count,
+                  dimensions: dimensions.merge(directory: dir)
+                )
+              end
+            end
+          end
+
+          # Track top file extension changes
+          if file_changes[:top_extension].present?
+            metrics << create_metric(
+              name: "github.push.filetype_hotspot",
+              value: file_changes[:top_extension_count],
+              dimensions: dimensions.merge(
+                filetype: file_changes[:top_extension]
+              )
+            )
+
+            # Track each extension in the hotspot list
+            if file_changes[:extension_hotspots].present?
+              file_changes[:extension_hotspots].each do |ext, count|
+                metrics << create_metric(
+                  name: "github.push.filetype_changes",
+                  value: count,
+                  dimensions: dimensions.merge(filetype: ext)
+                )
+              end
+            end
+          end
+
+          # Track code volume metrics
+          code_volume = @dimension_extractor.extract_code_volume(event)
+          if code_volume[:code_additions] > 0 || code_volume[:code_deletions] > 0
+            metrics << create_metric(
+              name: "github.push.code_additions",
+              value: code_volume[:code_additions],
+              dimensions: dimensions
+            )
+
+            metrics << create_metric(
+              name: "github.push.code_deletions",
+              value: code_volume[:code_deletions],
+              dimensions: dimensions
+            )
+
+            metrics << create_metric(
+              name: "github.push.code_churn",
+              value: code_volume[:code_churn],
+              dimensions: dimensions
+            )
+          end
+        end
+
+        { metrics: metrics }
       end
 
       def classify_pull_request_event(event, action)

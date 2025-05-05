@@ -15,19 +15,38 @@ RSpec.describe Domain::Classifiers::GithubEventClassifier do
           source: "github",
           data: {
             repository: { full_name: "example/repo" },
-            commits: [{ id: "abc123" }, { id: "def456" }],
+            commits: [
+              {
+                id: "abc123",
+                message: "feat(users): add login functionality",
+                added: ["src/users/login.rb", "src/users/logout.rb"],
+                modified: ["src/app.rb"],
+                removed: [],
+                stats: { additions: 100, deletions: 20 }
+              },
+              {
+                id: "def456",
+                message: "fix(api)!: breaking change in API response format",
+                added: [],
+                modified: ["api/response.rb", "api/format.rb"],
+                removed: ["api/old_format.rb"],
+                stats: { additions: 50, deletions: 30 }
+              }
+            ],
             ref: "refs/heads/main",
             sender: { login: "octocat" }
           }
         )
       end
 
-      it "returns the expected metrics" do
+      it "returns the expected basic metrics" do
         result = classifier.classify(event)
 
         expect(result).to be_a(Hash)
         expect(result[:metrics]).to be_an(Array)
-        expect(result[:metrics].size).to eq(4)
+
+        # We no longer check for exact size since we have many new metrics
+        expect(result[:metrics].size).to be > 4
 
         # Check for push.total metric
         total_metric = result[:metrics].find { |m| m[:name] == "github.push.total" }
@@ -50,6 +69,279 @@ RSpec.describe Domain::Classifiers::GithubEventClassifier do
         author_metric = result[:metrics].find { |m| m[:name] == "github.push.unique_authors" }
         expect(author_metric).to be_present
         expect(author_metric[:dimensions][:author]).to eq("octocat")
+      end
+
+      it "tracks conventional commit metrics" do
+        result = classifier.classify(event)
+
+        # Check for commit type metrics
+        commit_type_metrics = result[:metrics].select { |m| m[:name] == "github.push.commit_type" }
+        expect(commit_type_metrics.size).to eq(2) # Two conventional commits
+
+        # Check feature commit
+        feat_metric = commit_type_metrics.find { |m| m[:dimensions][:type] == "feat" }
+        expect(feat_metric).to be_present
+        expect(feat_metric[:dimensions][:scope]).to eq("users")
+
+        # Check fix commit
+        fix_metric = commit_type_metrics.find { |m| m[:dimensions][:type] == "fix" }
+        expect(fix_metric).to be_present
+        expect(fix_metric[:dimensions][:scope]).to eq("api")
+
+        # Check breaking change metrics
+        breaking_metrics = result[:metrics].select { |m| m[:name] == "github.push.breaking_change" }
+        expect(breaking_metrics.size).to eq(1) # One breaking change
+        expect(breaking_metrics.first[:dimensions][:type]).to eq("fix")
+        expect(breaking_metrics.first[:dimensions][:scope]).to eq("api")
+      end
+
+      it "tracks file change metrics" do
+        result = classifier.classify(event)
+
+        # Check file count metrics
+        files_added_metric = result[:metrics].find { |m| m[:name] == "github.push.files_added" }
+        expect(files_added_metric).to be_present
+        expect(files_added_metric[:value]).to eq(2) # Two files added
+
+        files_modified_metric = result[:metrics].find { |m| m[:name] == "github.push.files_modified" }
+        expect(files_modified_metric).to be_present
+        expect(files_modified_metric[:value]).to eq(3) # Three files modified
+
+        files_removed_metric = result[:metrics].find { |m| m[:name] == "github.push.files_removed" }
+        expect(files_removed_metric).to be_present
+        expect(files_removed_metric[:value]).to eq(1) # One file removed
+      end
+
+      it "tracks directory hotspot metrics" do
+        result = classifier.classify(event)
+
+        # Check directory hotspot metrics
+        dir_hotspot_metric = result[:metrics].find { |m| m[:name] == "github.push.directory_hotspot" }
+        expect(dir_hotspot_metric).to be_present
+
+        # Check individual directory metrics
+        dir_metrics = result[:metrics].select { |m| m[:name] == "github.push.directory_changes" }
+        expect(dir_metrics.size).to be > 0
+
+        # We should have metrics for "src/users", "src", "api" directories
+        src_users_metric = dir_metrics.find { |m| m[:dimensions][:directory] == "src/users" }
+        expect(src_users_metric).to be_present
+        expect(src_users_metric[:value]).to eq(2) # Two files in src/users
+
+        api_metric = dir_metrics.find { |m| m[:dimensions][:directory] == "api" }
+        expect(api_metric).to be_present
+        expect(api_metric[:value]).to eq(3) # Three files in api
+      end
+
+      it "tracks file extension metrics" do
+        result = classifier.classify(event)
+
+        # Check file extension hotspot metric
+        ext_hotspot_metric = result[:metrics].find { |m| m[:name] == "github.push.filetype_hotspot" }
+        expect(ext_hotspot_metric).to be_present
+
+        # Check individual extension metrics
+        ext_metrics = result[:metrics].select { |m| m[:name] == "github.push.filetype_changes" }
+        expect(ext_metrics.size).to be > 0
+
+        # All files are .rb
+        rb_metric = ext_metrics.find { |m| m[:dimensions][:filetype] == "rb" }
+        expect(rb_metric).to be_present
+        expect(rb_metric[:value]).to eq(6) # Six Ruby files
+      end
+
+      it "tracks code volume metrics" do
+        result = classifier.classify(event)
+
+        # Check code volume metrics
+        additions_metric = result[:metrics].find { |m| m[:name] == "github.push.code_additions" }
+        expect(additions_metric).to be_present
+        expect(additions_metric[:value]).to eq(150) # 100 + 50
+
+        deletions_metric = result[:metrics].find { |m| m[:name] == "github.push.code_deletions" }
+        expect(deletions_metric).to be_present
+        expect(deletions_metric[:value]).to eq(50) # 20 + 30
+
+        churn_metric = result[:metrics].find { |m| m[:name] == "github.push.code_churn" }
+        expect(churn_metric).to be_present
+        expect(churn_metric[:value]).to eq(200) # 150 + 50
+      end
+    end
+
+    context "with a complex push event containing diverse commits" do
+      let(:complex_event) do
+        FactoryBot.build(
+          :event,
+          name: "github.push",
+          source: "github",
+          data: {
+            repository: { full_name: "rails/rails" },
+            commits: [
+              {
+                id: "commit1",
+                message: "feat(activerecord): add support for PostgreSQL 14 features",
+                added: [
+                  "activerecord/lib/active_record/connection_adapters/postgresql/features.rb",
+                  "activerecord/lib/active_record/connection_adapters/postgresql/schema_statements.rb"
+                ],
+                modified: [
+                  "activerecord/lib/active_record/connection_adapters/postgresql_adapter.rb"
+                ],
+                removed: [],
+                stats: { additions: 120, deletions: 15 }
+              },
+              {
+                id: "commit2",
+                message: "fix(actionpack): resolve routing regression with wildcard segments",
+                added: [],
+                modified: [
+                  "actionpack/lib/action_dispatch/routing/route_set.rb",
+                  "actionpack/lib/action_dispatch/journey/router.rb"
+                ],
+                removed: [],
+                stats: { additions: 35, deletions: 28 }
+              },
+              {
+                id: "commit3",
+                message: "docs: update API documentation for ActionCable",
+                added: [],
+                modified: [
+                  "guides/source/action_cable_overview.md",
+                  "actioncable/README.md"
+                ],
+                removed: [],
+                stats: { additions: 65, deletions: 12 }
+              },
+              {
+                id: "commit4",
+                message: "refactor(actionview)!: change template rendering pipeline",
+                added: [
+                  "actionview/lib/action_view/renderer/new_pipeline.rb"
+                ],
+                modified: [
+                  "actionview/lib/action_view/renderer.rb",
+                  "actionview/lib/action_view/renderer/renderer.rb",
+                  "actionview/lib/action_view/helpers/rendering_helper.rb"
+                ],
+                removed: [
+                  "actionview/lib/action_view/renderer/old_pipeline.rb"
+                ],
+                stats: { additions: 230, deletions: 185 }
+              },
+              {
+                id: "commit5",
+                message: "Just fixing a typo in comment",
+                added: [],
+                modified: ["railties/lib/rails/commands.rb"],
+                removed: [],
+                stats: { additions: 1, deletions: 1 }
+              }
+            ],
+            ref: "refs/heads/main",
+            sender: { login: "dhh" }
+          }
+        )
+      end
+
+      it "correctly classifies all commit types" do
+        result = classifier.classify(complex_event)
+
+        # Should find 4 conventional commits and 1 non-conventional
+        commit_type_metrics = result[:metrics].select { |m| m[:name] == "github.push.commit_type" }
+        expect(commit_type_metrics.size).to eq(4) # Only conventional commits counted
+
+        # Verify each commit type is counted
+        expect(commit_type_metrics.map { |m| m[:dimensions][:type] }.sort).to eq(["docs", "feat", "fix", "refactor"])
+
+        # Verify scopes are extracted correctly
+        feat_metric = commit_type_metrics.find { |m| m[:dimensions][:type] == "feat" }
+        expect(feat_metric[:dimensions][:scope]).to eq("activerecord")
+
+        fix_metric = commit_type_metrics.find { |m| m[:dimensions][:type] == "fix" }
+        expect(fix_metric[:dimensions][:scope]).to eq("actionpack")
+
+        refactor_metric = commit_type_metrics.find { |m| m[:dimensions][:type] == "refactor" }
+        expect(refactor_metric[:dimensions][:scope]).to eq("actionview")
+      end
+
+      it "correctly identifies breaking changes" do
+        result = classifier.classify(complex_event)
+
+        breaking_metrics = result[:metrics].select { |m| m[:name] == "github.push.breaking_change" }
+        expect(breaking_metrics.size).to eq(1)
+
+        breaking_metric = breaking_metrics.first
+        expect(breaking_metric[:dimensions][:type]).to eq("refactor")
+        expect(breaking_metric[:dimensions][:scope]).to eq("actionview")
+        expect(breaking_metric[:dimensions][:author]).to eq("dhh")
+      end
+
+      it "correctly tracks directory hotspots" do
+        result = classifier.classify(complex_event)
+
+        directory_metrics = result[:metrics].select { |m| m[:name] == "github.push.directory_changes" }
+
+        # Check that main Rails component directories are counted
+        actionview_metric = directory_metrics.find { |m| m[:dimensions][:directory] == "actionview" }
+        expect(actionview_metric).to be_present
+        expect(actionview_metric[:value]).to be >= 4
+
+        actionview_lib_metric = directory_metrics.find { |m| m[:dimensions][:directory] == "actionview/lib" }
+        expect(actionview_lib_metric).to be_present
+
+        activerecord_metric = directory_metrics.find { |m| m[:dimensions][:directory] == "activerecord" }
+        expect(activerecord_metric).to be_present
+        expect(activerecord_metric[:value]).to be >= 3
+      end
+
+      it "correctly tracks file extension metrics" do
+        result = classifier.classify(complex_event)
+
+        filetype_metrics = result[:metrics].select { |m| m[:name] == "github.push.filetype_changes" }
+
+        # Check that each file type is counted correctly
+        rb_metric = filetype_metrics.find { |m| m[:dimensions][:filetype] == "rb" }
+        expect(rb_metric).to be_present
+        expect(rb_metric[:value]).to eq(11) # Total Ruby files
+
+        md_metric = filetype_metrics.find { |m| m[:dimensions][:filetype] == "md" }
+        expect(md_metric).to be_present
+        expect(md_metric[:value]).to eq(2) # Total Markdown files
+      end
+
+      it "correctly tracks code volume metrics" do
+        result = classifier.classify(complex_event)
+
+        additions_metric = result[:metrics].find { |m| m[:name] == "github.push.code_additions" }
+        expect(additions_metric).to be_present
+        expect(additions_metric[:value]).to eq(451) # Sum of all additions
+
+        deletions_metric = result[:metrics].find { |m| m[:name] == "github.push.code_deletions" }
+        expect(deletions_metric).to be_present
+        expect(deletions_metric[:value]).to eq(241) # Sum of all deletions
+
+        churn_metric = result[:metrics].find { |m| m[:name] == "github.push.code_churn" }
+        expect(churn_metric).to be_present
+        expect(churn_metric[:value]).to eq(692) # Total churn
+      end
+
+      it "provides aggregated repository metrics" do
+        result = classifier.classify(complex_event)
+
+        # Basic push metrics should be present
+        total_metric = result[:metrics].find { |m| m[:name] == "github.push.total" }
+        expect(total_metric).to be_present
+        expect(total_metric[:dimensions][:repository]).to eq("rails/rails")
+
+        # Commit count should be correct
+        commits_metric = result[:metrics].find { |m| m[:name] == "github.push.commits" }
+        expect(commits_metric).to be_present
+        expect(commits_metric[:value]).to eq(5) # 5 commits
+
+        # Author should be correctly identified
+        author_metric = result[:metrics].find { |m| m[:name] == "github.push.unique_authors" }
+        expect(author_metric).to be_present
+        expect(author_metric[:dimensions][:author]).to eq("dhh")
       end
     end
 

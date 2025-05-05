@@ -1,0 +1,33 @@
+# Standard dimension keys for commit metrics
+commit_dimensions:
+  # Conventional commit parts
+  commit_type: The type from conventional commit (feat, fix, chore, etc.)
+  commit_scope: The scope from conventional commit (if present)
+  commit_breaking: Boolean indicating if it's a breaking change
+  commit_description: The short description from the commit message
+  commit_conventional: Boolean indicating if it follows conventional format
+
+  # File change metrics
+  files_added: Count of added files
+  files_modified: Count of modified files
+  files_removed: Count of removed files
+  
+  # Directory analysis
+  directory_hotspots: Hash of top 10 directories with change counts
+  top_directory: Directory with most changes
+  top_directory_count: Number of changes in top directory
+  
+  # Extension analysis
+  extension_hotspots: Hash of top 10 file extensions with change counts
+  top_extension: File extension with most changes
+  top_extension_count: Number of changes for top extension
+  
+  # Code volume metrics
+  code_additions: Lines of code added
+  code_deletions: Lines of code removed
+  code_churn: Total lines changed (additions + deletions)
+  
+  # Raw file lists for detailed analysis
+  file_paths_added: Complete list of added file paths
+  file_paths_modified: Complete list of modified file paths
+  file_paths_removed: Complete list of removed file paths 

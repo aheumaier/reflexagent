@@ -213,4 +213,508 @@ RSpec.describe Domain::Extractors::DimensionExtractor do
       expect(branch).to eq("unknown")
     end
   end
+
+  describe "#extract_conventional_commit_parts" do
+    it "correctly parses a feature commit" do
+      commit = { message: "feat(users): add login functionality" }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_type]).to eq("feat")
+      expect(result[:commit_scope]).to eq("users")
+      expect(result[:commit_description]).to eq("add login functionality")
+      expect(result[:commit_breaking]).to be(false)
+      expect(result[:commit_conventional]).to be(true)
+    end
+
+    it "correctly parses a fix commit" do
+      commit = { message: "fix: correct calculation error" }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_type]).to eq("fix")
+      expect(result[:commit_scope]).to be_nil
+      expect(result[:commit_description]).to eq("correct calculation error")
+      expect(result[:commit_breaking]).to be(false)
+      expect(result[:commit_conventional]).to be(true)
+    end
+
+    it "identifies breaking changes with exclamation mark" do
+      commit = { message: "feat(api)!: change return format" }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_type]).to eq("feat")
+      expect(result[:commit_scope]).to eq("api")
+      expect(result[:commit_description]).to eq("change return format")
+      expect(result[:commit_breaking]).to be(true)
+      expect(result[:commit_conventional]).to be(true)
+    end
+
+    it "handles complex scopes with paths" do
+      commit = { message: "refactor(core/api/users): simplify authentication flow" }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_type]).to eq("refactor")
+      expect(result[:commit_scope]).to eq("core/api/users")
+      expect(result[:commit_description]).to eq("simplify authentication flow")
+      expect(result[:commit_conventional]).to be(true)
+    end
+
+    it "handles scopes with hyphens and underscores" do
+      commit = { message: "chore(github-auth_flow): update dependencies" }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_type]).to eq("chore")
+      expect(result[:commit_scope]).to eq("github-auth_flow")
+      expect(result[:commit_description]).to eq("update dependencies")
+      expect(result[:commit_conventional]).to be(true)
+    end
+
+    it "handles breaking changes with detailed description" do
+      commit = { message: "feat(db)!: migrate to PostgreSQL 14\n\nBREAKING CHANGE: requires updated client libraries" }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_type]).to eq("feat")
+      expect(result[:commit_scope]).to eq("db")
+      expect(result[:commit_breaking]).to be(true)
+      expect(result[:commit_description]).to include("migrate to PostgreSQL 14")
+      expect(result[:commit_conventional]).to be(true)
+    end
+
+    it "supports all common conventional commit types" do
+      types = ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore", "revert"]
+
+      types.each do |type|
+        commit = { message: "#{type}: do something" }
+        result = extractor.extract_conventional_commit_parts(commit)
+
+        expect(result[:commit_type]).to eq(type)
+        expect(result[:commit_conventional]).to be(true)
+      end
+    end
+
+    it "handles non-conventional commit messages" do
+      commit = { message: "Fixed the login bug" }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_conventional]).to be(false)
+      expect(result[:commit_description]).to eq("Fixed the login bug")
+    end
+
+    it "handles empty or nil messages" do
+      commit = { message: nil }
+      result = extractor.extract_conventional_commit_parts(commit)
+
+      expect(result[:commit_conventional]).to be(false)
+      expect(result[:commit_description]).to eq("")
+    end
+  end
+
+  describe "#extract_file_changes" do
+    let(:push_event) do
+      event = FactoryBot.build(:event, name: "github.push", source: "github")
+      event.data[:commits] = [
+        {
+          added: ["src/users/login.rb", "src/users/logout.rb"],
+          modified: ["src/app.rb", "config/routes.rb"],
+          removed: ["old_file.rb"]
+        },
+        {
+          added: ["src/users/signup.rb"],
+          modified: ["src/users/model.rb"],
+          removed: []
+        }
+      ]
+      event
+    end
+
+    let(:event_without_commits) do
+      FactoryBot.build(:event, name: "github.issues.opened", source: "github")
+    end
+
+    it "counts files correctly" do
+      result = extractor.extract_file_changes(push_event)
+
+      expect(result[:files_added]).to eq(3)
+      expect(result[:files_modified]).to eq(3)
+      expect(result[:files_removed]).to eq(1)
+    end
+
+    it "returns full file paths" do
+      result = extractor.extract_file_changes(push_event)
+
+      expect(result[:file_paths_added]).to include(
+        "src/users/login.rb", "src/users/logout.rb", "src/users/signup.rb"
+      )
+      expect(result[:file_paths_modified]).to include(
+        "src/app.rb", "config/routes.rb", "src/users/model.rb"
+      )
+      expect(result[:file_paths_removed]).to include("old_file.rb")
+    end
+
+    it "handles events without commits" do
+      result = extractor.extract_file_changes(event_without_commits)
+
+      expect(result[:files_added]).to eq(0)
+      expect(result[:files_modified]).to eq(0)
+      expect(result[:files_removed]).to eq(0)
+    end
+  end
+
+  describe "#analyze_directories" do
+    let(:files) do
+      [
+        "src/users/login.rb",
+        "src/users/logout.rb",
+        "src/users/signup.rb",
+        "src/app.rb",
+        "config/routes.rb",
+        "config/database.yml"
+      ]
+    end
+
+    it "identifies directory hotspots" do
+      result = extractor.analyze_directories(files)
+
+      expect(result[:directory_hotspots]).to include("src/users" => 3, "src" => 4, "config" => 2)
+      expect(result[:top_directory]).to eq("src")
+      expect(result[:top_directory_count]).to eq(4)
+    end
+
+    it "handles empty file list" do
+      result = extractor.analyze_directories([])
+
+      expect(result).to eq({})
+    end
+
+    it "correctly analyzes nested paths" do
+      result = extractor.analyze_directories(["a/b/c/d.rb", "a/b/e.rb", "a/f.rb"])
+
+      expect(result[:directory_hotspots]).to include(
+        "a" => 3,
+        "a/b" => 2,
+        "a/b/c" => 1
+      )
+    end
+
+    it "correctly analyzes deeply nested paths" do
+      deeply_nested_files = [
+        "app/models/concerns/searchable.rb",
+        "app/models/concerns/taggable.rb",
+        "app/models/user.rb",
+        "app/controllers/api/v1/users_controller.rb",
+        "app/controllers/api/v1/posts_controller.rb",
+        "app/controllers/api/v2/users_controller.rb",
+        "lib/tasks/data_migration.rb",
+        "lib/tasks/cleanup.rb"
+      ]
+
+      result = extractor.analyze_directories(deeply_nested_files)
+
+      expect(result[:directory_hotspots]).to include(
+        "app" => 6,
+        "app/models" => 3,
+        "app/models/concerns" => 2,
+        "app/controllers" => 3,
+        "app/controllers/api" => 3,
+        "app/controllers/api/v1" => 2,
+        "app/controllers/api/v2" => 1,
+        "lib" => 2,
+        "lib/tasks" => 2
+      )
+
+      expect(result[:top_directory]).to eq("app")
+      expect(result[:top_directory_count]).to eq(6)
+    end
+
+    it "correctly prioritizes hotspots across similar structures" do
+      similar_structured_files = [
+        "frontend/components/users/profile.js",
+        "frontend/components/users/settings.js",
+        "frontend/components/users/avatar.js",
+        "frontend/components/posts/list.js",
+        "frontend/components/posts/detail.js",
+        "backend/controllers/users_controller.rb",
+        "backend/controllers/posts_controller.rb"
+      ]
+
+      result = extractor.analyze_directories(similar_structured_files)
+
+      # Verify the order of hotspots is correct
+      ordered_hotspots = result[:directory_hotspots].to_a
+
+      expect(ordered_hotspots[0][0]).to eq("frontend")
+      expect(ordered_hotspots[0][1]).to eq(5)
+
+      expect(ordered_hotspots[1][0]).to eq("frontend/components")
+      expect(ordered_hotspots[1][1]).to eq(5)
+
+      expect(result[:directory_hotspots]["frontend/components/users"]).to eq(3)
+      expect(result[:directory_hotspots]["frontend/components/posts"]).to eq(2)
+    end
+
+    it "handles files in the root directory" do
+      root_files = [
+        "README.md",
+        "Gemfile",
+        "Rakefile",
+        "config/routes.rb"
+      ]
+
+      result = extractor.analyze_directories(root_files)
+
+      # Root files don't count as directories
+      expect(result[:directory_hotspots]).to have_key("config")
+      expect(result[:directory_hotspots].keys).not_to include("")
+      expect(result[:directory_hotspots]["config"]).to eq(1)
+    end
+  end
+
+  describe "#analyze_extensions" do
+    let(:files) do
+      [
+        "src/users/login.rb",
+        "src/users/logout.rb",
+        "src/app.rb",
+        "config/routes.rb",
+        "config/database.yml",
+        "README.md",
+        "Dockerfile"
+      ]
+    end
+
+    it "counts file extensions correctly" do
+      result = extractor.analyze_extensions(files)
+
+      expect(result[:extension_hotspots]).to include("rb" => 4, "yml" => 1, "md" => 1)
+      expect(result[:top_extension]).to eq("rb")
+      expect(result[:top_extension_count]).to eq(4)
+    end
+
+    it "handles files without extensions" do
+      result = extractor.analyze_extensions(["Dockerfile", "LICENSE", ".gitignore"])
+
+      expect(result[:extension_hotspots]).to include("no_extension" => 3)
+    end
+
+    it "handles empty file list" do
+      result = extractor.analyze_extensions([])
+
+      expect(result).to eq({})
+    end
+
+    it "normalizes extensions to lowercase" do
+      mixed_case_files = [
+        "component.JSX",
+        "module.Ts",
+        "styles.CSS",
+        "config.JSON"
+      ]
+
+      result = extractor.analyze_extensions(mixed_case_files)
+
+      expect(result[:extension_hotspots]).to include(
+        "jsx" => 1,
+        "ts" => 1,
+        "css" => 1,
+        "json" => 1
+      )
+
+      # Should not have any uppercase extensions
+      expect(result[:extension_hotspots].keys.any? { |ext| ext =~ /[A-Z]/ }).to be(false)
+    end
+
+    it "handles complex web application file types" do
+      web_app_files = [
+        "components/Button.tsx",
+        "components/Form.tsx",
+        "styles/main.scss",
+        "styles/variables.scss",
+        "public/logo.svg",
+        "public/background.jpg",
+        "public/fonts/roboto.woff2",
+        "webpack.config.js",
+        "package.json",
+        "tsconfig.json",
+        ".babelrc",
+        ".eslintrc.js"
+      ]
+
+      result = extractor.analyze_extensions(web_app_files)
+
+      expect(result[:extension_hotspots]).to include(
+        "tsx" => 2,
+        "scss" => 2,
+        "json" => 2,
+        "js" => 2
+      )
+
+      # Images and fonts should also be counted
+      expect(result[:extension_hotspots]["svg"]).to eq(1)
+      expect(result[:extension_hotspots]["jpg"]).to eq(1)
+      expect(result[:extension_hotspots]["woff2"]).to eq(1)
+    end
+
+    it "handles files with multiple dots" do
+      multi_dot_files = [
+        "archive.tar.gz",
+        "config.dev.json",
+        "index.test.js",
+        "component.stories.tsx",
+        "README.zh-CN.md"
+      ]
+
+      result = extractor.analyze_extensions(multi_dot_files)
+
+      # Should use only the last extension
+      expect(result[:extension_hotspots]).to include(
+        "gz" => 1,
+        "json" => 1,
+        "js" => 1,
+        "tsx" => 1,
+        "md" => 1
+      )
+
+      # Should not include compound extensions
+      expect(result[:extension_hotspots].keys).not_to include("tar.gz")
+      expect(result[:extension_hotspots].keys).not_to include("dev.json")
+      expect(result[:extension_hotspots].keys).not_to include("test.js")
+    end
+
+    it "handles dotfiles correctly" do
+      dotfiles = [
+        ".gitignore",
+        ".env",
+        ".env.local",
+        ".ruby-version",
+        ".dockerignore"
+      ]
+
+      result = extractor.analyze_extensions(dotfiles)
+
+      expect(result[:extension_hotspots]).to include(
+        "no_extension" => 4,
+        "local" => 1
+      )
+    end
+  end
+
+  describe "#extract_code_volume" do
+    let(:push_event_with_stats) do
+      event = FactoryBot.build(:event, name: "github.push", source: "github")
+      event.data[:commits] = [
+        { stats: { additions: 10, deletions: 5 } },
+        { stats: { additions: 20, deletions: 8 } }
+      ]
+      event
+    end
+
+    let(:push_event_without_stats) do
+      event = FactoryBot.build(:event, name: "github.push", source: "github")
+      event.data[:commits] = [
+        { message: "Add new feature" },
+        { message: "Fix bug" }
+      ]
+      event
+    end
+
+    let(:event_without_commits) do
+      FactoryBot.build(:event, name: "github.issues.opened", source: "github")
+    end
+
+    it "sums up code additions and deletions" do
+      result = extractor.extract_code_volume(push_event_with_stats)
+
+      expect(result[:code_additions]).to eq(30)
+      expect(result[:code_deletions]).to eq(13)
+      expect(result[:code_churn]).to eq(43)
+    end
+
+    it "handles commits without stats" do
+      result = extractor.extract_code_volume(push_event_without_stats)
+
+      expect(result[:code_additions]).to eq(0)
+      expect(result[:code_deletions]).to eq(0)
+      expect(result[:code_churn]).to eq(0)
+    end
+
+    it "handles events without commits" do
+      result = extractor.extract_code_volume(event_without_commits)
+
+      expect(result[:code_additions]).to eq(0)
+      expect(result[:code_deletions]).to eq(0)
+      expect(result[:code_churn]).to eq(0)
+    end
+
+    it "handles large code changes" do
+      event = FactoryBot.build(:event, name: "github.push", source: "github")
+      event.data[:commits] = [
+        { stats: { additions: 5000, deletions: 3000 } },
+        { stats: { additions: 2500, deletions: 1800 } }
+      ]
+
+      result = extractor.extract_code_volume(event)
+
+      expect(result[:code_additions]).to eq(7500)
+      expect(result[:code_deletions]).to eq(4800)
+      expect(result[:code_churn]).to eq(12_300)
+    end
+
+    it "handles zero code changes" do
+      event = FactoryBot.build(:event, name: "github.push", source: "github")
+      event.data[:commits] = [
+        { stats: { additions: 0, deletions: 0 } }
+      ]
+
+      result = extractor.extract_code_volume(event)
+
+      expect(result[:code_additions]).to eq(0)
+      expect(result[:code_deletions]).to eq(0)
+      expect(result[:code_churn]).to eq(0)
+    end
+
+    it "handles string values for additions and deletions" do
+      event = FactoryBot.build(:event, name: "github.push", source: "github")
+      event.data[:commits] = [
+        { stats: { additions: "15", deletions: "7" } }
+      ]
+
+      result = extractor.extract_code_volume(event)
+
+      expect(result[:code_additions]).to eq(15)
+      expect(result[:code_deletions]).to eq(7)
+      expect(result[:code_churn]).to eq(22)
+    end
+
+    it "handles many commits with varying code changes" do
+      event = FactoryBot.build(:event, name: "github.push", source: "github")
+      event.data[:commits] = [
+        { stats: { additions: 5, deletions: 2 } },
+        { stats: { additions: 0, deletions: 10 } },
+        { stats: { additions: 15, deletions: 0 } },
+        { stats: { additions: 8, deletions: 8 } },
+        { stats: { additions: 3, deletions: 1 } }
+      ]
+
+      result = extractor.extract_code_volume(event)
+
+      expect(result[:code_additions]).to eq(31)
+      expect(result[:code_deletions]).to eq(21)
+      expect(result[:code_churn]).to eq(52)
+    end
+
+    it "handles missing stats fields gracefully" do
+      event = FactoryBot.build(:event, name: "github.push", source: "github")
+      event.data[:commits] = [
+        { stats: {} }, # Empty stats
+        { stats: { additions: 10 } }, # Missing deletions
+        { stats: { deletions: 5 } }, # Missing additions
+        { stats: nil } # Nil stats
+      ]
+
+      result = extractor.extract_code_volume(event)
+
+      expect(result[:code_additions]).to eq(10)
+      expect(result[:code_deletions]).to eq(5)
+      expect(result[:code_churn]).to eq(15)
+    end
+  end
 end
