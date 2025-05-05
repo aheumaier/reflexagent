@@ -42,6 +42,7 @@ Rails.application.config.after_initialize do
     # Load classifiers
     require_relative "../../app/core/domain/classifiers/base_classifier"
     require_relative "../../app/core/domain/classifiers/github_event_classifier"
+    require_relative "../../app/core/domain/classifiers/jira_event_classifier"
 
     # Load extractors
     require_relative "../../app/core/domain/extractors/dimension_extractor"
@@ -111,10 +112,18 @@ Rails.application.config.after_initialize do
     # Register the GitHub event classifier
     github_classifier = Domain::Classifiers::GithubEventClassifier.new(dimension_extractor)
 
+    # Register the Jira event classifier
+    jira_classifier = Domain::Classifiers::JiraEventClassifier.new(dimension_extractor)
+
     # Register source-specific classifiers
     DependencyContainer.register(
       :github_classifier,
       github_classifier
+    )
+
+    DependencyContainer.register(
+      :jira_classifier,
+      jira_classifier
     )
 
     # Register the MetricClassifier with source-specific classifiers
@@ -122,7 +131,8 @@ Rails.application.config.after_initialize do
       :metric_classifier,
       Domain::Classifiers::MetricClassifier.new(
         {
-          github: github_classifier
+          github: github_classifier,
+          jira: jira_classifier
         },
         dimension_extractor
       )

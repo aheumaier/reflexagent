@@ -129,8 +129,59 @@ module Domain
       # @param event [Domain::Event] Jira event to classify
       # @return [Hash] Classification result
       def classify_jira_event(event)
-        # Default implementation - will be enhanced in the future
-        { metrics: [] }
+        event_subtype = event.name.sub("jira.", "")
+
+        case event_subtype
+        when /^issue_(created|updated|resolved|deleted)$/
+          action = ::Regexp.last_match(1)
+          {
+            metrics: [
+              # Total issues
+              {
+                name: "jira.issue.total",
+                value: 1,
+                dimensions: extract_jira_dimensions(event).merge(action: action)
+              },
+              # Issues by action type
+              {
+                name: "jira.issue.#{action}",
+                value: 1,
+                dimensions: extract_jira_dimensions(event)
+              },
+              # Issues by type
+              {
+                name: "jira.issue.by_type",
+                value: 1,
+                dimensions: extract_jira_dimensions(event).merge(
+                  issue_type: extract_jira_issue_type(event),
+                  action: action
+                )
+              }
+            ]
+          }
+        when /^sprint_(started|closed)$/
+          action = ::Regexp.last_match(1)
+          {
+            metrics: [
+              {
+                name: "jira.sprint.#{action}",
+                value: 1,
+                dimensions: extract_jira_dimensions(event)
+              }
+            ]
+          }
+        else
+          # Generic Jira event
+          {
+            metrics: [
+              {
+                name: "jira.#{event_subtype}.total",
+                value: 1,
+                dimensions: extract_jira_dimensions(event)
+              }
+            ]
+          }
+        end
       end
 
       # Fallback method for GitLab events when no GitLab classifier is provided
@@ -171,6 +222,22 @@ module Domain
       def classify_generic_event(event)
         # Default implementation - will be enhanced in the future
         { metrics: [] }
+      end
+
+      # Dimension extraction helpers
+
+      def extract_jira_dimensions(event)
+        data = event.data
+        {
+          project: data.dig(:issue, :fields, :project, :key) ||
+            data.dig(:project, :key) ||
+            "unknown",
+          source: event.source
+        }
+      end
+
+      def extract_jira_issue_type(event)
+        event.data.dig(:issue, :fields, :issuetype, :name) || "unknown"
       end
     end
   end

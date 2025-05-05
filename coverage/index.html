@@ -13,7 +13,7 @@
       <img src="./assets/0.13.1/loading.gif" alt="loading"/>
     </div>
     <div id="wrapper" class="hide">
-      <div class="timestamp">Generated <abbr class="timeago" title="2025-05-05T10:54:27+02:00">2025-05-05T10:54:27+02:00</abbr></div>
+      <div class="timestamp">Generated <abbr class="timeago" title="2025-05-05T11:00:58+02:00">2025-05-05T11:00:58+02:00</abbr></div>
       <ul class="group_tabs"></ul>
 
       <div id="content">
@@ -42,9 +42,9 @@
   </div>
 
   <div class="t-line-summary">
-    <b>4826</b> relevant lines,
+    <b>4949</b> relevant lines,
     <span class="green"><b>0</b> lines covered</span> and
-    <span class="red"><b>4826</b> lines missed. </span>
+    <span class="red"><b>4949</b> lines missed. </span>
     (<span class="red">
   0.0%
 </span>
@@ -325,10 +325,10 @@
           <tr class="t-file">
             <td class="strong t-file__name"><a href="#3362e7f914127819eecc392d9cf8e73f5a277a9b" class="src_link" title="app/core/domain/classifiers/jira_event_classifier.rb">app/core/domain/classifiers/jira_event_classifier.rb</a></td>
             <td class="red strong cell--number t-file__coverage">0.00 %</td>
-            <td class="cell--number">5</td>
-            <td class="cell--number">5</td>
+            <td class="cell--number">88</td>
+            <td class="cell--number">69</td>
             <td class="cell--number">0</td>
-            <td class="cell--number">5</td>
+            <td class="cell--number">69</td>
             <td class="cell--number">0.00</td>
             
           </tr>
@@ -336,10 +336,10 @@
           <tr class="t-file">
             <td class="strong t-file__name"><a href="#2a14b6f561bd84d08e0e47c4b090104844599ac8" class="src_link" title="app/core/domain/classifiers/metric_classifier.rb">app/core/domain/classifiers/metric_classifier.rb</a></td>
             <td class="red strong cell--number t-file__coverage">0.00 %</td>
-            <td class="cell--number">177</td>
-            <td class="cell--number">109</td>
+            <td class="cell--number">244</td>
+            <td class="cell--number">168</td>
             <td class="cell--number">0</td>
-            <td class="cell--number">109</td>
+            <td class="cell--number">168</td>
             <td class="cell--number">0.00</td>
             
           </tr>
@@ -1376,9 +1376,9 @@
   </div>
 
   <div class="t-line-summary">
-    <b>2397</b> relevant lines,
+    <b>2520</b> relevant lines,
     <span class="green"><b>0</b> lines covered</span> and
-    <span class="red"><b>2397</b> lines missed. </span>
+    <span class="red"><b>2520</b> lines missed. </span>
     (<span class="red">
   0.0%
 </span>
@@ -1461,10 +1461,10 @@
           <tr class="t-file">
             <td class="strong t-file__name"><a href="#3362e7f914127819eecc392d9cf8e73f5a277a9b" class="src_link" title="app/core/domain/classifiers/jira_event_classifier.rb">app/core/domain/classifiers/jira_event_classifier.rb</a></td>
             <td class="red strong cell--number t-file__coverage">0.00 %</td>
-            <td class="cell--number">5</td>
-            <td class="cell--number">5</td>
+            <td class="cell--number">88</td>
+            <td class="cell--number">69</td>
             <td class="cell--number">0</td>
-            <td class="cell--number">5</td>
+            <td class="cell--number">69</td>
             <td class="cell--number">0.00</td>
             
           </tr>
@@ -1472,10 +1472,10 @@
           <tr class="t-file">
             <td class="strong t-file__name"><a href="#2a14b6f561bd84d08e0e47c4b090104844599ac8" class="src_link" title="app/core/domain/classifiers/metric_classifier.rb">app/core/domain/classifiers/metric_classifier.rb</a></td>
             <td class="red strong cell--number t-file__coverage">0.00 %</td>
-            <td class="cell--number">177</td>
-            <td class="cell--number">109</td>
+            <td class="cell--number">244</td>
+            <td class="cell--number">168</td>
             <td class="cell--number">0</td>
-            <td class="cell--number">109</td>
+            <td class="cell--number">168</td>
             <td class="cell--number">0.00</td>
             
           </tr>
@@ -32161,9 +32161,9 @@
     
 
     <div class="t-line-summary">
-      <b>5</b> relevant lines.
+      <b>69</b> relevant lines.
       <span class="green"><b>0</b> lines covered</span> and
-      <span class="red"><b>5</b> lines missed.</span>
+      <span class="red"><b>69</b> lines missed.</span>
     </div>
 
     
@@ -32174,22 +32174,22 @@
     <ol>
       
         <div>
-          <li class="missed" data-hits="0" data-linenumber="1">
+          <li class="never" data-hits="" data-linenumber="1">
             
 
             
 
-            <code class="ruby">class JiraEventClassifier</code>
+            <code class="ruby"># frozen_string_literal: true</code>
           </li>
         </div>
       
         <div>
-          <li class="missed" data-hits="0" data-linenumber="2">
+          <li class="never" data-hits="" data-linenumber="2">
             
 
             
 
-            <code class="ruby">  def initialize</code>
+            <code class="ruby"></code>
           </li>
         </div>
       
@@ -32199,7 +32199,7 @@
 
             
 
-            <code class="ruby">    @classifier = Classifier.new</code>
+            <code class="ruby">module Domain</code>
           </li>
         </div>
       
@@ -32209,12 +32209,842 @@
 
             
 
+            <code class="ruby">  module Classifiers</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="5">
+            
+
+            
+
+            <code class="ruby">    # JiraEventClassifier is responsible for analyzing Jira events and determining</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="6">
+            
+
+            
+
+            <code class="ruby">    # which metrics should be created from them.</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="7">
+            
+
+            
+
+            <code class="ruby">    class JiraEventClassifier &lt; BaseClassifier</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="8">
+            
+
+            
+
+            <code class="ruby">      # Classify a Jira event and return metric definitions</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="9">
+            
+
+            
+
+            <code class="ruby">      # @param event [Domain::Event] The Jira event to classify</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="10">
+            
+
+            
+
+            <code class="ruby">      # @return [Hash] A hash with a :metrics key containing an array of metric definitions</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="11">
+            
+
+            
+
+            <code class="ruby">      def classify(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="12">
+            
+
+            
+
+            <code class="ruby">        # Extract the subtype from the event name (everything after &quot;jira.&quot;)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="13">
+            
+
+            
+
+            <code class="ruby">        event_subtype = event.name.sub(&quot;jira.&quot;, &quot;&quot;)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="14">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="15">
+            
+
+            
+
+            <code class="ruby">        case event_subtype</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="16">
+            
+
+            
+
+            <code class="ruby">        when /^issue_(created|updated|resolved|deleted)$/</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="17">
+            
+
+            
+
+            <code class="ruby">          action = ::Regexp.last_match(1)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="18">
+            
+
+            
+
+            <code class="ruby">          classify_issue_event(event, action)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="19">
+            
+
+            
+
+            <code class="ruby">        when /^sprint_(started|closed)$/</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="20">
+            
+
+            
+
+            <code class="ruby">          action = ::Regexp.last_match(1)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="21">
+            
+
+            
+
+            <code class="ruby">          classify_sprint_event(event, action)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="22">
+            
+
+            
+
+            <code class="ruby">        else</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="23">
+            
+
+            
+
+            <code class="ruby">          # Generic Jira event</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="24">
+            
+
+            
+
+            <code class="ruby">          {</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="25">
+            
+
+            
+
+            <code class="ruby">            metrics: [</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="26">
+            
+
+            
+
+            <code class="ruby">              create_metric(</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="27">
+            
+
+            
+
+            <code class="ruby">                name: &quot;jira.#{event_subtype}.total&quot;,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="28">
+            
+
+            
+
+            <code class="ruby">                value: 1,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="29">
+            
+
+            
+
+            <code class="ruby">                dimensions: extract_dimensions(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="30">
+            
+
+            
+
+            <code class="ruby">              )</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="31">
+            
+
+            
+
+            <code class="ruby">            ]</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="32">
+            
+
+            
+
+            <code class="ruby">          }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="33">
+            
+
+            
+
+            <code class="ruby">        end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="34">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="35">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="36">
+            
+
+            
+
+            <code class="ruby">      private</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="37">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="38">
+            
+
+            
+
+            <code class="ruby">      def extract_dimensions(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="39">
+            
+
+            
+
+            <code class="ruby">        @dimension_extractor ? @dimension_extractor.extract_jira_dimensions(event) : {}</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="40">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="41">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="42">
+            
+
+            
+
+            <code class="ruby">      def classify_issue_event(event, action)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="43">
+            
+
+            
+
+            <code class="ruby">        dimensions = extract_dimensions(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="44">
+            
+
+            
+
+            <code class="ruby">        issue_type = @dimension_extractor ? @dimension_extractor.extract_jira_issue_type(event) : &quot;unknown&quot;</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="45">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="46">
+            
+
+            
+
+            <code class="ruby">        {</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="47">
+            
+
+            
+
+            <code class="ruby">          metrics: [</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="48">
+            
+
+            
+
+            <code class="ruby">            # Total issues</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="49">
+            
+
+            
+
+            <code class="ruby">            create_metric(</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="50">
+            
+
+            
+
+            <code class="ruby">              name: &quot;jira.issue.total&quot;,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="51">
+            
+
+            
+
+            <code class="ruby">              value: 1,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="52">
+            
+
+            
+
+            <code class="ruby">              dimensions: dimensions.merge(action: action)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="53">
+            
+
+            
+
+            <code class="ruby">            ),</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="54">
+            
+
+            
+
+            <code class="ruby">            # Issues by action type</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="55">
+            
+
+            
+
+            <code class="ruby">            create_metric(</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="56">
+            
+
+            
+
+            <code class="ruby">              name: &quot;jira.issue.#{action}&quot;,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="57">
+            
+
+            
+
+            <code class="ruby">              value: 1,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="58">
+            
+
+            
+
+            <code class="ruby">              dimensions: dimensions</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="59">
+            
+
+            
+
+            <code class="ruby">            ),</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="60">
+            
+
+            
+
+            <code class="ruby">            # Issues by type</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="61">
+            
+
+            
+
+            <code class="ruby">            create_metric(</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="62">
+            
+
+            
+
+            <code class="ruby">              name: &quot;jira.issue.by_type&quot;,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="63">
+            
+
+            
+
+            <code class="ruby">              value: 1,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="64">
+            
+
+            
+
+            <code class="ruby">              dimensions: dimensions.merge(</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="65">
+            
+
+            
+
+            <code class="ruby">                issue_type: issue_type,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="66">
+            
+
+            
+
+            <code class="ruby">                action: action</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="67">
+            
+
+            
+
+            <code class="ruby">              )</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="68">
+            
+
+            
+
+            <code class="ruby">            )</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="69">
+            
+
+            
+
+            <code class="ruby">          ]</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="70">
+            
+
+            
+
+            <code class="ruby">        }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="71">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="72">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="73">
+            
+
+            
+
+            <code class="ruby">      def classify_sprint_event(event, action)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="74">
+            
+
+            
+
+            <code class="ruby">        dimensions = extract_dimensions(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="75">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="76">
+            
+
+            
+
+            <code class="ruby">        {</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="77">
+            
+
+            
+
+            <code class="ruby">          metrics: [</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="78">
+            
+
+            
+
+            <code class="ruby">            create_metric(</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="79">
+            
+
+            
+
+            <code class="ruby">              name: &quot;jira.sprint.#{action}&quot;,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="80">
+            
+
+            
+
+            <code class="ruby">              value: 1,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="81">
+            
+
+            
+
+            <code class="ruby">              dimensions: dimensions</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="82">
+            
+
+            
+
+            <code class="ruby">            )</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="83">
+            
+
+            
+
+            <code class="ruby">          ]</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="84">
+            
+
+            
+
+            <code class="ruby">        }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="85">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="86">
+            
+
+            
+
+            <code class="ruby">    end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="87">
+            
+
+            
+
             <code class="ruby">  end</code>
           </li>
         </div>
       
         <div>
-          <li class="missed" data-hits="0" data-linenumber="5">
+          <li class="missed" data-hits="0" data-linenumber="88">
             
 
             
@@ -32242,9 +33072,9 @@
     
 
     <div class="t-line-summary">
-      <b>109</b> relevant lines.
+      <b>168</b> relevant lines.
       <span class="green"><b>0</b> lines covered</span> and
-      <span class="red"><b>109</b> lines missed.</span>
+      <span class="red"><b>168</b> lines missed.</span>
     </div>
 
     
@@ -33565,22 +34395,22 @@
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="132">
+          <li class="missed" data-hits="0" data-linenumber="132">
             
 
             
 
-            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+            <code class="ruby">        event_subtype = event.name.sub(&quot;jira.&quot;, &quot;&quot;)</code>
           </li>
         </div>
       
         <div>
-          <li class="missed" data-hits="0" data-linenumber="133">
+          <li class="never" data-hits="" data-linenumber="133">
             
 
             
 
-            <code class="ruby">        { metrics: [] }</code>
+            <code class="ruby"></code>
           </li>
         </div>
       
@@ -33590,67 +34420,67 @@
 
             
 
-            <code class="ruby">      end</code>
+            <code class="ruby">        case event_subtype</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="135">
+          <li class="missed" data-hits="0" data-linenumber="135">
             
 
             
 
-            <code class="ruby"></code>
+            <code class="ruby">        when /^issue_(created|updated|resolved|deleted)$/</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="136">
+          <li class="missed" data-hits="0" data-linenumber="136">
             
 
             
 
-            <code class="ruby">      # Fallback method for GitLab events when no GitLab classifier is provided</code>
+            <code class="ruby">          action = ::Regexp.last_match(1)</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="137">
+          <li class="missed" data-hits="0" data-linenumber="137">
             
 
             
 
-            <code class="ruby">      # @param event [Domain::Event] GitLab event to classify</code>
+            <code class="ruby">          {</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="138">
+          <li class="missed" data-hits="0" data-linenumber="138">
             
 
             
 
-            <code class="ruby">      # @return [Hash] Classification result</code>
+            <code class="ruby">            metrics: [</code>
           </li>
         </div>
       
         <div>
-          <li class="missed" data-hits="0" data-linenumber="139">
+          <li class="never" data-hits="" data-linenumber="139">
             
 
             
 
-            <code class="ruby">      def classify_gitlab_event(event)</code>
+            <code class="ruby">              # Total issues</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="140">
+          <li class="missed" data-hits="0" data-linenumber="140">
             
 
             
 
-            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+            <code class="ruby">              {</code>
           </li>
         </div>
       
@@ -33660,7 +34490,7 @@
 
             
 
-            <code class="ruby">        { metrics: [] }</code>
+            <code class="ruby">                name: &quot;jira.issue.total&quot;,</code>
           </li>
         </div>
       
@@ -33670,27 +34500,27 @@
 
             
 
-            <code class="ruby">      end</code>
+            <code class="ruby">                value: 1,</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="143">
+          <li class="missed" data-hits="0" data-linenumber="143">
             
 
             
 
-            <code class="ruby"></code>
+            <code class="ruby">                dimensions: extract_jira_dimensions(event).merge(action: action)</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="144">
+          <li class="missed" data-hits="0" data-linenumber="144">
             
 
             
 
-            <code class="ruby">      # Fallback method for Bitbucket events when no Bitbucket classifier is provided</code>
+            <code class="ruby">              },</code>
           </li>
         </div>
       
@@ -33700,17 +34530,17 @@
 
             
 
-            <code class="ruby">      # @param event [Domain::Event] Bitbucket event to classify</code>
+            <code class="ruby">              # Issues by action type</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="146">
+          <li class="missed" data-hits="0" data-linenumber="146">
             
 
             
 
-            <code class="ruby">      # @return [Hash] Classification result</code>
+            <code class="ruby">              {</code>
           </li>
         </div>
       
@@ -33720,17 +34550,17 @@
 
             
 
-            <code class="ruby">      def classify_bitbucket_event(event)</code>
+            <code class="ruby">                name: &quot;jira.issue.#{action}&quot;,</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="148">
+          <li class="missed" data-hits="0" data-linenumber="148">
             
 
             
 
-            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+            <code class="ruby">                value: 1,</code>
           </li>
         </div>
       
@@ -33740,7 +34570,7 @@
 
             
 
-            <code class="ruby">        { metrics: [] }</code>
+            <code class="ruby">                dimensions: extract_jira_dimensions(event)</code>
           </li>
         </div>
       
@@ -33750,7 +34580,7 @@
 
             
 
-            <code class="ruby">      end</code>
+            <code class="ruby">              },</code>
           </li>
         </div>
       
@@ -33760,37 +34590,37 @@
 
             
 
-            <code class="ruby"></code>
+            <code class="ruby">              # Issues by type</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="152">
+          <li class="missed" data-hits="0" data-linenumber="152">
             
 
             
 
-            <code class="ruby">      # Fallback method for CI events when no CI classifier is provided</code>
+            <code class="ruby">              {</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="153">
+          <li class="missed" data-hits="0" data-linenumber="153">
             
 
             
 
-            <code class="ruby">      # @param event [Domain::Event] CI event to classify</code>
+            <code class="ruby">                name: &quot;jira.issue.by_type&quot;,</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="154">
+          <li class="missed" data-hits="0" data-linenumber="154">
             
 
             
 
-            <code class="ruby">      # @return [Hash] Classification result</code>
+            <code class="ruby">                value: 1,</code>
           </li>
         </div>
       
@@ -33800,17 +34630,17 @@
 
             
 
-            <code class="ruby">      def classify_ci_event(event)</code>
+            <code class="ruby">                dimensions: extract_jira_dimensions(event).merge(</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="156">
+          <li class="missed" data-hits="0" data-linenumber="156">
             
 
             
 
-            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+            <code class="ruby">                  issue_type: extract_jira_issue_type(event),</code>
           </li>
         </div>
       
@@ -33820,7 +34650,7 @@
 
             
 
-            <code class="ruby">        { metrics: [] }</code>
+            <code class="ruby">                  action: action</code>
           </li>
         </div>
       
@@ -33830,47 +34660,47 @@
 
             
 
-            <code class="ruby">      end</code>
+            <code class="ruby">                )</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="159">
+          <li class="missed" data-hits="0" data-linenumber="159">
             
 
             
 
-            <code class="ruby"></code>
+            <code class="ruby">              }</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="160">
+          <li class="missed" data-hits="0" data-linenumber="160">
             
 
             
 
-            <code class="ruby">      # Fallback method for Task events when no Task classifier is provided</code>
+            <code class="ruby">            ]</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="161">
+          <li class="missed" data-hits="0" data-linenumber="161">
             
 
             
 
-            <code class="ruby">      # @param event [Domain::Event] Task event to classify</code>
+            <code class="ruby">          }</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="162">
+          <li class="missed" data-hits="0" data-linenumber="162">
             
 
             
 
-            <code class="ruby">      # @return [Hash] Classification result</code>
+            <code class="ruby">        when /^sprint_(started|closed)$/</code>
           </li>
         </div>
       
@@ -33880,17 +34710,17 @@
 
             
 
-            <code class="ruby">      def classify_task_event(event)</code>
+            <code class="ruby">          action = ::Regexp.last_match(1)</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="164">
+          <li class="missed" data-hits="0" data-linenumber="164">
             
 
             
 
-            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+            <code class="ruby">          {</code>
           </li>
         </div>
       
@@ -33900,7 +34730,7 @@
 
             
 
-            <code class="ruby">        { metrics: [] }</code>
+            <code class="ruby">            metrics: [</code>
           </li>
         </div>
       
@@ -33910,47 +34740,47 @@
 
             
 
-            <code class="ruby">      end</code>
+            <code class="ruby">              {</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="167">
+          <li class="missed" data-hits="0" data-linenumber="167">
             
 
             
 
-            <code class="ruby"></code>
+            <code class="ruby">                name: &quot;jira.sprint.#{action}&quot;,</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="168">
+          <li class="missed" data-hits="0" data-linenumber="168">
             
 
             
 
-            <code class="ruby">      # Fallback method for generic events when no Generic classifier is provided</code>
+            <code class="ruby">                value: 1,</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="169">
+          <li class="missed" data-hits="0" data-linenumber="169">
             
 
             
 
-            <code class="ruby">      # @param event [Domain::Event] Event to classify</code>
+            <code class="ruby">                dimensions: extract_jira_dimensions(event)</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="170">
+          <li class="missed" data-hits="0" data-linenumber="170">
             
 
             
 
-            <code class="ruby">      # @return [Hash] Classification result</code>
+            <code class="ruby">              }</code>
           </li>
         </div>
       
@@ -33960,17 +34790,17 @@
 
             
 
-            <code class="ruby">      def classify_generic_event(event)</code>
+            <code class="ruby">            ]</code>
           </li>
         </div>
       
         <div>
-          <li class="never" data-hits="" data-linenumber="172">
+          <li class="missed" data-hits="0" data-linenumber="172">
             
 
             
 
-            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+            <code class="ruby">          }</code>
           </li>
         </div>
       
@@ -33980,17 +34810,17 @@
 
             
 
-            <code class="ruby">        { metrics: [] }</code>
+            <code class="ruby">        else</code>
           </li>
         </div>
       
         <div>
-          <li class="missed" data-hits="0" data-linenumber="174">
+          <li class="never" data-hits="" data-linenumber="174">
             
 
             
 
-            <code class="ruby">      end</code>
+            <code class="ruby">          # Generic Jira event</code>
           </li>
         </div>
       
@@ -34000,7 +34830,7 @@
 
             
 
-            <code class="ruby">    end</code>
+            <code class="ruby">          {</code>
           </li>
         </div>
       
@@ -34010,12 +34840,682 @@
 
             
 
-            <code class="ruby">  end</code>
+            <code class="ruby">            metrics: [</code>
           </li>
         </div>
       
         <div>
           <li class="missed" data-hits="0" data-linenumber="177">
+            
+
+            
+
+            <code class="ruby">              {</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="178">
+            
+
+            
+
+            <code class="ruby">                name: &quot;jira.#{event_subtype}.total&quot;,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="179">
+            
+
+            
+
+            <code class="ruby">                value: 1,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="180">
+            
+
+            
+
+            <code class="ruby">                dimensions: extract_jira_dimensions(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="181">
+            
+
+            
+
+            <code class="ruby">              }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="182">
+            
+
+            
+
+            <code class="ruby">            ]</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="183">
+            
+
+            
+
+            <code class="ruby">          }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="184">
+            
+
+            
+
+            <code class="ruby">        end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="185">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="186">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="187">
+            
+
+            
+
+            <code class="ruby">      # Fallback method for GitLab events when no GitLab classifier is provided</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="188">
+            
+
+            
+
+            <code class="ruby">      # @param event [Domain::Event] GitLab event to classify</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="189">
+            
+
+            
+
+            <code class="ruby">      # @return [Hash] Classification result</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="190">
+            
+
+            
+
+            <code class="ruby">      def classify_gitlab_event(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="191">
+            
+
+            
+
+            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="192">
+            
+
+            
+
+            <code class="ruby">        { metrics: [] }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="193">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="194">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="195">
+            
+
+            
+
+            <code class="ruby">      # Fallback method for Bitbucket events when no Bitbucket classifier is provided</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="196">
+            
+
+            
+
+            <code class="ruby">      # @param event [Domain::Event] Bitbucket event to classify</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="197">
+            
+
+            
+
+            <code class="ruby">      # @return [Hash] Classification result</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="198">
+            
+
+            
+
+            <code class="ruby">      def classify_bitbucket_event(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="199">
+            
+
+            
+
+            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="200">
+            
+
+            
+
+            <code class="ruby">        { metrics: [] }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="201">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="202">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="203">
+            
+
+            
+
+            <code class="ruby">      # Fallback method for CI events when no CI classifier is provided</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="204">
+            
+
+            
+
+            <code class="ruby">      # @param event [Domain::Event] CI event to classify</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="205">
+            
+
+            
+
+            <code class="ruby">      # @return [Hash] Classification result</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="206">
+            
+
+            
+
+            <code class="ruby">      def classify_ci_event(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="207">
+            
+
+            
+
+            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="208">
+            
+
+            
+
+            <code class="ruby">        { metrics: [] }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="209">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="210">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="211">
+            
+
+            
+
+            <code class="ruby">      # Fallback method for Task events when no Task classifier is provided</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="212">
+            
+
+            
+
+            <code class="ruby">      # @param event [Domain::Event] Task event to classify</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="213">
+            
+
+            
+
+            <code class="ruby">      # @return [Hash] Classification result</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="214">
+            
+
+            
+
+            <code class="ruby">      def classify_task_event(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="215">
+            
+
+            
+
+            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="216">
+            
+
+            
+
+            <code class="ruby">        { metrics: [] }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="217">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="218">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="219">
+            
+
+            
+
+            <code class="ruby">      # Fallback method for generic events when no Generic classifier is provided</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="220">
+            
+
+            
+
+            <code class="ruby">      # @param event [Domain::Event] Event to classify</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="221">
+            
+
+            
+
+            <code class="ruby">      # @return [Hash] Classification result</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="222">
+            
+
+            
+
+            <code class="ruby">      def classify_generic_event(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="223">
+            
+
+            
+
+            <code class="ruby">        # Default implementation - will be enhanced in the future</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="224">
+            
+
+            
+
+            <code class="ruby">        { metrics: [] }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="225">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="226">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="227">
+            
+
+            
+
+            <code class="ruby">      # Dimension extraction helpers</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="228">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="229">
+            
+
+            
+
+            <code class="ruby">      def extract_jira_dimensions(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="230">
+            
+
+            
+
+            <code class="ruby">        data = event.data</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="231">
+            
+
+            
+
+            <code class="ruby">        {</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="232">
+            
+
+            
+
+            <code class="ruby">          project: data.dig(:issue, :fields, :project, :key) ||</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="233">
+            
+
+            
+
+            <code class="ruby">            data.dig(:project, :key) ||</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="234">
+            
+
+            
+
+            <code class="ruby">            &quot;unknown&quot;,</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="235">
+            
+
+            
+
+            <code class="ruby">          source: event.source</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="236">
+            
+
+            
+
+            <code class="ruby">        }</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="237">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="never" data-hits="" data-linenumber="238">
+            
+
+            
+
+            <code class="ruby"></code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="239">
+            
+
+            
+
+            <code class="ruby">      def extract_jira_issue_type(event)</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="240">
+            
+
+            
+
+            <code class="ruby">        event.data.dig(:issue, :fields, :issuetype, :name) || &quot;unknown&quot;</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="241">
+            
+
+            
+
+            <code class="ruby">      end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="242">
+            
+
+            
+
+            <code class="ruby">    end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="243">
+            
+
+            
+
+            <code class="ruby">  end</code>
+          </li>
+        </div>
+      
+        <div>
+          <li class="missed" data-hits="0" data-linenumber="244">
             
 
             
