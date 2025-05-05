@@ -135,7 +135,7 @@
         <!-- Commits by Type -->
         <div class="bg-white shadow-sm rounded-lg p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Commits by Type</h2>
-          <div class="chart-container h-64" data-controller="chart" data-chart-type-value="bar">
+          <div class="chart-container h-64">
             <% 
               # Prepare data for chart.js
               commit_types = @commit_metrics[:commit_types] || []
@@ -175,8 +175,7 @@
                 }
               }
             %>
-            <canvas data-chart-data-value="<%= chart_data.to_json %>" 
-                    data-chart-options-value="<%= chart_options.to_json %>"></canvas>
+            <canvas id="commit-types-chart"></canvas>
           </div>
           
           <!-- Table of commit types -->
@@ -211,7 +210,7 @@
         <!-- Directory Hotspots -->
         <div class="bg-white shadow-sm rounded-lg p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Directory Hotspots</h2>
-          <div class="chart-container h-64" data-controller="chart" data-chart-type-value="pie">
+          <div class="chart-container h-64">
             <% 
               # Prepare data for chart.js
               directory_hotspots = @commit_metrics[:directory_hotspots] || []
@@ -255,8 +254,7 @@
                 }
               }
             %>
-            <canvas data-chart-data-value="<%= dir_chart_data.to_json %>" 
-                    data-chart-options-value="<%= dir_chart_options.to_json %>"></canvas>
+            <canvas id="directory-chart"></canvas>
           </div>
           
           <!-- Table of directory hotspots -->
@@ -291,7 +289,7 @@
         <!-- Author Activity -->
         <div class="bg-white shadow-sm rounded-lg p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">Author Activity</h2>
-          <div class="chart-container h-64" data-controller="chart" data-chart-type-value="bar">
+          <div class="chart-container h-64">
             <% 
               # Prepare data for chart.js
               author_activity = @commit_metrics[:author_activity] || []
@@ -329,8 +327,7 @@
                 indexAxis: 'y'  # Horizontal bar chart
               }
             %>
-            <canvas data-chart-data-value="<%= author_chart_data.to_json %>" 
-                    data-chart-options-value="<%= author_chart_options.to_json %>"></canvas>
+            <canvas id="author-chart"></canvas>
           </div>
           
           <!-- Table of author activity -->
@@ -367,7 +364,7 @@
         <!-- File Extensions -->
         <div class="bg-white shadow-sm rounded-lg p-6">
           <h2 class="text-lg font-medium text-gray-900 mb-4">File Types</h2>
-          <div class="chart-container h-64" data-controller="chart" data-chart-type-value="doughnut">
+          <div class="chart-container h-64">
             <% 
               # Prepare data for chart.js
               file_extensions = @commit_metrics[:file_extension_hotspots] || []
@@ -411,8 +408,7 @@
                 }
               }
             %>
-            <canvas data-chart-data-value="<%= ext_chart_data.to_json %>" 
-                    data-chart-options-value="<%= ext_chart_options.to_json %>"></canvas>
+            <canvas id="filetype-chart"></canvas>
           </div>
           
           <!-- Table of file extensions -->
@@ -456,4 +452,285 @@
       </div>
     </div>
   </main>
-</div> 
+</div>
+
+<script>
+  document.addEventListener('DOMContentLoaded', function() {
+    // Add data-loading state to help with debugging
+    console.log('Commit metrics dashboard loaded');
+    document.body.setAttribute('data-dashboard-loaded', 'true');
+    
+    // Initialize charts
+    console.log('Initializing all charts');
+    
+    // Check if Chart.js is available
+    if (typeof Chart === 'undefined') {
+      console.error('Chart.js is not available');
+      document.querySelectorAll('.chart-container').forEach(container => {
+        container.innerHTML = '<div class="text-red-500 p-4 text-center">Chart.js library not loaded</div>';
+      });
+      return;
+    }
+    
+    try {
+      // Initialize all charts
+      initializeTypeChart();
+      initializeDirectoryChart();
+      initializeAuthorChart();
+      initializeFileTypesChart();
+    } catch (error) {
+      console.error('Error initializing charts:', error);
+    }
+  });
+  
+  // Function to initialize the commit types chart
+  function initializeTypeChart() {
+    const ctx = document.querySelector('#commit-types-chart');
+    if (!ctx) {
+      console.error("Could not find commit-types-chart canvas element");
+      return;
+    }
+    
+    console.log("Creating commit types chart");
+    
+    try {
+      <% 
+        # Prepare data for chart.js
+        commit_types = @commit_metrics[:commit_types] || []
+        
+        # Extract labels and data
+        labels = commit_types.map { |t| t[:type] || 'unknown' }
+        values = commit_types.map { |t| t[:count] }
+      %>
+      
+      const chartData = {
+        labels: <%= raw labels.to_json %>,
+        datasets: [{
+          label: 'Commits',
+          data: <%= raw values.to_json %>,
+          backgroundColor: [
+            'rgba(79, 70, 229, 0.7)', 
+            'rgba(16, 185, 129, 0.7)', 
+            'rgba(245, 158, 11, 0.7)', 
+            'rgba(239, 68, 68, 0.7)', 
+            'rgba(147, 51, 234, 0.7)', 
+            'rgba(14, 165, 233, 0.7)'
+          ],
+          borderWidth: 1
+        }]
+      };
+      
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        }
+      };
+      
+      new Chart(ctx, {
+        type: 'bar',
+        data: chartData,
+        options: chartOptions
+      });
+      console.log("Commit types chart created successfully");
+    } catch (error) {
+      console.error("Error creating commit types chart:", error);
+    }
+  }
+  
+  // Function to initialize the directory hotspots chart
+  function initializeDirectoryChart() {
+    const ctx = document.querySelector('#directory-chart');
+    if (!ctx) {
+      console.error("Could not find directory-chart canvas element");
+      return;
+    }
+    
+    console.log("Creating directory hotspots chart");
+    
+    try {
+      <% 
+        # Prepare data for chart.js
+        directory_hotspots = @commit_metrics[:directory_hotspots] || []
+        
+        # Extract labels and data
+        dir_labels = directory_hotspots.map { |d| d[:directory] || 'unknown' }
+        dir_values = directory_hotspots.map { |d| d[:count] }
+      %>
+      
+      const chartData = {
+        labels: <%= raw dir_labels.to_json %>,
+        datasets: [{
+          data: <%= raw dir_values.to_json %>,
+          backgroundColor: [
+            'rgba(79, 70, 229, 0.7)',
+            'rgba(16, 185, 129, 0.7)',
+            'rgba(245, 158, 11, 0.7)',
+            'rgba(239, 68, 68, 0.7)',
+            'rgba(147, 51, 234, 0.7)',
+            'rgba(14, 165, 233, 0.7)',
+            'rgba(249, 115, 22, 0.7)',
+            'rgba(6, 182, 212, 0.7)',
+            'rgba(217, 70, 239, 0.7)',
+            'rgba(248, 113, 113, 0.7)'
+          ],
+          borderWidth: 1
+        }]
+      };
+      
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { 
+            position: 'right',
+            labels: {
+              boxWidth: 15,
+              font: { size: 11 }
+            }
+          }
+        }
+      };
+      
+      new Chart(ctx, {
+        type: 'pie',
+        data: chartData,
+        options: chartOptions
+      });
+      console.log("Directory hotspots chart created successfully");
+    } catch (error) {
+      console.error("Error creating directory hotspots chart:", error);
+    }
+  }
+  
+  // Function to initialize the author activity chart
+  function initializeAuthorChart() {
+    const ctx = document.querySelector('#author-chart');
+    if (!ctx) {
+      console.error("Could not find author-chart canvas element");
+      return;
+    }
+    
+    console.log("Creating author activity chart");
+    
+    try {
+      <% 
+        # Prepare data for chart.js
+        author_activity = @commit_metrics[:author_activity] || []
+        
+        # Extract top 10 authors for readability
+        top_authors = author_activity.take(10)
+        
+        # Extract labels and data
+        author_labels = top_authors.map { |a| a[:author] || 'unknown' }
+        commit_counts = top_authors.map { |a| a[:commit_count] }
+      %>
+      
+      const chartData = {
+        labels: <%= raw author_labels.to_json %>,
+        datasets: [{
+          label: 'Commits',
+          data: <%= raw commit_counts.to_json %>,
+          backgroundColor: 'rgba(79, 70, 229, 0.7)',
+          borderWidth: 1
+        }]
+      };
+      
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: { precision: 0 }
+          }
+        },
+        plugins: {
+          legend: { display: false }
+        },
+        indexAxis: 'y'  // Horizontal bar chart
+      };
+      
+      new Chart(ctx, {
+        type: 'bar',
+        data: chartData,
+        options: chartOptions
+      });
+      console.log("Author activity chart created successfully");
+    } catch (error) {
+      console.error("Error creating author activity chart:", error);
+    }
+  }
+  
+  // Function to initialize the file types chart
+  function initializeFileTypesChart() {
+    const ctx = document.querySelector('#filetype-chart');
+    if (!ctx) {
+      console.error("Could not find filetype-chart canvas element");
+      return;
+    }
+    
+    console.log("Creating file types chart");
+    
+    try {
+      <% 
+        # Prepare data for chart.js
+        file_extensions = @commit_metrics[:file_extension_hotspots] || []
+        
+        # Extract labels and data
+        ext_labels = file_extensions.map { |e| e[:extension] || 'unknown' }
+        ext_values = file_extensions.map { |e| e[:count] }
+      %>
+      
+      const chartData = {
+        labels: <%= raw ext_labels.to_json %>,
+        datasets: [{
+          data: <%= raw ext_values.to_json %>,
+          backgroundColor: [
+            'rgba(79, 70, 229, 0.7)',
+            'rgba(16, 185, 129, 0.7)',
+            'rgba(245, 158, 11, 0.7)',
+            'rgba(239, 68, 68, 0.7)',
+            'rgba(147, 51, 234, 0.7)',
+            'rgba(14, 165, 233, 0.7)',
+            'rgba(249, 115, 22, 0.7)',
+            'rgba(6, 182, 212, 0.7)',
+            'rgba(217, 70, 239, 0.7)',
+            'rgba(248, 113, 113, 0.7)'
+          ],
+          borderWidth: 1
+        }]
+      };
+      
+      const chartOptions = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { 
+            position: 'right',
+            labels: {
+              boxWidth: 15,
+              font: { size: 11 }
+            }
+          }
+        }
+      };
+      
+      new Chart(ctx, {
+        type: 'doughnut',
+        data: chartData,
+        options: chartOptions
+      });
+      console.log("File types chart created successfully");
+    } catch (error) {
+      console.error("Error creating file types chart:", error);
+    }
+  }
+</script> 
