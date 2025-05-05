@@ -138,4 +138,120 @@ class MetricsService
       0
     end
   end
+
+  # Get metrics as a time series, grouped by the specified interval
+  def time_series(metric_name, days: 30, interval: "day", unique_by: nil)
+    start_time = days.days.ago
+
+    # Get the metrics from storage
+    metrics = @storage_port.list_metrics(
+      name: metric_name,
+      start_time: start_time
+    )
+
+    # If unique_by is specified, only count unique values per interval
+    if unique_by.present?
+      # Group metrics by time interval
+      result = {}
+
+      # First, get all time intervals
+      metrics.each do |metric|
+        interval_key = case interval
+                       when "day"
+                         metric.timestamp.strftime("%Y-%m-%d")
+                       when "week"
+                         metric.timestamp.beginning_of_week.strftime("%Y-%m-%d")
+                       when "month"
+                         metric.timestamp.strftime("%Y-%m")
+                       when "hour"
+                         metric.timestamp.strftime("%Y-%m-%d %H:00")
+                       else
+                         metric.timestamp.strftime("%Y-%m-%d")
+                       end
+
+        # Initialize the set of unique values for this interval
+        result[interval_key] ||= Set.new
+
+        # Add the dimension value to the set
+        unique_value = metric.dimensions[unique_by.to_s] || metric.dimensions[unique_by.to_sym] || "unknown"
+        result[interval_key].add(unique_value)
+      end
+
+      # Convert Sets to counts
+      result.transform_values!(&:size)
+    else
+      # Regular grouping by time interval
+      grouped_metrics = metrics.group_by do |metric|
+        case interval
+        when "day"
+          metric.timestamp.strftime("%Y-%m-%d")
+        when "week"
+          metric.timestamp.beginning_of_week.strftime("%Y-%m-%d")
+        when "month"
+          metric.timestamp.strftime("%Y-%m")
+        when "hour"
+          metric.timestamp.strftime("%Y-%m-%d %H:00")
+        else
+          metric.timestamp.strftime("%Y-%m-%d")
+        end
+      end
+
+      # Sum values for each time interval
+      result = grouped_metrics.transform_values do |interval_metrics|
+        interval_metrics.sum(&:value)
+      end
+    end
+
+    # Fill in missing dates in the range
+    case interval
+    when "day"
+      days.downto(0).each do |i|
+        date = i.days.ago.strftime("%Y-%m-%d")
+        result[date] ||= 0
+      end
+    when "week"
+      (days / 7).downto(0).each do |i|
+        date = (i * 7).days.ago.beginning_of_week.strftime("%Y-%m-%d")
+        result[date] ||= 0
+      end
+    when "month"
+      (days / 30).downto(0).each do |i|
+        date = (i * 30).days.ago.strftime("%Y-%m")
+        result[date] ||= 0
+      end
+    end
+
+    # Sort by date
+    result.sort.to_h
+  end
+
+  # Calculate aggregated metric value using specified aggregation function
+  def aggregate(metric_name, days: 30, aggregation: "avg")
+    start_time = days.days.ago
+
+    # Get metrics from storage
+    metrics = @storage_port.list_metrics(
+      name: metric_name,
+      start_time: start_time
+    )
+
+    return 0 if metrics.empty?
+
+    # Calculate the aggregate based on specified function
+    case aggregation.to_s.downcase
+    when "avg", "average"
+      metrics.sum(&:value) / metrics.size.to_f
+    when "sum"
+      metrics.sum(&:value)
+    when "max"
+      metrics.map(&:value).max
+    when "min"
+      metrics.map(&:value).min
+    when "count"
+      metrics.size
+    else
+      # Default to average
+      metrics.sum(&:value) / metrics.size.to_f
+    end
+  end
 end

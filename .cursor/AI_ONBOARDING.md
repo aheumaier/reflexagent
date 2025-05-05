@@ -31,6 +31,12 @@ ReflexAgent/
 ├── app/
 │   ├── core/
 │   │   ├── domain/
+│   │   │   ├── classifiers/
+│   │   │   │   ├── github_event_classifier.rb
+│   │   │   │   ├── metric_classifier.rb
+│   │   │   │   └── ...
+│   │   │   ├── extractors/
+│   │   │   │   └── dimension_extractor.rb
 │   │   │   ├── event.rb
 │   │   │   ├── metric.rb
 │   │   │   └── alert.rb
@@ -38,6 +44,11 @@ ReflexAgent/
 │   │       ├── process_event.rb
 │   │       ├── calculate_metrics.rb
 │   │       ├── detect_anomalies.rb
+│   │       ├── analyze_commits.rb
+│   │       ├── dashboard_metrics.rb
+│   │       ├── find_event.rb
+│   │       ├── find_metric.rb
+│   │       ├── list_metrics.rb
 │   │       └── send_notification.rb
 │   │
 │   ├── ports/
@@ -48,36 +59,89 @@ ReflexAgent/
 │   │   ├── queue_port.rb
 │   │   └── dashboard_port.rb
 │   │
-│   └── adapters/
-│       ├── web/
-│       │   └── webhooks_controller.rb
-│       │   └── dashboard_controller.rb
-│       │
-│       ├── repositories/
-│       │   ├── event_repository.rb
-│       │   ├── metric_repository.rb
-│       │   └── alert_repository.rb
-│       │
-│       ├── cache/
-│       │   └── redis_cache.rb
-│       │
-│       ├── notifications/
-│       │   └── slack_notifier.rb
-│       │
-│       └── queue/
-│           └── process_event_worker.rb
+│   ├── adapters/
+│   │   ├── web/
+│   │   │   ├── webhooks_controller.rb
+│   │   │   ├── web_adapter.rb
+│   │   │   └── ...
+│   │   │
+│   │   ├── repositories/
+│   │   │   ├── event_repository.rb
+│   │   │   ├── metric_repository.rb
+│   │   │   └── alert_repository.rb
+│   │   │
+│   │   ├── cache/
+│   │   │   └── redis_cache.rb
+│   │   │
+│   │   ├── notifications/
+│   │   │   └── slack_notifier.rb
+│   │   │
+│   │   └── queuing/
+│   │       └── ...
+│   │
+│   ├── controllers/
+│   │   ├── api/
+│   │   │   └── v1/
+│   │   └── dashboards/
+│   │
+│   ├── models/
+│   │   ├── domain_event.rb
+│   │   ├── domain_metric.rb
+│   │   └── ...
+│   │
+│   ├── views/
+│   │   ├── dashboards/
+│   │   │   ├── commit_metrics/
+│   │   │   └── partials/
+│   │   └── ...
+│   │
+│   └── sidekiq/
+│       ├── raw_event_job.rb
+│       ├── metric_calculation_job.rb
+│       └── metric_aggregation_job.rb
 │
 ├── config/
-│   └── initializers/
-│       └── dependency_injection.rb
+│   ├── initializers/
+│   │   └── dependency_injection.rb
+│   └── ...
+│
+├── db/
+│   └── migrate/
+│
+├── docs/
+│   ├── architecture/
+│   │   ├── README.md
+│   │   ├── domain_model.md
+│   │   ├── commit_metrics_extraction.md
+│   │   └── ADR-000*.md
+│   └── webhooks/
+│       └── github_setup.md
 │
 ├── lib/
-│   └── demo_events.rb      # Script zum Simulieren von Webhook-Events
-└── …
+│   └── demo_events.rb      # Script for simulating webhook events
+│
+├── spec/
+│   ├── core/
+│   │   ├── domain/
+│   │   │   ├── extractors/
+│   │   │   └── classifiers/
+│   │   └── use_cases/
+│   ├── adapters/
+│   │   ├── repositories/
+│   │   ├── web/
+│   │   └── ...
+│   ├── support/
+│   │   ├── shared_contexts/
+│   │   └── ...
+│   └── ...
+│
+└── ...
 
 
 ## 6. Architecture Documentation
 - Architecture Documentation(ADRs) `docs/architecture/`
 - docs/architecture/README.md
+- docs/architecture/domain_model.md
+- docs/architecture/commit_metrics_extraction.md
 - docs/architecture/ADR-0001.md
 - docs/architecture/ADR-0002.md

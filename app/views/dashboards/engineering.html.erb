@@ -151,6 +151,13 @@
             <span>Repository Activity</span>
           </a>
           
+          <%= link_to dashboards_commit_metrics_path(days: @days), class: "sidebar-section block rounded flex items-center space-x-2 sidebar-item" do %>
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M7.5 14.25v2.25m3-4.5v4.5m3-6.75v6.75m3-9v9M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
+            </svg>
+            <span>Commit Metrics</span>
+          <% end %>
+          
           <a href="#cicd-performance" class="sidebar-section block rounded flex items-center space-x-2 sidebar-item" onclick="console.log('CI/CD performance clicked'); document.querySelectorAll('.sidebar-section').forEach(e => e.classList.remove('active')); this.classList.add('active'); return true;">
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
@@ -367,6 +374,14 @@
                 <path stroke-linecap="round" stroke-linejoin="round" d="M14.25 9.75L16.5 12l-2.25 2.25m-4.5 0L7.5 12l2.25-2.25M6 20.25h12A2.25 2.25 0 0020.25 18V6A2.25 2.25 0 0018 3.75H6A2.25 2.25 0 003.75 6v12A2.25 2.25 0 006 20.25z" />
               </svg>
               Repository Activity
+              <span class="ml-auto">
+                <%= link_to dashboards_commit_metrics_path(days: @days), class: "inline-flex items-center px-3 py-1 text-sm font-medium text-white bg-indigo-600 rounded-md hover:bg-indigo-700" do %>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor" class="w-4 h-4 mr-1">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+                  </svg>
+                  Detailed Metrics
+                <% end %>
+              </span>
             </h2>
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <!-- Push Counts Chart -->
@@ -431,10 +446,10 @@
                 <div class="px-4 py-5 sm:p-6">
                   <dt class="text-sm font-medium text-gray-500 truncate">Build Success Rate</dt>
                   <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                    <%= @cicd_metrics[:builds][:success_rate] %>%
+                    <%= (@ci_cd_metrics && @ci_cd_metrics[:builds] && @ci_cd_metrics[:builds][:success_rate]) || 0 %>%
                   </dd>
                   <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                    <div class="bg-green-600 h-2.5 rounded-full" style="width: <%= @cicd_metrics[:builds][:success_rate] %>%"></div>
+                    <div class="bg-green-600 h-2.5 rounded-full" style="width: <%= (@ci_cd_metrics && @ci_cd_metrics[:builds] && @ci_cd_metrics[:builds][:success_rate]) || 0 %>%"></div>
                   </div>
                 </div>
               </div>
@@ -444,7 +459,7 @@
                 <div class="px-4 py-5 sm:p-6">
                   <dt class="text-sm font-medium text-gray-500 truncate">Avg Build Duration</dt>
                   <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                    <%= @cicd_metrics[:builds][:avg_duration]&.round(2) || 'N/A' %> <%= @cicd_metrics[:builds][:avg_duration] ? 'min' : '' %>
+                    <%= @ci_cd_metrics[:builds][:avg_duration]&.round(2) || 'N/A' %> <%= @ci_cd_metrics[:builds][:avg_duration] ? 'min' : '' %>
                   </dd>
                 </div>
               </div>
@@ -454,10 +469,10 @@
                 <div class="px-4 py-5 sm:p-6">
                   <dt class="text-sm font-medium text-gray-500 truncate">Deploy Success Rate</dt>
                   <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                    <%= @cicd_metrics[:deployments][:success_rate] %>%
+                    <%= @ci_cd_metrics[:deployments][:success_rate] %>%
                   </dd>
                   <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: <%= @cicd_metrics[:deployments][:success_rate] %>%"></div>
+                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: <%= @ci_cd_metrics[:deployments][:success_rate] %>%"></div>
                   </div>
                 </div>
               </div>
@@ -467,7 +482,7 @@
                 <div class="px-4 py-5 sm:p-6">
                   <dt class="text-sm font-medium text-gray-500 truncate">Total Deployments</dt>
                   <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                    <%= @cicd_metrics[:deployments][:total].values.sum.to_i %>
+                    <%= @ci_cd_metrics[:deployments][:total].is_a?(Hash) ? @ci_cd_metrics[:deployments][:total].values.sum.to_i : @ci_cd_metrics[:deployments][:total].to_i %>
                   </dd>
                 </div>
               </div>

@@ -39,6 +39,9 @@ module Domain
           classify_workflow_job_event(event, action)
         when "workflow_dispatch"
           classify_workflow_dispatch_event(event)
+        # Handle CI-specific events from GitHub
+        when "ci"
+          classify_ci_event(event)
         else
           # Generic GitHub event
           {
@@ -374,25 +377,76 @@ module Domain
       def classify_deployment_status_event(event, action)
         environment = event.data.dig(:deployment, :environment) || "unknown"
         state = event.data.dig(:deployment_status, :state) || "unknown"
-        dimensions = extract_dimensions(event)
+        dimensions = extract_dimensions(event).merge(environment: environment)
+        metrics = []
 
-        {
-          metrics: [
-            create_metric(
-              name: "github.deployment_status.total",
+        # Basic deployment metrics
+        metrics << create_metric(
+          name: "github.deployment_status.total",
+          value: 1,
+          dimensions: dimensions.merge(state: state)
+        )
+
+        metrics << create_metric(
+          name: "github.deployment_status.#{state}",
+          value: 1,
+          dimensions: dimensions
+        )
+
+        # Add CI deploy metrics for success/failure states
+        if ["success", "failure", "error"].include?(state)
+          # Map deployment state to CI deploy status
+          ci_status = case state
+                      when "success"
+                        "completed"
+                      when "failure", "error"
+                        "failed"
+                      else
+                        state
+                      end
+
+          # CI deploy total metric
+          metrics << create_metric(
+            name: "github.ci.deploy.total",
+            value: 1,
+            dimensions: dimensions
+          )
+
+          # CI deploy status metric
+          metrics << create_metric(
+            name: "github.ci.deploy.#{ci_status}",
+            value: 1,
+            dimensions: dimensions
+          )
+
+          # If deployment failed, create incident metric
+          if ["failure", "error"].include?(state)
+            metrics << create_metric(
+              name: "github.ci.deploy.incident",
               value: 1,
-              dimensions: dimensions.merge(
-                environment: environment,
-                state: state
-              )
-            ),
-            create_metric(
-              name: "github.deployment_status.#{state}",
-              value: 1,
-              dimensions: dimensions.merge(environment: environment)
+              dimensions: dimensions
             )
-          ]
-        }
+          end
+
+          # Calculate lead time for successful deployments
+          if state == "success" && event.data.dig(:deployment, :created_at)
+            begin
+              deployment_created = Time.parse(event.data.dig(:deployment, :created_at).to_s)
+              deployment_updated = Time.parse(event.data.dig(:deployment_status, :updated_at).to_s)
+              lead_time = (deployment_updated - deployment_created).to_i
+
+              metrics << create_metric(
+                name: "github.ci.lead_time",
+                value: lead_time,
+                dimensions: dimensions
+              )
+            rescue StandardError => e
+              Rails.logger.error("Error calculating deployment lead time: #{e.message}")
+            end
+          end
+        end
+
+        { metrics: metrics }
       end
 
       def classify_workflow_run_event(event, action)
@@ -400,21 +454,66 @@ module Domain
         action ||= "total"
         conclusion = event.data.dig(:workflow_run, :conclusion) || "unknown"
         dimensions = extract_dimensions(event)
+        metrics = []
 
-        {
-          metrics: [
-            create_metric(
-              name: "github.workflow_run.#{action}",
-              value: 1,
-              dimensions: dimensions
-            ),
-            create_metric(
-              name: "github.workflow_run.conclusion.#{conclusion}",
-              value: 1,
-              dimensions: dimensions
-            )
-          ]
-        }
+        # Basic workflow_run metrics
+        metrics << create_metric(
+          name: "github.workflow_run.#{action}",
+          value: 1,
+          dimensions: dimensions
+        )
+
+        metrics << create_metric(
+          name: "github.workflow_run.conclusion.#{conclusion}",
+          value: 1,
+          dimensions: dimensions
+        )
+
+        # Add CI build metrics for completed workflow runs
+        if action == "completed"
+          # Map workflow conclusions to CI build status
+          ci_status = case conclusion
+                      when "success"
+                        "completed"
+                      when "failure"
+                        "failed"
+                      else
+                        conclusion
+                      end
+
+          # CI build total metric
+          metrics << create_metric(
+            name: "github.ci.build.total",
+            value: 1,
+            dimensions: dimensions
+          )
+
+          # CI build status metric
+          metrics << create_metric(
+            name: "github.ci.build.#{ci_status}",
+            value: 1,
+            dimensions: dimensions
+          )
+
+          # Duration if available
+          if event.data.dig(:workflow_run, :run_started_at) && event.data.dig(:workflow_run, :updated_at)
+            begin
+              started_at = Time.parse(event.data.dig(:workflow_run, :run_started_at).to_s)
+              updated_at = Time.parse(event.data.dig(:workflow_run, :updated_at).to_s)
+              duration = (updated_at - started_at).to_i
+
+              metrics << create_metric(
+                name: "github.ci.build.duration",
+                value: duration,
+                dimensions: dimensions
+              )
+            rescue StandardError => e
+              Rails.logger.error("Error calculating workflow duration: #{e.message}")
+            end
+          end
+        end
+
+        { metrics: metrics }
       end
 
       def classify_workflow_job_event(event, action)
@@ -446,6 +545,123 @@ module Domain
               name: "github.workflow_dispatch.total",
               value: 1,
               dimensions: extract_dimensions(event)
+            )
+          ]
+        }
+      end
+
+      # Handle CI-specific events from GitHub Actions
+      # @param event [Domain::Event] The CI event to classify
+      # @return [Hash] A hash with a :metrics key containing an array of metric definitions
+      def classify_ci_event(event)
+        # Extract the main operation and status from the event name
+        # Format is expected to be: ci.[operation].[status]
+        _, operation, status = event.name.split(".")
+
+        # Handle different CI operations based on GitHub Actions events
+        case operation
+        when "build"
+          classify_ci_build_event(event, status)
+        when "deploy"
+          classify_ci_deploy_event(event, status)
+        when "lead_time"
+          classify_ci_lead_time_event(event)
+        else
+          # Generic CI event
+          {
+            metrics: [
+              create_metric(
+                name: "github.ci.#{operation || 'event'}.#{status || 'generic'}",
+                value: 1,
+                dimensions: extract_dimensions(event)
+              )
+            ]
+          }
+        end
+      end
+
+      # Create metrics for CI build events (connected to workflow_run/workflow_job events)
+      def classify_ci_build_event(event, status)
+        dimensions = extract_dimensions(event)
+        metrics = []
+
+        # Total build metric
+        metrics << create_metric(
+          name: "github.ci.build.total",
+          value: 1,
+          dimensions: dimensions
+        )
+
+        # Build by status
+        metrics << create_metric(
+          name: "github.ci.build.#{status}",
+          value: 1,
+          dimensions: dimensions
+        )
+
+        # Build duration if available
+        if event.data[:duration] && event.data[:duration].to_f > 0
+          metrics << create_metric(
+            name: "github.ci.build.duration",
+            value: event.data[:duration].to_f,
+            dimensions: dimensions
+          )
+        end
+
+        { metrics: metrics }
+      end
+
+      # Create metrics for CI deployment events (connected to deployment/deployment_status events)
+      def classify_ci_deploy_event(event, status)
+        dimensions = extract_dimensions(event)
+        metrics = []
+
+        # Total deploy metric
+        metrics << create_metric(
+          name: "github.ci.deploy.total",
+          value: 1,
+          dimensions: dimensions
+        )
+
+        # Deploy by status (completed, failed, etc.)
+        metrics << create_metric(
+          name: "github.ci.deploy.#{status}",
+          value: 1,
+          dimensions: dimensions
+        )
+
+        # Deploy duration if available
+        if event.data[:duration] && event.data[:duration].to_f > 0
+          metrics << create_metric(
+            name: "github.ci.deploy.duration",
+            value: event.data[:duration].to_f,
+            dimensions: dimensions
+          )
+        end
+
+        # If this is a failed deployment, create a separate incident metric
+        if status == "failed"
+          metrics << create_metric(
+            name: "github.ci.deploy.incident",
+            value: 1,
+            dimensions: dimensions
+          )
+        end
+
+        { metrics: metrics }
+      end
+
+      # Create metrics for lead time events (aggregated from PRs and deployments)
+      def classify_ci_lead_time_event(event)
+        dimensions = extract_dimensions(event)
+
+        # Lead time is the time from commit to production
+        {
+          metrics: [
+            create_metric(
+              name: "github.ci.lead_time",
+              value: event.data[:value].to_f,
+              dimensions: dimensions
             )
           ]
         }
