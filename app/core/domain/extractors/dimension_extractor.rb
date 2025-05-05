@@ -81,11 +81,43 @@ module Domain
       # @return [Hash] CI-specific dimensions
       def extract_ci_dimensions(event)
         data = event.data
-        {
-          project: data[:project] || "unknown",
-          provider: data[:provider] || "unknown",
+        dimensions = {
+          operation: data[:operation] || parse_operation_from_event_name(event.name),
+          repository: data[:repository] || "unknown",
           source: event.source
         }
+
+        # Add environment info if available
+        dimensions[:environment] = data[:environment] if data[:environment]
+
+        # Add provider info if available
+        dimensions[:provider] = data[:provider] || "github-actions"
+
+        # Add status info if available
+        dimensions[:status] = data[:status] if data[:status]
+
+        # Handle specific operations
+        case dimensions[:operation]
+        when "build"
+          # Add build-specific dimensions
+          dimensions[:branch] = data[:branch] if data[:branch]
+          dimensions[:commit_sha] = data[:commit_sha] if data[:commit_sha]
+        when "deploy"
+          # Add deployment-specific dimensions
+          dimensions[:environment] ||= "production" # Default to production if not specified
+        end
+
+        dimensions
+      end
+
+      # Helper method to parse operation from event name
+      # @param event_name [String] The event name (e.g., "ci.build.completed")
+      # @return [String] The operation part of the event name
+      def parse_operation_from_event_name(event_name)
+        parts = event_name.split(".")
+        return "unknown" if parts.size < 2
+
+        parts[1] # Return the operation part (e.g., "build" from "ci.build.completed")
       end
 
       # Extract Task event dimensions

@@ -1,17 +1,46 @@
 # frozen_string_literal: true
 
 class DashboardsController < ApplicationController
+  def dashboard
+    redirect_to engineering_dashboard_path
+  end
+
   def engineering
-    # Get time range from params with logging
+    # Get time range from params with default of 30 days
     @days = (params[:days] || 30).to_i
-    Rails.logger.info("Dashboard filtering for #{@days} days")
+    @since_date = @days.days.ago.utc
 
-    # Store selected period for UI highlighting
-    @selected_period = @days
+    # Initialize data for dashboard with default values
+    metrics_service = ServiceFactory.create_metrics_service
+    dora_service = ServiceFactory.create_dora_service
 
-    # Get all metrics with proper error handling
+    # Calculate / pull metrics for display with error handling
     begin
-      # Get repository metrics
+      @commit_metrics = pull_commit_metrics(metrics_service)
+    rescue StandardError => e
+      Rails.logger.error("Error fetching commit metrics: #{e.message}")
+      @commit_metrics = default_commit_metrics
+    end
+
+    begin
+      @dora_metrics = pull_dora_metrics(dora_service)
+    rescue StandardError => e
+      Rails.logger.error("Error fetching DORA metrics: #{e.message}")
+      @dora_metrics = default_dora_metrics
+    end
+
+    begin
+      @ci_cd_metrics = pull_cicd_metrics(metrics_service)
+      # Ensure the nested structure exists to prevent nil errors
+      @ci_cd_metrics ||= {}
+      @ci_cd_metrics[:builds] ||= { success_rate: 0, total: 0, avg_duration: 0 }
+      @ci_cd_metrics[:deployments] ||= { success_rate: 0, total: 0, avg_duration: 0 }
+    rescue StandardError => e
+      Rails.logger.error("Error fetching CI/CD metrics: #{e.message}")
+      @ci_cd_metrics = default_cicd_metrics
+    end
+
+    begin
       @repo_metrics = fetch_repository_metrics(@days)
     rescue StandardError => e
       Rails.logger.error("Error fetching repository metrics: #{e.message}")
@@ -19,23 +48,6 @@ class DashboardsController < ApplicationController
     end
 
     begin
-      # Get CI/CD metrics
-      @cicd_metrics = fetch_cicd_metrics(@days)
-    rescue StandardError => e
-      Rails.logger.error("Error fetching CI/CD metrics: #{e.message}")
-      @cicd_metrics = default_cicd_metrics
-    end
-
-    begin
-      # Get DORA metrics
-      @dora_metrics = fetch_dora_metrics(@days)
-    rescue StandardError => e
-      Rails.logger.error("Error fetching DORA metrics: #{e.message}")
-      @dora_metrics = default_dora_metrics
-    end
-
-    begin
-      # Get team performance metrics
       @team_metrics = fetch_team_metrics(@days)
     rescue StandardError => e
       Rails.logger.error("Error fetching team metrics: #{e.message}")
@@ -43,18 +55,157 @@ class DashboardsController < ApplicationController
     end
 
     begin
-      # Get recent alerts
       @recent_alerts = fetch_recent_alerts(@days)
     rescue StandardError => e
-      Rails.logger.error("Error fetching recent alerts: #{e.message}")
+      Rails.logger.error("Error fetching alerts: #{e.message}")
       @recent_alerts = []
     end
 
+    # For the select dropdown
+    @time_range_options = [
+      ["Last 7 days", 7],
+      ["Last 30 days", 30],
+      ["Last 90 days", 90]
+    ]
+  end
+
+  def commit_metrics
+    # Get time range from params with logging
+    @days = (params[:days] || 30).to_i
+    Rails.logger.info("Commit metrics dashboard filtering for #{@days} days")
+
+    # Store selected period for UI highlighting
+    @selected_period = @days
+
+    # Get repository filter
+    @repository = params[:repository]
+
+    begin
+      # Get commit metrics data
+      @commit_metrics = fetch_commit_metrics(@days, @repository)
+    rescue StandardError => e
+      Rails.logger.error("Error fetching commit metrics: #{e.message}")
+      @commit_metrics = default_commit_metrics
+    end
+
+    # Get list of repositories for filter dropdown
+    begin
+      @repositories = fetch_repositories(@days)
+    rescue StandardError => e
+      Rails.logger.error("Error fetching repositories list: #{e.message}")
+      @repositories = []
+    end
+
     # Log completion
-    Rails.logger.info("Dashboard data fetched successfully for #{@days} days period")
+    Rails.logger.info("Commit metrics data fetched successfully for #{@days} days period")
   end
 
   private
+
+  def pull_commit_metrics(metrics_service)
+    commits_by_day = metrics_service.time_series(
+      "github.push.total",
+      days: @days,
+      interval: "day"
+    )
+
+    authors_by_day = metrics_service.time_series(
+      "github.push.unique_authors",
+      days: @days,
+      interval: "day",
+      unique_by: "author"
+    )
+
+    {
+      commits_by_day: commits_by_day,
+      total_commits: commits_by_day.values.sum,
+      authors_by_day: authors_by_day,
+      unique_authors: authors_by_day.values.sum
+    }
+  end
+
+  def pull_dora_metrics(dora_service)
+    # Get DORA metrics for the selected time range
+    {
+      deployment_frequency: dora_service.deployment_frequency(@days),
+      lead_time: dora_service.lead_time_for_changes(@days),
+      change_failure_rate: dora_service.change_failure_rate(@days),
+      time_to_restore: dora_service.time_to_restore_service(@days)
+    }
+  end
+
+  def pull_cicd_metrics(metrics_service)
+    # Get CI/CD metrics for display
+    builds = metrics_service.time_series(
+      "github.ci.build.total",
+      days: @days,
+      interval: "day"
+    ) || {}
+
+    build_durations = metrics_service.aggregate(
+      "github.ci.build.duration",
+      days: @days,
+      aggregation: "avg"
+    ) || 0
+
+    # Try with the new prefix first, then fallback to old
+    deploys = metrics_service.time_series(
+      "github.ci.deploy.total",
+      days: @days,
+      interval: "day"
+    ) || {}
+
+    deploy_durations = metrics_service.aggregate(
+      "github.ci.deploy.duration",
+      days: @days,
+      aggregation: "avg"
+    ) || 0
+
+    # Also check for successful deployments from workflow runs
+    if deploys.empty?
+      # Try to derive deploy metrics from workflow runs that were successful
+      deploy_workflow_runs = DomainMetric.where("name LIKE ?", "github.workflow_run.completed")
+                                         .where("dimensions->>'conclusion' = ?", "success")
+                                         .where("recorded_at > ?", @days.days.ago)
+
+      if deploy_workflow_runs.any?
+        # Group by day
+        deploy_workflow_runs_by_day = deploy_workflow_runs.group_by do |metric|
+          metric.recorded_at.strftime("%Y-%m-%d")
+        end
+
+        # Convert to the format expected by the dashboard
+        deploys = {}
+        deploy_workflow_runs_by_day.each do |day, metrics|
+          deploys[day] = metrics.count
+        end
+      end
+    end
+
+    # Calculate success rates or use default values
+    build_success_rate = metrics_service.success_rate("github.ci.build", @days) || 0
+    deploy_success_rate = metrics_service.success_rate("github.ci.deploy", @days) || 0
+
+    {
+      builds_by_day: builds,
+      total_builds: builds.values.sum,
+      average_build_duration: build_durations,
+      deploys_by_day: deploys,
+      total_deploys: deploys.values.sum,
+      average_deploy_duration: deploy_durations,
+      # Ensure these nested structures exist for the view
+      builds: {
+        total: builds.values.sum,
+        success_rate: build_success_rate.round(1),
+        avg_duration: build_durations.to_f.round(1)
+      },
+      deployments: {
+        total: deploys.values.sum,
+        success_rate: deploy_success_rate.round(1),
+        avg_duration: deploy_durations.to_f.round(1)
+      }
+    }
+  end
 
   def fetch_repository_metrics(days = 30)
     metrics_service = ServiceFactory.create_metrics_service
@@ -87,16 +238,24 @@ class DashboardsController < ApplicationController
     {
       # Build statistics
       builds: {
-        total: metrics_service.aggregate_metrics("ci.build.total", "daily", days),
-        success_rate: metrics_service.success_rate("ci.build", days),
-        avg_duration: metrics_service.average_metric("ci.build.duration", days)
+        # Try the new prefix first, fall back to old prefix
+        total: metrics_service.aggregate_metrics("github.ci.build.total", "daily", days) ||
+          metrics_service.aggregate_metrics("ci.build.total", "daily", days),
+        success_rate: metrics_service.success_rate("github.ci.build", days) ||
+          metrics_service.success_rate("ci.build", days),
+        avg_duration: metrics_service.average_metric("github.ci.build.duration", days) ||
+          metrics_service.average_metric("ci.build.duration", days)
       },
 
       # Deployment statistics
       deployments: {
-        total: metrics_service.aggregate_metrics("ci.deploy.total", "daily", days),
-        success_rate: metrics_service.success_rate("ci.deploy", days),
-        avg_duration: metrics_service.average_metric("ci.deploy.duration", days)
+        # Try the new prefix first, fall back to old prefix
+        total: metrics_service.aggregate_metrics("github.ci.deploy.total", "daily", days) ||
+          metrics_service.aggregate_metrics("ci.deploy.total", "daily", days),
+        success_rate: metrics_service.success_rate("github.ci.deploy", days) ||
+          metrics_service.success_rate("ci.deploy", days),
+        avg_duration: metrics_service.average_metric("github.ci.deploy.duration", days) ||
+          metrics_service.average_metric("ci.deploy.duration", days)
       }
     }
   end
@@ -244,6 +403,57 @@ class DashboardsController < ApplicationController
     alerts
   end
 
+  # New method to fetch commit metrics data
+  def fetch_commit_metrics(days = 30, repository = nil)
+    metrics_service = ServiceFactory.create_metrics_service
+    since_date = days.days.ago
+
+    # Create a use case instance for analyzing commits
+    analyze_commits_use_case = UseCaseFactory.create_analyze_commits
+
+    # Call the use case to get detailed commit analysis
+    # If repository is provided, filter by that repository
+    if repository.present?
+      commit_analysis = analyze_commits_use_case.call(repository: repository, since: since_date)
+    else
+      # Get the top active repository if none specified
+      top_repo = metrics_service.top_metrics("github.push.total", dimension: "repository", limit: 1,
+                                                                  days: days).keys.first
+
+      # Use the top repository or fallback to a default
+      repository = top_repo || "unknown"
+      commit_analysis = analyze_commits_use_case.call(repository: repository, since: since_date)
+    end
+
+    # Return the analysis results with repository information
+    {
+      repository: repository,
+      directory_hotspots: commit_analysis[:directory_hotspots],
+      file_extension_hotspots: commit_analysis[:file_extension_hotspots],
+      commit_types: commit_analysis[:commit_types],
+      breaking_changes: commit_analysis[:breaking_changes],
+      author_activity: commit_analysis[:author_activity],
+      commit_volume: commit_analysis[:commit_volume],
+      code_churn: commit_analysis[:code_churn]
+    }
+  end
+
+  # Get list of repositories for filter dropdown
+  def fetch_repositories(days = 30)
+    metrics_service = ServiceFactory.create_metrics_service
+
+    # Get active repositories sorted by activity
+    repos = metrics_service.top_metrics(
+      "github.push.total",
+      dimension: "repository",
+      limit: 50, # Get a reasonable number of repositories
+      days: days
+    ).keys
+
+    # Return sorted list
+    repos.sort
+  end
+
   # Default metrics to prevent UI errors
   def default_repo_metrics
     {
@@ -256,13 +466,19 @@ class DashboardsController < ApplicationController
 
   def default_cicd_metrics
     {
+      builds_by_day: {},
+      total_builds: 0,
+      average_build_duration: 0,
+      deploys_by_day: {},
+      total_deploys: 0,
+      average_deploy_duration: 0,
       builds: {
-        total: {},
+        total: 0,
         success_rate: 0,
         avg_duration: 0
       },
       deployments: {
-        total: {},
+        total: 0,
         success_rate: 0,
         avg_duration: 0
       }
@@ -284,6 +500,21 @@ class DashboardsController < ApplicationController
       top_contributors: {},
       team_velocity: 0,
       pr_review_time: 0
+    }
+  end
+
+  # Default commit metrics to prevent UI errors
+  def default_commit_metrics
+    {
+      repository: "unknown",
+      directory_hotspots: [],
+      file_extension_hotspots: [],
+      commit_types: [],
+      breaking_changes: { total: 0, by_author: [] },
+      author_activity: [],
+      commit_volume: { total_commits: 0, days_with_commits: 0, days_analyzed: 0, commits_per_day: 0,
+                       commit_frequency: 0, daily_activity: [] },
+      code_churn: { additions: 0, deletions: 0, total_churn: 0, churn_ratio: 0 }
     }
   end
 end

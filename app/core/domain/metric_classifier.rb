@@ -36,6 +36,9 @@ module Domain
         delegate_to_jira_classifier(event)
       when /^bitbucket\./
         delegate_to_bitbucket_classifier(event)
+      when /^ci\./
+        # CI events are now handled by the GitHub classifier
+        delegate_to_github_classifier(event)
       else
         classify_generic_event(event)
       end

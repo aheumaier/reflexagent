@@ -54,6 +54,68 @@ class MetricAggregationJob
       name_pattern: "%.total"
     )
 
+    # Also get commit-related metrics that need aggregation
+    # These metrics are needed by the CommitMetricsController
+    additional_metrics = []
+
+    # github.push.commits - for commit volume metrics
+    commit_metrics = metric_repository.list_metrics(
+      start_time: start_time,
+      end_time: end_time,
+      name: "github.push.commits"
+    )
+    additional_metrics.concat(commit_metrics)
+
+    # github.push.directory_changes - for directory hotspots
+    directory_metrics = metric_repository.list_metrics(
+      start_time: start_time,
+      end_time: end_time,
+      name: "github.push.directory_changes"
+    )
+    additional_metrics.concat(directory_metrics)
+
+    # github.push.filetype_changes - for file extension hotspots
+    filetype_metrics = metric_repository.list_metrics(
+      start_time: start_time,
+      end_time: end_time,
+      name: "github.push.filetype_changes"
+    )
+    additional_metrics.concat(filetype_metrics)
+
+    # github.push.commit_type - for commit types
+    commit_type_metrics = metric_repository.list_metrics(
+      start_time: start_time,
+      end_time: end_time,
+      name: "github.push.commit_type"
+    )
+    additional_metrics.concat(commit_type_metrics)
+
+    # github.push.breaking_change - for breaking changes
+    breaking_change_metrics = metric_repository.list_metrics(
+      start_time: start_time,
+      end_time: end_time,
+      name: "github.push.breaking_change"
+    )
+    additional_metrics.concat(breaking_change_metrics)
+
+    # github.push.code_additions and github.push.code_deletions - for code churn
+    code_additions_metrics = metric_repository.list_metrics(
+      start_time: start_time,
+      end_time: end_time,
+      name: "github.push.code_additions"
+    )
+    additional_metrics.concat(code_additions_metrics)
+
+    code_deletions_metrics = metric_repository.list_metrics(
+      start_time: start_time,
+      end_time: end_time,
+      name: "github.push.code_deletions"
+    )
+    additional_metrics.concat(code_deletions_metrics)
+
+    # Combine all metrics that need aggregation
+    metrics.concat(additional_metrics)
+
     Rails.logger.info("Found #{metrics.size} metrics to aggregate for period: #{time_period}")
     return 0 if metrics.empty?
 
@@ -175,17 +237,41 @@ class MetricAggregationJob
 
   def group_metrics_for_aggregation(metrics)
     metrics.group_by do |metric|
-      # Group by base name (e.g., github.push from github.push.total)
-      base_parts = metric.name.split(".")
-      base_name = base_parts.size >= 2 ? base_parts[0..1].join(".") : metric.name
+      # For metrics that don't follow the .total pattern, preserve the full name
+      if ["github.push.commits",
+          "github.push.directory_changes",
+          "github.push.filetype_changes",
+          "github.push.commit_type",
+          "github.push.breaking_change",
+          "github.push.code_additions",
+          "github.push.code_deletions"].include?(metric.name)
+        base_name = metric.name
+      else
+        # Group by base name (e.g., github.push from github.push.total)
+        base_parts = metric.name.split(".")
+        base_name = base_parts.size >= 2 ? base_parts[0..1].join(".") : metric.name
+      end
+
+      # Include relevant dimensions in the grouping
+      # For metrics with specialized dimensions like directory/filetype/type, include those in the grouping
+      additional_grouping = case metric.name
+                            when "github.push.directory_changes"
+                              metric.dimensions["directory"]
+                            when "github.push.filetype_changes"
+                              metric.dimensions["filetype"]
+                            when "github.push.commit_type"
+                              metric.dimensions["type"]
+                            else
+                              nil
+                            end
 
       # Include source and any other important dimensions in the grouping
-      [base_name, metric.source, metric.dimensions["repository"]]
+      [base_name, metric.source, metric.dimensions["repository"], additional_grouping]
     end
   end
 
   def update_aggregates_for_group(key, metrics, time_period)
-    base_name, source, repository = key
+    base_name, source, repository, additional_grouping = key
     metric_repository = DependencyContainer.resolve(:metric_repository)
 
     # Calculate total for this group
@@ -197,6 +283,20 @@ class MetricAggregationJob
       time_period: formatted_time_period(time_period)
     }
     dimensions[:repository] = repository if repository
+
+    # Add the appropriate dimension name based on the metric type
+    if additional_grouping
+      case base_name
+      when "github.push.directory_changes"
+        dimensions[:directory] = additional_grouping
+      when "github.push.filetype_changes"
+        dimensions[:filetype] = additional_grouping
+      when "github.push.commit_type"
+        dimensions[:type] = additional_grouping
+      else
+        dimensions[:additional_grouping] = additional_grouping
+      end
+    end
 
     # Determine aggregate name based on time period
     aggregate_name = "#{base_name}.#{period_suffix(time_period)}"
