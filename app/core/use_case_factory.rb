@@ -7,6 +7,8 @@ require_relative "use_cases/find_metric"
 require_relative "use_cases/find_alert"
 require_relative "use_cases/list_metrics"
 require_relative "use_cases/list_alerts"
+require_relative "use_cases/analyze_commits"
+require_relative "use_cases/dashboard_metrics"
 
 class UseCaseFactory
   class << self
@@ -42,7 +44,8 @@ class UseCaseFactory
       UseCases::CalculateMetrics.new(
         storage_port: composite_repository,
         cache_port: DependencyContainer.resolve(:cache_port),
-        metric_classifier: DependencyContainer.resolve(:metric_classifier)
+        metric_classifier: DependencyContainer.resolve(:metric_classifier),
+        dimension_extractor: DependencyContainer.resolve(:dimension_extractor)
       )
     end
 
@@ -87,6 +90,21 @@ class UseCaseFactory
     def create_list_alerts
       UseCases::ListAlerts.new(
         storage_port: DependencyContainer.resolve(:alert_repository)
+      )
+    end
+
+    def create_analyze_commits
+      UseCases::AnalyzeCommits.new(
+        storage_port: DependencyContainer.resolve(:metric_repository),
+        cache_port: DependencyContainer.resolve(:cache_port),
+        dimension_extractor: DependencyContainer.resolve(:dimension_extractor)
+      )
+    end
+
+    def create_dashboard_metrics
+      UseCases::DashboardMetrics.new(
+        storage_port: DependencyContainer.resolve(:metric_repository),
+        cache_port: DependencyContainer.resolve(:cache_port)
       )
     end
   end

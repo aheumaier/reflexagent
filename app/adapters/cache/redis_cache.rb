@@ -121,8 +121,12 @@ module Cache
     # @param key [String] The cache key
     # @param value [Object] The value to cache (will be JSON serialized)
     # @param ttl [Integer] Time to live in seconds
+    # @param expires_in [Integer] Alternative name for TTL for Rails compatibility
     # @return [Boolean] true if successful
-    def write(key, value, ttl: DEFAULT_TTL)
+    def write(key, value, ttl: DEFAULT_TTL, expires_in: nil)
+      # Use expires_in if ttl is not provided (Rails compatibility)
+      ttl = expires_in if ttl == DEFAULT_TTL && !expires_in.nil?
+
       self.class.with_redis(:cache) do |redis|
         redis.setex(normalized_key(key), ttl, ActiveSupport::JSON.encode(value))
       end
@@ -200,7 +204,7 @@ module Cache
       self.class.with_redis do |redis|
         # Store the latest value for this metric name
         redis.set(
-          "metric:latest:#{metric.name}",
+          normalized_key("metric:latest:#{metric.name}"),
           metric.value
         )
 
@@ -209,7 +213,7 @@ module Cache
           # Create a key that includes the dimensions
           dimension_string = metric.dimensions.sort.map { |k, v| "#{k}=#{v}" }.join(",")
           redis.set(
-            "metric:latest:#{metric.name}:#{dimension_string}",
+            normalized_key("metric:latest:#{metric.name}:#{dimension_string}"),
             metric.value
           )
         end
@@ -218,22 +222,22 @@ module Cache
         # This allows for sliding window queries and expiration
         timestamp = metric.timestamp.to_i
         redis.zadd(
-          "metric:timeseries:#{metric.name}",
+          normalized_key("metric:timeseries:#{metric.name}"),
           timestamp,
           "#{timestamp}:#{metric.value}"
         )
 
         # Keep only the last 1000 values (or adjust as needed)
         redis.zremrangebyrank(
-          "metric:timeseries:#{metric.name}",
+          normalized_key("metric:timeseries:#{metric.name}"),
           0,
           -1001
         )
 
         # Set default expiration for all metrics (30 days)
         [
-          "metric:latest:#{metric.name}",
-          "metric:timeseries:#{metric.name}"
+          normalized_key("metric:latest:#{metric.name}"),
+          normalized_key("metric:timeseries:#{metric.name}")
         ].each do |key|
           redis.expire(key, 30 * 24 * 60 * 60) # 30 days in seconds
         end
@@ -248,7 +252,7 @@ module Cache
         # If dimensions are provided, try to fetch the specific metric
         if dimensions.any?
           dimension_string = dimensions.sort.map { |k, v| "#{k}=#{v}" }.join(",")
-          dimension_key = "metric:latest:#{name}:#{dimension_string}"
+          dimension_key = normalized_key("metric:latest:#{name}:#{dimension_string}")
 
           # Only return the value if this specific dimension combination exists
           if redis.exists?(dimension_key)
@@ -261,7 +265,7 @@ module Cache
         end
 
         # Fallback to the general metric name
-        value = redis.get("metric:latest:#{name}")
+        value = redis.get(normalized_key("metric:latest:#{name}"))
         value ? value.to_f : nil
       end
     end
@@ -270,7 +274,7 @@ module Cache
       self.class.with_redis do |redis|
         # Fetch the most recent metrics from the time series
         redis.zrevrange(
-          "metric:timeseries:#{name}",
+          normalized_key("metric:timeseries:#{name}"),
           0,
           limit - 1
         ).map do |entry|
@@ -287,13 +291,15 @@ module Cache
       self.class.with_redis do |redis|
         if name
           # Clear specific metric cache
-          pattern = "metric:*:#{name}*"
+          # Use the full namespace in the pattern for scan_each
+          pattern = "cache:#{Rails.env}:metric:*:#{name}*"
           redis.scan_each(match: pattern) do |key|
             redis.del(key)
           end
         else
           # Clear all metrics cache
-          pattern = "metric:*"
+          # Use the full namespace in the pattern for scan_each
+          pattern = "cache:#{Rails.env}:metric:*"
           redis.scan_each(match: pattern) do |key|
             redis.del(key)
           end
