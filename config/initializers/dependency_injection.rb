@@ -39,6 +39,13 @@ Rails.application.config.after_initialize do
     require_relative "../../app/core/domain/reflexive_agent"
     require_relative "../../app/core/domain/metric_classifier"
 
+    # Load classifiers
+    require_relative "../../app/core/domain/classifiers/base_classifier"
+    require_relative "../../app/core/domain/classifiers/github_event_classifier"
+
+    # Load extractors
+    require_relative "../../app/core/domain/extractors/dimension_extractor"
+
     # Not - need in eager loading Load ALL ports before ANY adapters
     require_relative "../../app/ports/ingestion_port"
     require_relative "../../app/ports/storage_port"
@@ -98,10 +105,27 @@ Rails.application.config.after_initialize do
       Notifications::EmailNotifier.new
     )
 
-    # Register the MetricClassifier as a service
+    # Initialize the dimension extractor
+    dimension_extractor = Domain::Extractors::DimensionExtractor.new
+
+    # Register the GitHub event classifier
+    github_classifier = Domain::Classifiers::GithubEventClassifier.new(dimension_extractor)
+
+    # Register source-specific classifiers
+    DependencyContainer.register(
+      :github_classifier,
+      github_classifier
+    )
+
+    # Register the MetricClassifier with source-specific classifiers
     DependencyContainer.register(
       :metric_classifier,
-      Domain::MetricClassifier.new
+      Domain::Classifiers::MetricClassifier.new(
+        {
+          github: github_classifier
+        },
+        dimension_extractor
+      )
     )
 
     Rails.logger.info "Dependency injection initialized with ports: #{DependencyContainer.adapters.keys.inspect}"
