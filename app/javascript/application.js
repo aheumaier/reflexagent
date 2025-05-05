@@ -7,9 +7,13 @@ import Chart from 'chart.js/auto'
 
 // Make Chart.js available globally for debugging
 window.Chart = Chart;
+console.log("Application.js: Chart.js set to window.Chart", Chart ? "YES" : "NO");
 
 // Make Stimulus available globally for debugging
 window.Stimulus = Application;
+
+// Initialize tracking for charts
+window.initializedCharts = window.initializedCharts || {};
 
 // Debug initialization
 document.addEventListener("DOMContentLoaded", () => {
@@ -27,9 +31,16 @@ document.addEventListener("DOMContentLoaded", () => {
   
   // Check for Chart.js
   if (typeof Chart !== 'undefined') {
-    console.debug("Chart.js is available globally")
+    console.debug("Chart.js is available as module import")
   } else {
-    console.debug("Chart.js is not available globally (this is expected if using ES modules)")
+    console.debug("Chart.js module import not available!")
+  }
+  
+  // Check for global Chart.js
+  if (window.Chart) {
+    console.debug("Chart.js is available globally as window.Chart")
+  } else {
+    console.error("Chart.js is NOT available globally")
   }
 })
 

@@ -239,10 +239,204 @@ module Domain
             commit_conventional: true
           }
         else
+          # For non-conventional commits, attempt to infer the type
+          inferred_type = infer_commit_type(
+            message,
+            added: commit[:added],
+            modified: commit[:modified]
+          )
+
           {
+            commit_type: inferred_type,
             commit_description: message,
-            commit_conventional: false
+            commit_conventional: false,
+            # If we were able to infer a type, mark it as inferred
+            commit_type_inferred: inferred_type.present?
           }
+        end
+      end
+
+      # Infer commit type from non-conventional commit messages
+      # @param message [String] The commit message
+      # @param added [Array<String>] Optional list of added files
+      # @param modified [Array<String>] Optional list of modified files
+      # @return [String, nil] The inferred commit type or nil if couldn't determine
+      def infer_commit_type(message, added: nil, modified: nil)
+        message = message.downcase.strip
+        first_line = message.split("\n").first.to_s
+
+        # Special cases for merge and WIP commits - check these first
+        return "chore" if first_line.match?(/^\s*merge\s+/i) || first_line.match?(/^wip\b/i)
+
+        # Common commit type patterns - order matters for precedence
+        type_patterns = {
+          "feat" => [
+            /\badd(ed|ing|s)?\b/i,
+            /\bnew\b/i,
+            /\bimplement(ed|ing|s)?\b/i,
+            /\bfeature\b/i,
+            /\benhance(d|ment|s)?\b/i,
+            /\bimprove(d|ment|s)?\b/i,
+            /\bintroduce(d|s)?\b/i,
+            /\bcreate(d|s)?\b/i
+          ],
+          "fix" => [
+            /\bfix(ed|es|ing)?\b/i,
+            /\bbug\b/i,
+            /\bissue\b/i,
+            /\bsolve(d|s)?\b/i,
+            /\bresolve(d|s)?\b/i,
+            /\bpatch(ed|ing|es)?\b/i,
+            /\bcorrect(ed|s|ion)?\b/i,
+            /\baddress(ed|es|ing)?\b/i,
+            /\bhotfix\b/i
+          ],
+          "style" => [
+            /\bstyle\b/i,
+            /\bformat(ting|ted)?\b/i,
+            /\bindent(ation)?\b/i,
+            /\bwhitespace\b/i,
+            /\bcsss?\b/i,
+            /\blint(ing)?\b/i
+          ],
+          "docs" => [
+            /\bdoc(s|umentation)?\b/i,
+            /\bcomment(s|ed|ing)?\b/i,
+            /\breadme\b/i,
+            /\bupdate(d|s)? (docs|documentation|readme)\b/i
+          ],
+          "test" => [
+            /\btest(s|ing|ed)?\b/i,
+            /\bspec(s|ification)?\b/i,
+            /\bcoverage\b/i,
+            /\bunit tests?\b/i
+          ],
+          "perf" => [
+            /\bperf(ormance)?\b/i,
+            /\bspeed(s)? up\b/i,
+            /\boptimiz(e|ation|ing)\b/i,
+            /\bfaster\b/i,
+            /\bimprove(d|s)? (speed|performance)\b/i
+          ],
+          "refactor" => [
+            /\brefactor(ed|ing|s)?\b/i,
+            /\bclean(ed|ing|s)?\b/i,
+            /\bimprove(d|s)? (code|structure|implementation)\b/i,
+            /\brestructure(d|s)?\b/i,
+            /\bsimplif(y|ied|ies)\b/i,
+            /\breorganize(d|s)?\b/i
+          ],
+          "chore" => [
+            /\bchore\b/i,
+            /\bmaintenance\b/i,
+            /\bupdate(d|s)? dependencies\b/i,
+            /\bdependenc(y|ies)\b/i,
+            /\bversion bump\b/i,
+            /\bupgrade(d|s)?\b/i,
+            /\bconfig\b/i,
+            /\bsetup\b/i
+          ],
+          "ci" => [
+            /\bci\b/i,
+            /\btravis\b/i,
+            /\bjenkins\b/i,
+            /\bgithub actions\b/i,
+            /\bpipeline\b/i,
+            /\bcontinuous integration\b/i,
+            /\bworkflows?\b/i
+          ],
+          "build" => [
+            /\bbuild\b/i,
+            /\bcompil(e|ation)\b/i,
+            /\bpackage\b/i,
+            /\bbundl(e|ing)\b/i,
+            /\bdeploy(ment)?\b/i
+          ],
+          "revert" => [
+            /\brevert(ed|ing)?\b/i,
+            /\bundo\b/i,
+            /\broll(ing|ed)? back\b/i
+          ]
+        }
+
+        # First, check for high-certainty patterns that indicate specific types
+        # These need to be more specific than the general patterns
+        # We check these in a specific order of precedence
+
+        # Check for specific documentation patterns
+        if first_line.match?(/^(update|add)(ed|ing|s)?\s+(the\s+)?(docs|documentation|readme|comments)/i) ||
+           first_line.match?(/^comments?\b/i)
+          return "docs"
+        end
+
+        # Check for specific performance patterns
+        if first_line.match?(/^optimize\b/i) ||
+           first_line.match?(/\bperformance\b/i) ||
+           first_line.match?(/\bspeed up\b/i)
+          return "perf"
+        end
+
+        # Check for specific style patterns
+        if first_line.match?(/\bindentation\b/i) ||
+           first_line.match?(/\bformatting\b/i) ||
+           first_line.match?(/\bwhitespace\b/i)
+          return "style"
+        end
+
+        # Check for specific test patterns
+        if first_line.match?(/\bunit test/i) ||
+           first_line.match?(/\btest(s| case| suite)/i) ||
+           first_line.match?(/^add\b.+\btest/i) ||
+           first_line.match?(/\bimprove\s+test\s+/i) ||
+           first_line.match?(/\btest coverage\b/i)
+          return "test"
+        end
+
+        # More specific matches for introducing features
+        if first_line.match?(/\bintroduc(e|ing)\b.+/i) ||
+           first_line.match?(/\bdark mode\b/i)
+          return "feat"
+        end
+
+        # Then go through each type pattern to find general matches
+        type_patterns.each do |type, patterns|
+          patterns.each do |pattern|
+            return type if first_line.match?(pattern)
+          end
+        end
+
+        # Analyze file extensions if provided
+        files = []
+        files.concat(added) if added.is_a?(Array)
+        files.concat(modified) if modified.is_a?(Array)
+
+        # If we have files to analyze
+        if files.any?
+          extensions = files.map { |f| File.extname(f).downcase }.uniq
+
+          # If only documentation files are changed
+          return "docs" if extensions.all? { |ext| [".md", ".txt", ".doc", ".docx"].include?(ext) }
+
+          # If only test files are changed
+          return "test" if files.all? { |f| f.include?("/test/") || f.include?("/spec/") || f.match?(/_(test|spec)\./) }
+
+          # If only CSS/SCSS files are changed
+          return "style" if extensions.all? { |ext| [".css", ".scss", ".sass", ".less"].include?(ext) }
+        end
+
+        # Fallback: If the message is too ambiguous, return 'chore' as default
+        return "chore" if first_line.length < 5
+
+        # Attempt one more basic classification based on common verbs
+        # These patterns are simpler but useful as a last resort
+        case first_line
+        when /\bfix(ed|es|ing)?\b/i then "fix"
+        when /\badd(ed|ing|s)?\b/i then "feat"
+        when /\bupdate(d|ing|s)?\b/i then "chore"
+        when /\bremove(d|s)?\b/i then "refactor"
+        when /\bmerge\b/i then "chore"
+        when /\bclean(ed|s|ing)?\b/i then "refactor"
+        else "chore" # Final fallback
         end
       end
 
