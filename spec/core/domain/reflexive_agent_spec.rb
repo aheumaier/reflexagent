@@ -6,10 +6,11 @@ module Core
   module Domain
     unless defined?(Domain::Sensor)
       class Sensor
-        attr_reader :name
+        attr_reader :name, :properties
 
-        def initialize(name)
+        def initialize(name:, **properties)
           @name = name
+          @properties = properties
         end
 
         def perceive
@@ -44,7 +45,7 @@ module Core
 end
 
 RSpec.describe Domain::ReflexiveAgent do
-  let(:test_sensor) { Domain::Sensor.new("test_sensor") }
+  let(:test_sensor) { Domain::Sensor.new(name: "test_sensor") }
   let(:test_actuator) { Domain::Actuator.new(name: "test_actuator") }
 
   before do

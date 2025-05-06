@@ -6,6 +6,7 @@ commit_dimensions:
   commit_breaking: Boolean indicating if it's a breaking change
   commit_description: The short description from the commit message
   commit_conventional: Boolean indicating if it follows conventional format
+  conventional: Boolean indicating if the commit follows conventional format (used in metrics)
 
   # File change metrics
   files_added: Count of added files

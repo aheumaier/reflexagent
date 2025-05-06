@@ -1,7 +1,7 @@
 # spec/support/simplecov.rb
 require "simplecov"
 require "simplecov-console"
-require_relative "simplecov_json_formatter"
+require "simplecov_json_formatter"
 
 # Define formatters for output
 SimpleCov.formatters = SimpleCov::Formatter::MultiFormatter.new([
