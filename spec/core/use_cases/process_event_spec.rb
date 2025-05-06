@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Core::UseCases::ProcessEvent do
+RSpec.describe UseCases::ProcessEvent do
   let(:ingestion_port) { instance_double(Ports::IngestionPort) }
   let(:storage_port) { instance_double(Ports::StoragePort) }
   let(:queue_port) { instance_double(Ports::QueuePort) }

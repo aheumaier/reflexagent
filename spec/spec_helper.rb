@@ -28,6 +28,7 @@ require_relative "../app/core/domain/metric"
 require_relative "../app/core/domain/alert"
 require_relative "../app/core/domain/actuator"
 require_relative "../app/core/domain/reflexive_agent"
+require_relative "../app/core/domain/metric_classifier"
 
 # Use cases
 require_relative "../app/core/use_cases/process_event"
@@ -45,6 +46,16 @@ require_relative "../app/adapters/repositories/event_repository"
 require_relative "../app/adapters/repositories/metric_repository"
 require_relative "../app/adapters/repositories/alert_repository"
 require_relative "../app/adapters/queuing/sidekiq_queue_adapter"
+
+# Enable autoloading of core/use_cases
+require_relative "../app/core/use_cases/actuator_controller"
+require_relative "../app/core/use_cases/process_event"
+require_relative "../app/core/use_cases/calculate_metrics"
+require_relative "../app/core/use_cases/detect_anomalies"
+require_relative "../app/core/use_cases/send_notification"
+require_relative "../app/core/use_cases/find_event"
+require_relative "../app/core/use_cases/find_metric"
+require_relative "../app/core/use_cases/find_alert"
 
 # Factory
 require_relative "../app/core/use_case_factory"

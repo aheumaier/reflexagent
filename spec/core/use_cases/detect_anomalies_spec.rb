@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Core::UseCases::DetectAnomalies do
+RSpec.describe UseCases::DetectAnomalies do
   subject(:use_case) { described_class.new(storage_port: mock_storage_port, notification_port: mock_notification_port) }
 
   include_context "with all mock ports"

@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Core::UseCases::ListAlerts do
+RSpec.describe UseCases::ListAlerts do
   include_context "with all mock ports"
   include_context "metric examples"
 
