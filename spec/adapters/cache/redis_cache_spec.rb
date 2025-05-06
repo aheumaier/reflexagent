@@ -7,12 +7,18 @@ RSpec.describe Cache::RedisCache do
   let(:redis) { described_class.redis }
   let(:metric) do
     Domain::Metric.new(
+      id: "test-metric-1",
       name: "cpu.usage",
       value: 85.5,
       source: "web-01",
       dimensions: { region: "us-west", environment: "production" },
       timestamp: Time.current
     )
+  end
+
+  # Helper method to normalize keys just like the implementation
+  def normalized_key(key)
+    "cache:#{Rails.env}:#{key}"
   end
 
   before do
@@ -29,14 +35,14 @@ RSpec.describe Cache::RedisCache do
       expect(result).to eq(metric)
 
       # Verify the metric was stored in Redis
-      expect(redis.get("metric:latest:#{metric.name}")).to eq(metric.value.to_s)
+      expect(redis.get(normalized_key("metric:latest:#{metric.name}"))).to eq(metric.value.to_s)
 
       # Verify the metric with dimensions was stored
       dimension_string = metric.dimensions.sort.map { |k, v| "#{k}=#{v}" }.join(",")
-      expect(redis.get("metric:latest:#{metric.name}:#{dimension_string}")).to eq(metric.value.to_s)
+      expect(redis.get(normalized_key("metric:latest:#{metric.name}:#{dimension_string}"))).to eq(metric.value.to_s)
 
       # Verify the time series was updated
-      expect(redis.zcard("metric:timeseries:#{metric.name}")).to eq(1)
+      expect(redis.zcard(normalized_key("metric:timeseries:#{metric.name}"))).to eq(1)
     end
   end
 
@@ -73,6 +79,7 @@ RSpec.describe Cache::RedisCache do
       # Make sure timestamps are monotonically decreasing
       cache.cache_metric(
         Domain::Metric.new(
+          id: "test-metric-2",
           name: "cpu.usage",
           value: 90.0, # Most recent value should be highest for the test
           source: "web-01",
@@ -83,6 +90,7 @@ RSpec.describe Cache::RedisCache do
 
       cache.cache_metric(
         Domain::Metric.new(
+          id: "test-metric-3",
           name: "cpu.usage",
           value: 85.0,
           source: "web-01",
@@ -93,6 +101,7 @@ RSpec.describe Cache::RedisCache do
 
       cache.cache_metric(
         Domain::Metric.new(
+          id: "test-metric-4",
           name: "cpu.usage",
           value: 80.0, # Oldest value should be lowest for the test
           source: "web-01",
@@ -127,6 +136,7 @@ RSpec.describe Cache::RedisCache do
       # Cache multiple metrics with different names
       cache.cache_metric(
         Domain::Metric.new(
+          id: "test-metric-5",
           name: "cpu.usage",
           value: 85.5,
           source: "web-01",
@@ -136,6 +146,7 @@ RSpec.describe Cache::RedisCache do
 
       cache.cache_metric(
         Domain::Metric.new(
+          id: "test-metric-6",
           name: "memory.usage",
           value: 70.3,
           source: "web-01",
@@ -146,28 +157,28 @@ RSpec.describe Cache::RedisCache do
 
     it "clears cache for a specific metric" do
       # Verify both metrics exist
-      expect(redis.get("metric:latest:cpu.usage")).not_to be_nil
-      expect(redis.get("metric:latest:memory.usage")).not_to be_nil
+      expect(redis.get(normalized_key("metric:latest:cpu.usage"))).not_to be_nil
+      expect(redis.get(normalized_key("metric:latest:memory.usage"))).not_to be_nil
 
       # Clear one metric
       cache.clear_metric_cache("cpu.usage")
 
       # Verify only the specified metric was cleared
-      expect(redis.get("metric:latest:cpu.usage")).to be_nil
-      expect(redis.get("metric:latest:memory.usage")).not_to be_nil
+      expect(redis.get(normalized_key("metric:latest:cpu.usage"))).to be_nil
+      expect(redis.get(normalized_key("metric:latest:memory.usage"))).not_to be_nil
     end
 
     it "clears all metric caches when no name is specified" do
       # Verify both metrics exist
-      expect(redis.get("metric:latest:cpu.usage")).not_to be_nil
-      expect(redis.get("metric:latest:memory.usage")).not_to be_nil
+      expect(redis.get(normalized_key("metric:latest:cpu.usage"))).not_to be_nil
+      expect(redis.get(normalized_key("metric:latest:memory.usage"))).not_to be_nil
 
       # Clear all metrics
       cache.clear_metric_cache
 
       # Verify all metrics were cleared
-      expect(redis.get("metric:latest:cpu.usage")).to be_nil
-      expect(redis.get("metric:latest:memory.usage")).to be_nil
+      expect(redis.get(normalized_key("metric:latest:cpu.usage"))).to be_nil
+      expect(redis.get(normalized_key("metric:latest:memory.usage"))).to be_nil
     end
   end
 end

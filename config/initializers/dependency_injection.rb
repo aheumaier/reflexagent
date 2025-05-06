@@ -44,6 +44,8 @@ Rails.application.config.after_initialize do
     require_relative "../../app/core/domain/classifiers/github_event_classifier"
     require_relative "../../app/core/domain/classifiers/jira_event_classifier"
     require_relative "../../app/core/domain/classifiers/bitbucket_event_classifier"
+    # CI events are now handled by the GitHub classifier
+    # require_relative "../../app/core/domain/classifiers/ci_event_classifier"
 
     # Load extractors
     require_relative "../../app/core/domain/extractors/dimension_extractor"
@@ -109,6 +111,12 @@ Rails.application.config.after_initialize do
 
     # Initialize the dimension extractor
     dimension_extractor = Domain::Extractors::DimensionExtractor.new
+
+    # Register the dimension_extractor as a dependency
+    DependencyContainer.register(
+      :dimension_extractor,
+      dimension_extractor
+    )
 
     # Register the GitHub event classifier
     github_classifier = Domain::Classifiers::GithubEventClassifier.new(dimension_extractor)

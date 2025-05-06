@@ -2,7 +2,7 @@ require "rails_helper"
 require_relative "../../../app/core/domain/actuator"
 require_relative "../../../app/core/use_cases/actuator_controller"
 
-RSpec.describe Core::UseCases::ActuatorController do
+RSpec.describe UseCases::ActuatorController do
   subject(:controller) { described_class.new }
 
   let(:ci_pipeline_actuator) do

@@ -8,15 +8,19 @@
     <%= stylesheet_link_tag "tailwind", "data-turbo-track": "reload" %>
 
     <%= stylesheet_link_tag "application", "data-turbo-track": "reload" %>
-    <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
     
-    <!-- Chart.js fallback for development testing -->
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Ensure Chart.js is available via CDN as fallback -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.9/dist/chart.umd.min.js"></script>
+    
+    <%= javascript_include_tag "application", "data-turbo-track": "reload", type: "module" %>
     
     <!-- Debugging tools -->
     <script>
       window.addEventListener('DOMContentLoaded', () => {
         console.log('DOM loaded from application layout');
+        
+        // Initialize chart tracking
+        window.initializedCharts = window.initializedCharts || {};
         
         // Check if Stimulus is loaded
         if (window.Stimulus) {
@@ -27,9 +31,14 @@
         
         // Check if Chart.js is loaded
         if (window.Chart) {
-          console.log('Chart.js is available globally');
+          console.log('Chart.js is available globally ✅');
+          // Print Chart.js version if available
+          if (window.Chart.version) {
+            console.log(`Chart.js version: ${window.Chart.version}`);
+          }
         } else {
-          console.error('Chart.js is not available globally - charts will not work');
+          console.error('Chart.js is not available globally - charts will not work ❌');
+          console.log('Please ensure application.js exports Chart.js to window.Chart');
         }
         
         // Log viewport dimensions
@@ -57,5 +66,108 @@
         </div>
       </main>
     </div>
+    
+    <!-- Fallback chart initialization if Stimulus controllers fail -->
+    <script>
+      document.addEventListener('turbo:load', () => {
+        // Skip if chart initialization is already complete
+        if (window._chartInitializationComplete) {
+          console.log('Charts already initialized by page script, skipping fallback');
+          return;
+        }
+        
+        // Wait a short time to ensure Stimulus has had a chance to initialize
+        setTimeout(() => {
+          console.log('Running fallback chart initialization check');
+          
+          // Find all chart containers
+          const chartContainers = document.querySelectorAll('[data-controller="chart"]');
+          console.log(`Found ${chartContainers.length} chart containers`);
+          
+          // Ensure Chart.js is available
+          if (!window.Chart) {
+            console.error("Chart.js not available for fallback initialization!");
+            return;
+          }
+          
+          chartContainers.forEach((container, index) => {
+            const canvas = container.querySelector('canvas');
+            if (!canvas) {
+              console.warn(`No canvas found in chart container #${index}`);
+              return;
+            }
+            
+            const chartId = canvas.id || `chart-${index}`;
+            console.log(`Checking chart: ${chartId}`);
+            
+            // Skip if already initialized (check multiple attributes and global tracking)
+            if (canvas.hasAttribute('data-chart-initialized') || 
+                canvas.__chartInstance || 
+                (window.initializedCharts && window.initializedCharts[chartId])) {
+              console.log(`Chart ${chartId} already initialized, skipping fallback`);
+              return;
+            }
+            
+            // Only initialize if no chart instance exists yet
+            try {
+              // Check if a Chart instance already exists for this canvas
+              try {
+                const existingChart = Chart.getChart(chartId);
+                if (existingChart) {
+                  console.log(`Chart already exists for ${chartId}, skipping fallback`);
+                  return;
+                }
+              } catch (e) {
+                // No chart exists, continue with initialization
+              }
+              
+              // Get chart type
+              const type = container.getAttribute('data-chart-type-value') || 'line';
+              
+              // Get chart data
+              let data;
+              const dataAttr = canvas.getAttribute('data-chart-data-value');
+              if (dataAttr) {
+                data = JSON.parse(dataAttr);
+              } else {
+                console.warn(`No data found for chart: ${chartId}`);
+                return;
+              }
+              
+              // Get chart options
+              let options = {};
+              const optionsAttr = canvas.getAttribute('data-chart-options-value');
+              if (optionsAttr) {
+                options = JSON.parse(optionsAttr);
+              }
+              
+              console.log(`Creating fallback chart: ${chartId} (${type})`);
+              
+              // Mark as initialized before creating the chart
+              window.initializedCharts = window.initializedCharts || {};
+              window.initializedCharts[chartId] = true;
+              
+              // Create chart
+              const ctx = canvas.getContext('2d');
+              const chart = new window.Chart(ctx, {
+                type,
+                data,
+                options: options || {
+                  responsive: true,
+                  maintainAspectRatio: false
+                }
+              });
+              
+              // Store instance on canvas for reference
+              canvas.__chartInstance = chart;
+              canvas.setAttribute('data-chart-initialized', 'true');
+              console.log(`Fallback chart created: ${chartId}`);
+            } catch (error) {
+              console.error(`Error creating fallback chart ${chartId}:`, error);
+            }
+          });
+        }, 1000); // Wait 1000ms after page load to give direct initialization a chance
+      });
+    </script>
   </body>
 </html>

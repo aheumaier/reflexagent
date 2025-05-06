@@ -72,4 +72,65 @@ module StoragePort
   def list_alerts(filters = {})
     raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
   end
+
+  # Commit metrics analysis operations
+
+  # Find hotspot directories for the given time period
+  # @param since [Time] The start time for analysis
+  # @param repository [String, nil] Optional repository filter
+  # @param limit [Integer] Maximum number of results to return
+  # @return [Array<Hash>] Array of directory hotspots with counts
+  def hotspot_directories(since:, repository: nil, limit: 10)
+    raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+  end
+
+  # Find hotspot file types for the given time period
+  # @param since [Time] The start time for analysis
+  # @param repository [String, nil] Optional repository filter
+  # @param limit [Integer] Maximum number of results to return
+  # @return [Array<Hash>] Array of file type hotspots with counts
+  def hotspot_filetypes(since:, repository: nil, limit: 10)
+    raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+  end
+
+  # Find distribution of commit types for the given time period
+  # @param since [Time] The start time for analysis
+  # @param repository [String, nil] Optional repository filter
+  # @return [Array<Hash>] Array of commit types with counts
+  def commit_type_distribution(since:, repository: nil)
+    raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+  end
+
+  # Find most active authors for the given time period
+  # @param since [Time] The start time for analysis
+  # @param repository [String, nil] Optional repository filter
+  # @param limit [Integer] Maximum number of results to return
+  # @return [Array<Hash>] Array of authors with commit counts
+  def author_activity(since:, repository: nil, limit: 10)
+    raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+  end
+
+  # Find lines changed by author for the given time period
+  # @param since [Time] The start time for analysis
+  # @param repository [String, nil] Optional repository filter
+  # @return [Array<Hash>] Array of authors with lines added/removed
+  def lines_changed_by_author(since:, repository: nil)
+    raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+  end
+
+  # Find breaking changes by author for the given time period
+  # @param since [Time] The start time for analysis
+  # @param repository [String, nil] Optional repository filter
+  # @return [Array<Hash>] Array of authors with breaking change counts
+  def breaking_changes_by_author(since:, repository: nil)
+    raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+  end
+
+  # Find commit activity by day for the given time period
+  # @param since [Time] The start time for analysis
+  # @param repository [String, nil] Optional repository filter
+  # @return [Array<Hash>] Array of days with commit counts
+  def commit_activity_by_day(since:, repository: nil)
+    raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+  end
 end

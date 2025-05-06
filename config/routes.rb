@@ -34,4 +34,9 @@ Rails.application.routes.draw do
 
   # Defines the root path route ("/")
   root "rails/health#show"
+
+  # Add this inside the Rails.application.routes.draw block
+  namespace :dashboards do
+    resources :commit_metrics, only: [:index]
+  end
 end

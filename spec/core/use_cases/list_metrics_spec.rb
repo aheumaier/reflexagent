@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Core::UseCases::ListMetrics do
+RSpec.describe UseCases::ListMetrics do
   include_context "with all mock ports"
 
   let(:metrics) do

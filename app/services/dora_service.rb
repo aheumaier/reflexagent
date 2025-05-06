@@ -13,10 +13,29 @@ class DoraService
 
     Rails.logger.info("Calculating deployment frequency for past #{days} days")
 
+    # First try getting github.ci.deploy.completed metrics
     deployments = @storage_port.list_metrics(
-      name: "ci.deploy.completed",
+      name: "github.ci.deploy.completed",
       start_time: start_time
     )
+
+    # If no metrics found, try looking for successful github deployment_status metrics
+    if deployments.empty?
+      Rails.logger.info("No CI deploy metrics found, checking deployment_status metrics")
+      deployments = @storage_port.list_metrics(
+        name: "github.deployment_status.success",
+        start_time: start_time
+      )
+    end
+
+    # If still no metrics, check for general deployment metrics
+    if deployments.empty?
+      Rails.logger.info("No deployment_status.success metrics found, checking general deployment metrics")
+      deployments = @storage_port.list_metrics(
+        name: "github.deployment.total",
+        start_time: start_time
+      )
+    end
 
     Rails.logger.info("Found #{deployments.count} total deployments")
 
@@ -70,7 +89,7 @@ class DoraService
 
     # Get lead time metrics
     lead_time_metrics = @storage_port.list_metrics(
-      name: "ci.lead_time",
+      name: "github.ci.lead_time",
       start_time: start_time
     )
 
@@ -114,17 +133,41 @@ class DoraService
   def change_failure_rate(days = 30)
     start_time = days.days.ago
 
-    # Get deployment metrics
+    # Get deployment metrics - first try github.ci.deploy.completed
     deployments = @storage_port.list_metrics(
-      name: "ci.deploy.completed",
+      name: "github.ci.deploy.completed",
       start_time: start_time
     )
 
-    # Get failed deployment metrics
+    # If no metrics found, try looking for successful github deployment_status metrics
+    if deployments.empty?
+      deployments = @storage_port.list_metrics(
+        name: "github.deployment_status.success",
+        start_time: start_time
+      )
+    end
+
+    # If still no metrics, check for general deployment metrics
+    if deployments.empty?
+      deployments = @storage_port.list_metrics(
+        name: "github.deployment.total",
+        start_time: start_time
+      )
+    end
+
+    # Get failed deployment metrics - first try github.ci.deploy.incident
     failed_deployments = @storage_port.list_metrics(
-      name: "ci.deploy.incident",
+      name: "github.ci.deploy.incident",
       start_time: start_time
     )
+
+    # If no metrics found, try looking for failure github deployment_status metrics
+    if failed_deployments.empty?
+      failed_deployments = @storage_port.list_metrics(
+        name: "github.deployment_status.failure",
+        start_time: start_time
+      )
+    end
 
     total_deployments = deployments.sum(&:value)
     total_failures = failed_deployments.sum(&:value)
