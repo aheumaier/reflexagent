@@ -3,7 +3,7 @@ require_relative "../../../app/adapters/notifications/slack_notifier"
 require_relative "../../../app/core/domain/metric"
 require_relative "../../../app/core/domain/alert"
 
-RSpec.describe Adapters::Notifications::SlackNotifier do
+RSpec.describe Notifications::SlackNotifier do
   let(:notifier) { described_class.new }
   let(:metric) do
     Domain::Metric.new(

@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Core::UseCases::CalculateMetrics do
+RSpec.describe UseCases::CalculateMetrics do
   subject(:use_case) do
     described_class.new(storage_port: mock_storage_port, cache_port: mock_cache_port,
                         metric_classifier: mock_metric_classifier)

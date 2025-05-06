@@ -7,7 +7,7 @@ require_relative "../../app/core/domain/metric"
 RSpec.describe "Alert Persistence", type: :integration do
   include_context "alert examples"
 
-  let(:repository) { Adapters::Repositories::AlertRepository.new }
+  let(:repository) { Repositories::AlertRepository.new }
 
   describe "end-to-end persistence" do
     before do

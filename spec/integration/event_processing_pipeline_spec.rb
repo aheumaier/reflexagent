@@ -4,7 +4,7 @@ RSpec.describe "Event Processing Pipeline", type: :integration do
   let(:valid_payload) { { key: "value" }.to_json }
   let(:source) { "github" }
   let(:event_id) { "test-event-123" }
-  let(:queue_adapter) { Adapters::Queue::RedisQueueAdapter.new }
+  let(:queue_adapter) { Queuing::SidekiqQueueAdapter.new }
   let(:worker_id) { "integration-test-worker" }
 
   describe "end-to-end event flow", :redis do
@@ -33,7 +33,7 @@ RSpec.describe "Event Processing Pipeline", type: :integration do
       expect(queue_adapter).to receive(:get_next_batch).with(:raw_events).and_call_original
 
       # We're not testing the ProcessEvent use case here, just that it gets called with correct params
-      process_event_use_case = instance_double(Core::UseCases::ProcessEvent)
+      process_event_use_case = instance_double(UseCases::ProcessEvent)
       allow(UseCaseFactory).to receive(:create_process_event).and_return(process_event_use_case)
       allow(process_event_use_case).to receive(:call).with(valid_payload, source: source)
                                                      .and_return(instance_double(Domain::Event, id: event_id))
@@ -49,13 +49,13 @@ RSpec.describe "Event Processing Pipeline", type: :integration do
     it "handles backpressure when queue is full" do
       # Mock the queue_depths method to simulate a full queue
       allow(queue_adapter).to receive(:queue_depths).and_return(
-        raw_events: Adapters::Queue::RedisQueueAdapter::MAX_QUEUE_SIZE[:raw_events]
+        raw_events: Queuing::SidekiqQueueAdapter::MAX_QUEUE_SIZE[:raw_events]
       )
 
       # The enqueue should raise a backpressure error
       expect do
         queue_adapter.enqueue_raw_event(valid_payload, source)
-      end.to raise_error(Adapters::Queue::RedisQueueAdapter::QueueBackpressureError)
+      end.to raise_error(Queuing::SidekiqQueueAdapter::QueueBackpressureError)
     end
   end
 

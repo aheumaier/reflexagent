@@ -3,7 +3,7 @@ require_relative "../../../app/adapters/repositories/alert_repository"
 require_relative "../../../app/core/domain/alert"
 require_relative "../../../app/core/domain/metric"
 
-RSpec.describe Adapters::Repositories::AlertRepository do
+RSpec.describe Repositories::AlertRepository do
   subject(:repository) { described_class.new }
 
   include_context "alert examples"

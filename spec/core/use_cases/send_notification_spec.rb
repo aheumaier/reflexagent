@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Core::UseCases::SendNotification do
+RSpec.describe UseCases::SendNotification do
   subject(:use_case) { described_class.new(notification_port: mock_notification_port, storage_port: mock_storage_port) }
 
   include_context "with all mock ports"

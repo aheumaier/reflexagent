@@ -5,7 +5,7 @@ require_relative "../../app/core/domain/event"
 RSpec.describe "Event Persistence", type: :integration do
   include_context "event examples"
 
-  let(:repository) { Adapters::Repositories::EventRepository.new }
+  let(:repository) { Repositories::EventRepository.new }
 
   describe "end-to-end persistence" do
     before do

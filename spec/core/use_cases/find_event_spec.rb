@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Core::UseCases::FindEvent do
+RSpec.describe UseCases::FindEvent do
   include_context "with all mock ports"
 
   let(:event) do
