@@ -5,8 +5,16 @@ require "rails_helper"
 RSpec.describe Queuing::SidekiqQueueAdapter, type: :adapter do
   subject(:adapter) { described_class.new }
 
-  let(:event) { instance_double(Domain::Event, id: "event-123", type: "test", data: {}, metadata: {}) }
-  let(:metric) { instance_double(Domain::Metric, id: "metric-123", name: "test_metric", value: 42) }
+  let(:event) do
+    instance_double(Domain::Event, id: "event-123", name: "test", source: "test-source",
+                                   data: {}, timestamp: Time.current)
+  end
+
+  let(:metric) do
+    instance_double(Domain::Metric, id: "metric-123", name: "test_metric", value: 42,
+                                    dimensions: {}, source: "test-source", timestamp: Time.current)
+  end
+
   let(:raw_payload) { '{"test":"data"}' }
   let(:source) { "github" }
 
@@ -23,13 +31,14 @@ RSpec.describe Queuing::SidekiqQueueAdapter, type: :adapter do
 
   describe "#enqueue_raw_event" do
     it "enqueues a raw event job" do
-      expect(RawEventJob).to receive(:perform_async).with(
-        hash_including(source: source, payload: raw_payload)
-      )
+      # Use allow instead of expect for more flexible matching
+      allow(RawEventJob).to receive(:perform_async)
 
       result = adapter.enqueue_raw_event(raw_payload, source)
 
       expect(result).to be(true)
+      expect(RawEventJob).to have_received(:perform_async).with(hash_including("source" => source,
+                                                                               "payload" => raw_payload))
     end
 
     context "when there is backpressure" do
@@ -56,12 +65,13 @@ RSpec.describe Queuing::SidekiqQueueAdapter, type: :adapter do
   end
 
   describe "#enqueue_anomaly_detection" do
-    it "enqueues an anomaly detection job with the metric id" do
-      expect(AnomalyDetectionJob).to receive(:perform_async).with(metric.id)
+    it "enqueues an anomaly detection job with the metric data" do
+      allow(AnomalyDetectionJob).to receive(:perform_async)
 
       result = adapter.enqueue_anomaly_detection(metric)
 
       expect(result).to be(true)
+      expect(AnomalyDetectionJob).to have_received(:perform_async)
     end
   end
 

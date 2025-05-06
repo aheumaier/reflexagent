@@ -1,12 +1,20 @@
 require "rails_helper"
 
 RSpec.describe UseCases::ProcessEvent do
-  let(:ingestion_port) { instance_double(Ports::IngestionPort) }
-  let(:storage_port) { instance_double(Ports::StoragePort) }
-  let(:queue_port) { instance_double(Ports::QueuePort) }
+  include_context "with all mock ports"
 
   let(:use_case) do
-    described_class.new(ingestion_port: ingestion_port, storage_port: storage_port, queue_port: queue_port)
+    described_class.new(
+      ingestion_port: mock_ingestion_port,
+      storage_port: mock_storage_port,
+      queue_port: mock_queue_port
+    )
+  end
+
+  let(:mock_ingestion_port) do
+    double("MockIngestionPort").tap do |mock|
+      allow(mock).to receive(:receive_event).and_return(event)
+    end
   end
 
   let(:raw_payload) { { key: "value" }.to_json }
@@ -19,25 +27,25 @@ RSpec.describe UseCases::ProcessEvent do
       allow(Rails.logger).to receive(:error)
 
       # Default behavior for successful path
-      allow(ingestion_port).to receive(:receive_event).with(raw_payload, source: source).and_return(event)
-      allow(storage_port).to receive(:save_event).with(event).and_return(true)
-      allow(queue_port).to receive(:enqueue_metric_calculation).with(event).and_return(true)
+      allow(mock_ingestion_port).to receive(:receive_event).with(raw_payload, source: source).and_return(event)
+      allow(mock_storage_port).to receive(:save_event).with(event).and_return(event)
+      allow(mock_queue_port).to receive(:enqueue_metric_calculation).with(event).and_return(true)
     end
 
     it "parses the raw payload into a domain event" do
-      expect(ingestion_port).to receive(:receive_event).with(raw_payload, source: source).and_return(event)
+      expect(mock_ingestion_port).to receive(:receive_event).with(raw_payload, source: source).and_return(event)
 
       use_case.call(raw_payload, source: source)
     end
 
     it "stores the event" do
-      expect(storage_port).to receive(:save_event).with(event)
+      expect(mock_storage_port).to receive(:save_event).with(event)
 
       use_case.call(raw_payload, source: source)
     end
 
     it "enqueues the event for metric calculation" do
-      expect(queue_port).to receive(:enqueue_metric_calculation).with(event)
+      expect(mock_queue_port).to receive(:enqueue_metric_calculation).with(event)
 
       use_case.call(raw_payload, source: source)
     end
@@ -50,7 +58,7 @@ RSpec.describe UseCases::ProcessEvent do
 
     context "when event parsing fails" do
       before do
-        allow(ingestion_port).to receive(:receive_event).and_raise("Parsing error")
+        allow(mock_ingestion_port).to receive(:receive_event).and_raise("Parsing error")
       end
 
       it "logs the error" do
@@ -58,19 +66,19 @@ RSpec.describe UseCases::ProcessEvent do
 
         expect do
           use_case.call(raw_payload, source: source)
-        end.to raise_error(Core::UseCases::ProcessEvent::EventParsingError)
+        end.to raise_error(UseCases::ProcessEvent::EventParsingError)
       end
 
       it "raises an EventParsingError" do
         expect do
           use_case.call(raw_payload, source: source)
-        end.to raise_error(Core::UseCases::ProcessEvent::EventParsingError, /Failed to parse event/)
+        end.to raise_error(UseCases::ProcessEvent::EventParsingError, /Failed to parse event/)
       end
     end
 
     context "when event storage fails" do
       before do
-        allow(storage_port).to receive(:save_event).and_raise("Storage error")
+        allow(mock_storage_port).to receive(:save_event).and_raise("Storage error")
       end
 
       it "logs the error" do
@@ -78,19 +86,19 @@ RSpec.describe UseCases::ProcessEvent do
 
         expect do
           use_case.call(raw_payload, source: source)
-        end.to raise_error(Core::UseCases::ProcessEvent::EventStorageError)
+        end.to raise_error(UseCases::ProcessEvent::EventStorageError)
       end
 
       it "raises an EventStorageError" do
         expect do
           use_case.call(raw_payload, source: source)
-        end.to raise_error(Core::UseCases::ProcessEvent::EventStorageError, /Failed to save event/)
+        end.to raise_error(UseCases::ProcessEvent::EventStorageError, /Failed to save event/)
       end
     end
 
     context "when metric calculation enqueuing fails" do
       before do
-        allow(queue_port).to receive(:enqueue_metric_calculation).and_raise("Queue error")
+        allow(mock_queue_port).to receive(:enqueue_metric_calculation).and_raise("Queue error")
       end
 
       it "logs the error but continues processing" do

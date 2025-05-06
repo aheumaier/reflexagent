@@ -52,7 +52,7 @@ Sidekiq.configure_server do |config|
     require_relative "../../app/core/use_cases/send_notification"
 
     # If the UseCases module is defined but not inside Core, alias it
-    Core::UseCases = UseCases if defined?(UseCases) && !defined?(Core::UseCases)
+    UseCases = UseCases if defined?(UseCases) && !defined?(UseCases)
   end
 
   # Configure the scheduler

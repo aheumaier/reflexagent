@@ -1,6 +1,6 @@
 require "rails_helper"
 
-RSpec.describe Adapters::Web::WebAdapter do
+RSpec.describe Web::WebAdapter do
   let(:adapter) { described_class.new }
 
   describe "#receive_event" do
@@ -48,7 +48,7 @@ RSpec.describe Adapters::Web::WebAdapter do
         # Verify the returned event
         expect(event).to be_a(Domain::Event)
         expect(event.source).to eq("github")
-        expect(event.name).to eq("github.unknown") # "push" events often don't have an action field
+        expect(event.name).to eq("github.push") # Commits array indicates it's a push event
         expect(event.timestamp).to eq(frozen_time)
 
         # Verify the parsed data
@@ -104,7 +104,7 @@ RSpec.describe Adapters::Web::WebAdapter do
 
         expect(event).to be_a(Domain::Event)
         expect(event.source).to eq("github")
-        expect(event.name).to eq("github.opened")
+        expect(event.name).to eq("github.pull_request.opened")
         expect(event.data[:pull_request][:title]).to eq("Add new metrics calculation algorithm")
       end
     end
@@ -113,7 +113,7 @@ RSpec.describe Adapters::Web::WebAdapter do
       it "raises an InvalidPayloadError" do
         expect do
           adapter.receive_event("invalid json", source: "github")
-        end.to raise_error(Adapters::Web::WebAdapter::InvalidPayloadError)
+        end.to raise_error(Web::WebAdapter::InvalidPayloadError)
       end
     end
 

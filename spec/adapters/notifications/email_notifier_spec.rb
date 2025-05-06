@@ -3,7 +3,7 @@ require_relative "../../../app/adapters/notifications/email_notifier"
 require_relative "../../../app/core/domain/metric"
 require_relative "../../../app/core/domain/alert"
 
-RSpec.describe Adapters::Notifications::EmailNotifier do
+RSpec.describe Notifications::EmailNotifier do
   let(:mailer) { instance_double(ApplicationMailer) }
   let(:notifier) { described_class.new(mailer: mailer) }
   let(:mail_message) { instance_double(ActionMailer::MessageDelivery, deliver_now: true) }

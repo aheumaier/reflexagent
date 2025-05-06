@@ -4,7 +4,7 @@ require_relative "../../../app/core/domain/event"
 require_relative "../../../app/core/domain/event_factory"
 require_relative "../../../app/models/domain_event"
 
-RSpec.describe Adapters::Repositories::EventRepository do
+RSpec.describe Repositories::EventRepository do
   let(:repository) { described_class.new }
   let(:event) do
     Domain::EventFactory.create(

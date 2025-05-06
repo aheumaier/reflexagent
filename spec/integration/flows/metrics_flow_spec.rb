@@ -1,4 +1,7 @@
 require "rails_helper"
+require_relative "../../../app/adapters/repositories/event_repository"
+require_relative "../../../app/adapters/repositories/metric_repository"
+require_relative "../../../app/adapters/repositories/alert_repository"
 
 RSpec.describe "Metrics Flow Integration", type: :integration do
   # We'll use real implementations instead of doubles where possible
@@ -9,9 +12,9 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
     DependencyContainer.reset
 
     # Create and register our test adapters
-    event_repo = Adapters::Repositories::EventRepository.new
+    event_repo = Repositories::EventRepository.new
     metric_repo = Repositories::MetricRepository.new
-    alert_repo = Adapters::Repositories::AlertRepository.new
+    alert_repo = Repositories::AlertRepository.new
 
     @storage_port = double("StoragePort")
     allow(@storage_port).to receive(:save_event) do |event|
@@ -90,13 +93,13 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
   describe "Event to Metric Flow" do
     it "processes an event and generates a metric" do
       # Create the use cases with the registered ports
-      process_event = Core::UseCases::ProcessEvent.new(
+      process_event = UseCases::ProcessEvent.new(
         ingestion_port: DependencyContainer.resolve(:ingestion_port),
         storage_port: DependencyContainer.resolve(:storage_port),
         queue_port: DependencyContainer.resolve(:queue_port)
       )
 
-      calculate_metrics = Core::UseCases::CalculateMetrics.new(
+      calculate_metrics = UseCases::CalculateMetrics.new(
         storage_port: DependencyContainer.resolve(:storage_port),
         cache_port: DependencyContainer.resolve(:cache_port),
         metric_classifier: DependencyContainer.resolve(:metric_classifier)
@@ -138,7 +141,7 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
   context "when metrics lead to anomalies" do
     it "detects anomalies based on metrics and creates alerts" do
       # Create the anomaly detection use case
-      detect_anomalies = Core::UseCases::DetectAnomalies.new(
+      detect_anomalies = UseCases::DetectAnomalies.new(
         storage_port: DependencyContainer.resolve(:storage_port),
         notification_port: DependencyContainer.resolve(:notification_port)
       )
@@ -169,7 +172,7 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
 
     it "does not create alerts for normal metrics" do
       # Create the anomaly detection use case
-      detect_anomalies = Core::UseCases::DetectAnomalies.new(
+      detect_anomalies = UseCases::DetectAnomalies.new(
         storage_port: DependencyContainer.resolve(:storage_port),
         notification_port: DependencyContainer.resolve(:notification_port)
       )
@@ -195,19 +198,19 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
   describe "End-to-End Metric Flow" do
     it "processes an event all the way to an alert" do
       # Create all use cases
-      process_event = Core::UseCases::ProcessEvent.new(
+      process_event = UseCases::ProcessEvent.new(
         ingestion_port: DependencyContainer.resolve(:ingestion_port),
         storage_port: DependencyContainer.resolve(:storage_port),
         queue_port: DependencyContainer.resolve(:queue_port)
       )
 
-      calculate_metrics = Core::UseCases::CalculateMetrics.new(
+      calculate_metrics = UseCases::CalculateMetrics.new(
         storage_port: DependencyContainer.resolve(:storage_port),
         cache_port: DependencyContainer.resolve(:cache_port),
         metric_classifier: DependencyContainer.resolve(:metric_classifier)
       )
 
-      detect_anomalies = Core::UseCases::DetectAnomalies.new(
+      detect_anomalies = UseCases::DetectAnomalies.new(
         storage_port: DependencyContainer.resolve(:storage_port),
         notification_port: DependencyContainer.resolve(:notification_port)
       )

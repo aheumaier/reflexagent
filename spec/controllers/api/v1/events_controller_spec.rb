@@ -6,7 +6,7 @@ RSpec.describe Api::V1::EventsController, type: :controller do
     {
       ref: "refs/heads/main",
       repository: {
-        full_name: "octocat/test-repo"
+        full_name: "test/repo"
       },
       commits: [
         {
@@ -27,9 +27,9 @@ RSpec.describe Api::V1::EventsController, type: :controller do
     )
   end
 
-  let(:find_event_use_case) { instance_double(Core::UseCases::FindEvent) }
-  let(:process_event_use_case) { instance_double(Core::UseCases::ProcessEvent) }
-  let(:queue_adapter) { instance_double(Adapters::Queue::RedisQueueAdapter) }
+  let(:find_event_use_case) { instance_double(UseCases::FindEvent) }
+  let(:process_event_use_case) { instance_double(UseCases::ProcessEvent) }
+  let(:queue_adapter) { instance_double(Queuing::SidekiqQueueAdapter) }
   let(:event_id) { "event-123" }
 
   before do
@@ -122,7 +122,7 @@ RSpec.describe Api::V1::EventsController, type: :controller do
       before do
         request.headers["X-Webhook-Token"] = valid_token
         allow(queue_adapter).to receive(:enqueue_raw_event)
-          .and_raise(Adapters::Queue::RedisQueueAdapter::QueueBackpressureError, "Queue is full")
+          .and_raise(Queuing::SidekiqQueueAdapter::QueueBackpressureError, "Queue is full")
       end
 
       it "returns a too many requests status" do
@@ -224,18 +224,18 @@ RSpec.describe Api::V1::EventsController, type: :controller do
 
     context "when the use case raises an error" do
       before do
-        allow(find_event_use_case).to receive(:call).and_raise(StandardError, "Database error")
+        allow(find_event_use_case).to receive(:call).with("error-id").and_raise(ArgumentError, "Invalid event ID")
       end
 
       it "returns an unprocessable entity status" do
-        get :show, params: { id: "event-123" }
+        get :show, params: { id: "error-id" }
         expect(response).to have_http_status(:unprocessable_entity)
       end
 
       it "includes the error message" do
-        get :show, params: { id: "event-123" }
+        get :show, params: { id: "error-id" }
         json_response = JSON.parse(response.body)
-        expect(json_response["error"]).to eq("Database error")
+        expect(json_response["error"]).to eq("Invalid event ID")
       end
     end
   end

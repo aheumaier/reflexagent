@@ -2,7 +2,7 @@ require "rails_helper"
 require_relative "../../../app/adapters/repositories/metric_repository"
 require_relative "../../../app/core/domain/metric"
 
-RSpec.describe Adapters::Repositories::MetricRepository do
+RSpec.describe Repositories::MetricRepository do
   let(:repository) { described_class.new }
   let(:metric) do
     Domain::Metric.new(
