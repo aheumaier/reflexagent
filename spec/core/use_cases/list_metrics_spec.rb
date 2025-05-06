@@ -74,7 +74,7 @@ RSpec.describe UseCases::ListMetrics do
   describe "factory method" do
     it "creates the use case with dependencies injected" do
       # Register our mock with the container
-      DependencyContainer.register(:storage_port, mock_storage_port)
+      DependencyContainer.register(:metric_repository, mock_storage_port)
 
       # Create use case using factory
       factory_created = UseCaseFactory.create_list_metrics

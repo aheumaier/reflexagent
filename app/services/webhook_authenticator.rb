@@ -8,6 +8,8 @@ class WebhookAuthenticator
   # @param source [String] The source system (github, jira, etc.)
   # @return [Boolean] Whether the token is valid
   def self.valid?(token, source)
+    return false if token.nil? || source.nil?
+
     # In development mode, skip authentication
     return true if Rails.env.local?
 
@@ -29,7 +31,7 @@ class WebhookAuthenticator
                        ENV.fetch("#{source.upcase}_WEBHOOK_TOKEN", nil)
                      end
 
-    is_valid = token == expected_token
+    is_valid = !blank?(expected_token) && token == expected_token
     Rails.logger.info("Webhook authentication for #{source} - Result: #{is_valid ? 'Valid' : 'Invalid'}")
     is_valid
   end

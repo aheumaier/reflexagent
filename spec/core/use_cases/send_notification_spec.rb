@@ -61,7 +61,7 @@ RSpec.describe UseCases::SendNotification do
     it "creates the use case with dependencies injected" do
       # Register our mocks with the container
       DependencyContainer.register(:notification_port, mock_notification_port)
-      DependencyContainer.register(:storage_port, mock_storage_port)
+      DependencyContainer.register(:alert_repository, mock_storage_port)
 
       # Create use case using factory
       factory_created = UseCaseFactory.create_send_notification

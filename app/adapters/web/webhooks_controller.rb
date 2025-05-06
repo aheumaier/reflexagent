@@ -8,6 +8,7 @@ module Web
     before_action :authenticate_webhook!, only: [:create]
 
     include IngestionPort
+    include WebhookAuthentication
 
     def create
       # Extract the payload and source

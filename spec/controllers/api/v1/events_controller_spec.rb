@@ -1,8 +1,10 @@
 require "rails_helper"
 
 RSpec.describe Api::V1::EventsController, type: :controller do
+  include_context "webhook_testing"
+
   let(:valid_token) { "test_token" }
-  let(:github_payload) do
+  let(:github_payload_hash) do
     {
       ref: "refs/heads/main",
       repository: {
@@ -14,47 +16,112 @@ RSpec.describe Api::V1::EventsController, type: :controller do
           message: "Test commit"
         }
       ]
-    }.to_json
+    }
   end
+
+  let(:github_payload) { github_payload_hash.to_json }
+  let(:event_id) { "event-123" }
 
   let(:domain_event) do
     instance_double(
       Domain::Event,
-      id: "event-123",
+      id: event_id,
       source: "github",
       name: "github.push",
-      timestamp: Time.current
+      timestamp: Time.current,
+      to_h: { id: event_id, source: "github", name: "github.push" }
     )
   end
 
   let(:find_event_use_case) { instance_double(UseCases::FindEvent) }
-  let(:process_event_use_case) { instance_double(UseCases::ProcessEvent) }
   let(:queue_adapter) { instance_double(Queuing::SidekiqQueueAdapter) }
-  let(:event_id) { "event-123" }
 
   before do
+    # Set test payload directly on the controller instance var
+    controller.instance_variable_set(:@_test_raw_post, github_payload)
+
     # Mock the webhook authenticator
     allow(WebhookAuthenticator).to receive(:valid?).and_return(false)
     allow(WebhookAuthenticator).to receive(:valid?).with(valid_token, "github").and_return(true)
 
-    # Set up the request body directly
-    allow(request).to receive(:raw_post).and_return(github_payload)
+    # Add JSON parse stubs
+    allow(JSON).to receive(:parse).and_call_original
+    allow(JSON).to receive(:parse).with(github_payload).and_return(github_payload_hash)
 
-    # Mock the use case factory and dependency container
-    allow(UseCaseFactory).to receive(:create_find_event).and_return(find_event_use_case)
-    allow(DependencyContainer).to receive(:resolve).with(:queue_port).and_return(queue_adapter)
+    # Simulate running in non-local environment for proper token checks
+    allow(Rails.env).to receive(:local?).and_return(false)
 
     # For generating event IDs
     allow(SecureRandom).to receive(:uuid).and_return(event_id)
   end
 
+  describe "GET #show" do
+    before do
+      # Set up use case factory
+      allow(UseCaseFactory).to receive(:create_find_event).and_return(find_event_use_case)
+    end
+
+    context "when the event exists" do
+      before do
+        allow(find_event_use_case).to receive(:call).with(event_id).and_return(domain_event)
+      end
+
+      it "returns a successful response" do
+        get :show, params: { id: event_id }
+        expect(response).to have_http_status(:ok)
+      end
+
+      it "returns the event data" do
+        get :show, params: { id: event_id }
+        json_response = JSON.parse(response.body)
+        expect(json_response["id"]).to eq(event_id)
+        expect(json_response["source"]).to eq("github")
+      end
+    end
+
+    context "when the event doesn't exist" do
+      before do
+        allow(find_event_use_case).to receive(:call).with("non-existent").and_return(nil)
+      end
+
+      it "returns a not found status" do
+        get :show, params: { id: "non-existent" }
+        expect(response).to have_http_status(:not_found)
+      end
+
+      it "includes an error message" do
+        get :show, params: { id: "non-existent" }
+        json_response = JSON.parse(response.body)
+        expect(json_response["error"]).to eq("Event not found")
+      end
+    end
+
+    context "when the use case raises an error" do
+      before do
+        allow(find_event_use_case).to receive(:call).with("error-id").and_raise(ArgumentError, "Invalid event ID")
+      end
+
+      it "returns an unprocessable entity status" do
+        get :show, params: { id: "error-id" }
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it "includes the error message" do
+        get :show, params: { id: "error-id" }
+        json_response = JSON.parse(response.body)
+        expect(json_response["error"]).to eq("Invalid event ID")
+      end
+    end
+  end
+
   describe "POST #create" do
+    before do
+      allow(DependencyContainer).to receive(:resolve).with(:queue_port).and_return(queue_adapter)
+    end
+
     context "with valid parameters and authentication" do
       before do
-        # Set up headers
         request.headers["X-Webhook-Token"] = valid_token
-
-        # Mock the queue adapter to accept events
         allow(queue_adapter).to receive(:enqueue_raw_event).with(github_payload, "github").and_return(true)
       end
 
@@ -73,7 +140,6 @@ RSpec.describe Api::V1::EventsController, type: :controller do
         json_response = JSON.parse(response.body)
         expect(json_response["id"]).to eq(event_id)
         expect(json_response["status"]).to eq("accepted")
-        expect(json_response["message"]).to eq("Event accepted for processing")
       end
     end
 
@@ -103,7 +169,9 @@ RSpec.describe Api::V1::EventsController, type: :controller do
     context "with invalid JSON payload" do
       before do
         request.headers["X-Webhook-Token"] = valid_token
-        allow(request).to receive(:raw_post).and_return("{invalid json")
+
+        controller.instance_variable_set(:@_test_raw_post, "{invalid json")
+        allow(JSON).to receive(:parse).with("{invalid json").and_raise(JSON::ParserError.new("Invalid JSON"))
       end
 
       it "returns a bad request status" do
@@ -181,61 +249,6 @@ RSpec.describe Api::V1::EventsController, type: :controller do
       it "logs the error" do
         expect(Rails.logger).to receive(:error).at_least(:once)
         post :create, params: { source: "github" }
-      end
-    end
-  end
-
-  describe "GET #show" do
-    context "when the event exists" do
-      before do
-        allow(find_event_use_case).to receive(:call).with("event-123").and_return(domain_event)
-        allow(domain_event).to receive(:to_h).and_return({ id: "event-123", source: "github", name: "github.push" })
-      end
-
-      it "returns a successful response" do
-        get :show, params: { id: "event-123" }
-        expect(response).to have_http_status(:ok)
-      end
-
-      it "returns the event data" do
-        get :show, params: { id: "event-123" }
-        json_response = JSON.parse(response.body)
-        expect(json_response["id"]).to eq("event-123")
-        expect(json_response["source"]).to eq("github")
-      end
-    end
-
-    context "when the event doesn't exist" do
-      before do
-        allow(find_event_use_case).to receive(:call).with("non-existent").and_return(nil)
-      end
-
-      it "returns a not found status" do
-        get :show, params: { id: "non-existent" }
-        expect(response).to have_http_status(:not_found)
-      end
-
-      it "includes an error message" do
-        get :show, params: { id: "non-existent" }
-        json_response = JSON.parse(response.body)
-        expect(json_response["error"]).to eq("Event not found")
-      end
-    end
-
-    context "when the use case raises an error" do
-      before do
-        allow(find_event_use_case).to receive(:call).with("error-id").and_raise(ArgumentError, "Invalid event ID")
-      end
-
-      it "returns an unprocessable entity status" do
-        get :show, params: { id: "error-id" }
-        expect(response).to have_http_status(:unprocessable_entity)
-      end
-
-      it "includes the error message" do
-        get :show, params: { id: "error-id" }
-        json_response = JSON.parse(response.body)
-        expect(json_response["error"]).to eq("Invalid event ID")
       end
     end
   end

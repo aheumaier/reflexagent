@@ -14,6 +14,19 @@
 #
 # See https://rubydoc.info/gems/rspec-core/RSpec/Core/Configuration
 
+require "simplecov"
+require "simplecov-lcov"
+
+SimpleCov::Formatter::LcovFormatter.config.report_with_single_file = true
+SimpleCov.formatter = SimpleCov::Formatter::MultiFormatter.new([
+                                                                 SimpleCov::Formatter::LcovFormatter,
+                                                                 SimpleCov::Formatter::HTMLFormatter
+                                                               ])
+SimpleCov.start do
+  add_filter(%r{^/spec/}) # For RSpec
+  enable_coverage(:branch) # Enables branch coverage
+end
+
 # Enable autoloading of app/ modules in the test environment
 require_relative "../app/ports/ingestion_port"
 require_relative "../app/ports/storage_port"

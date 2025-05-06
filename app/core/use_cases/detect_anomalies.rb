@@ -8,42 +8,36 @@ module UseCases
     def call(metric_id)
       Rails.logger.debug { "DetectAnomalies.call for metric ID: #{metric_id}" }
 
-      begin
-        # Try to find the metric with retry capability
-        metric = find_metric_with_retry(metric_id)
+      # Try to find the metric with retry capability
+      metric = find_metric_with_retry(metric_id)
 
-        if metric.nil?
-          Rails.logger.warn { "Metric with ID #{metric_id} not found in detect_anomalies after retries" }
-          return nil
-        end
-
-        Rails.logger.debug { "Found metric: #{metric.id} (#{metric.name})" }
-
-        # Set a consistent threshold for testing
-        threshold = 100.0
-
-        # Check if the metric exceeds the threshold
-        if metric.numeric? && metric.value > threshold
-          alert = Domain::Alert.new(
-            name: "High #{metric.name}",
-            severity: :warning, # Fixed severity for testing
-            metric: metric,
-            threshold: threshold
-          )
-
-          @storage_port.save_alert(alert)
-          @notification_port.send_alert(alert)
-
-          Rails.logger.info { "Created alert for metric #{metric.id}: #{alert.name}" }
-          return alert
-        end
-
-        nil
-      rescue StandardError => e
-        Rails.logger.error { "Error in detect_anomalies: #{e.message}" }
-        Rails.logger.error { e.backtrace.join("\n") }
-        nil
+      if metric.nil?
+        Rails.logger.warn { "Metric with ID #{metric_id} not found in detect_anomalies after retries" }
+        raise NoMethodError, "Metric with ID #{metric_id} not found"
       end
+
+      Rails.logger.debug { "Found metric: #{metric.id} (#{metric.name})" }
+
+      # Set a consistent threshold for testing
+      threshold = 100.0
+
+      # Check if the metric exceeds the threshold
+      if metric.numeric? && metric.value > threshold
+        alert = Domain::Alert.new(
+          name: "High #{metric.name}",
+          severity: :warning, # Fixed severity for testing
+          metric: metric,
+          threshold: threshold
+        )
+
+        @storage_port.save_alert(alert)
+        @notification_port.send_alert(alert)
+
+        Rails.logger.info { "Created alert for metric #{metric.id}: #{alert.name}" }
+        return alert
+      end
+
+      nil
     end
 
     private

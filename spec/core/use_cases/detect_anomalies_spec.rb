@@ -100,7 +100,7 @@ RSpec.describe UseCases::DetectAnomalies do
   describe "factory method" do
     it "creates the use case with dependencies injected" do
       # Register our mocks with the container
-      DependencyContainer.register(:storage_port, mock_storage_port)
+      DependencyContainer.register(:metric_repository, mock_storage_port)
       DependencyContainer.register(:notification_port, mock_notification_port)
 
       # Store a metric for testing

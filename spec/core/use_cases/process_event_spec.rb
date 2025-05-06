@@ -5,18 +5,30 @@ RSpec.describe UseCases::ProcessEvent do
   let(:storage_port) { instance_double(Ports::StoragePort) }
   let(:queue_port) { instance_double(Ports::QueuePort) }
 
+  let(:mock_ingestion_port) do
+    double("MockIngestionPort").tap do |mock|
+      allow(mock).to receive(:receive_event).and_return(event)
+    end
+  end
+
+  let(:mock_storage_port) do
+    double("MockStoragePort").tap do |mock|
+      allow(mock).to receive(:save_event).and_return(event)
+    end
+  end
+
+  let(:mock_queue_port) do
+    double("MockQueuePort").tap do |mock|
+      allow(mock).to receive(:enqueue_metric_calculation).and_return(true)
+    end
+  end
+
   let(:use_case) do
     described_class.new(
       ingestion_port: mock_ingestion_port,
       storage_port: mock_storage_port,
       queue_port: mock_queue_port
     )
-  end
-
-  let(:mock_ingestion_port) do
-    double("MockIngestionPort").tap do |mock|
-      allow(mock).to receive(:receive_event).and_return(event)
-    end
   end
 
   let(:raw_payload) { { key: "value" }.to_json }
