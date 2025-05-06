@@ -84,6 +84,7 @@ group :test do
   # Additional testing tools
   gem "shoulda-matchers", "~> 6.0"
   gem "simplecov", "~> 0.22.0", require: false
+  gem "simplecov-console", "~> 0.9.1", require: false
 end
 
 gem "sidekiq", "~> 7.1"
