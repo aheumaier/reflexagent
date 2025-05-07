@@ -21,6 +21,7 @@ RSpec.describe RawEventJob, :problematic do
       allow(process_event_use_case).to receive(:call)
       allow(Rails.logger).to receive(:info)
       allow(Rails.logger).to receive(:error)
+      allow(Rails.logger).to receive(:debug)
     end
 
     it "processes the event with the process_event use case" do
@@ -60,12 +61,17 @@ RSpec.describe RawEventJob, :problematic do
     end
 
     context "when an error occurs" do
+      let(:error_message) { "Test error" }
+      let(:test_error) { StandardError.new(error_message) }
+
       before do
-        allow(process_event_use_case).to receive(:call).and_raise(StandardError.new("Test error"))
+        allow(process_event_use_case).to receive(:call).and_raise(test_error)
       end
 
       it "logs the error" do
-        expect(Rails.logger).to receive(:error).with(/Error processing raw event/).twice
+        # Match the exact format from the implementation
+        expect(Rails.logger).to receive(:error).with("Error processing raw event test-123: Test error")
+        expect(Rails.logger).to receive(:error).with(kind_of(String)) # backtrace
 
         expect { subject.perform(payload_wrapper) }.to raise_error(StandardError)
       end

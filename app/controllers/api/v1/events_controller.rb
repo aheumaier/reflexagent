@@ -8,6 +8,11 @@ module Api
       before_action :authenticate_source!, only: [:create]
       before_action :store_headers, only: [:create]
 
+      # Add handler for invalid JSON
+      rescue_from ActionDispatch::Http::Parameters::ParseError do |exception|
+        render json: { error: "Invalid JSON payload" }, status: :bad_request
+      end
+
       # Implement IngestionPort#receive_event
       def receive_event(raw_payload, source:)
         # This method implements the IngestionPort interface

@@ -18,8 +18,13 @@ RSpec.describe "Metric Caching", :problematic do
       source: options[:source] || "test-source",
       dimensions: options[:dimensions] || { region: "test-region", environment: "test" },
       timestamp: options[:timestamp] || Time.current,
-      id: options[:id]
+      id: options[:id] || SecureRandom.uuid
     )
+  end
+
+  # Helper method to normalize keys like the real implementation
+  def normalized_key(key)
+    "cache:#{Rails.env}:#{key}"
   end
 
   describe "end-to-end Redis caching" do
@@ -42,7 +47,7 @@ RSpec.describe "Metric Caching", :problematic do
       expect(result).to eq(metric)
 
       # Verify the metric exists in Redis
-      expect(with_redis { |redis| redis.exists?("metric:latest:system.cpu.usage") }).to be true
+      expect(with_redis { |redis| redis.exists?(normalized_key("metric:latest:system.cpu.usage")) }).to be true
 
       # Verify we can retrieve the cached value
       cached_value = cache.get_cached_metric("system.cpu.usage")
@@ -145,10 +150,10 @@ RSpec.describe "Metric Caching", :problematic do
 
     it "maintains a time series of metrics" do
       # Verify the time series exists in Redis
-      expect(with_redis { |redis| redis.exists?("metric:timeseries:time_series.metric") }).to be true
+      expect(with_redis { |redis| redis.exists?(normalized_key("metric:timeseries:time_series.metric")) }).to be true
 
       # Verify the time series has the right number of entries
-      count = with_redis { |redis| redis.zcard("metric:timeseries:time_series.metric") }
+      count = with_redis { |redis| redis.zcard(normalized_key("metric:timeseries:time_series.metric")) }
       expect(count).to eq(5)
 
       # Retrieve the history
@@ -192,12 +197,12 @@ RSpec.describe "Metric Caching", :problematic do
       end
 
       # Verify the time series was trimmed to 1000 entries
-      count = with_redis { |redis| redis.zcard("metric:timeseries:trim_test.metric") }
+      count = with_redis { |redis| redis.zcard(normalized_key("metric:timeseries:trim_test.metric")) }
       expect(count).to eq(1000)
 
       # The oldest entries should have been removed
       min_score = with_redis do |redis|
-        redis.zrange("metric:timeseries:trim_test.metric", 0, 0, with_scores: true)[0][1]
+        redis.zrange(normalized_key("metric:timeseries:trim_test.metric"), 0, 0, with_scores: true)[0][1]
       end
       expect(min_score).to be > 1001.seconds.ago.to_i
     end
@@ -265,7 +270,7 @@ RSpec.describe "Metric Caching", :problematic do
       cache.cache_metric(metric)
 
       # Check that TTL is set
-      ttl = with_redis { |redis| redis.ttl("metric:latest:test.metric") }
+      ttl = with_redis { |redis| redis.ttl(normalized_key("metric:latest:test.metric")) }
 
       # TTL should be greater than 0 (not expired) and less than or equal to 30 days
       expect(ttl).to be > 0
