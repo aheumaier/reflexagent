@@ -1,13 +1,6 @@
 require "rails_helper"
 
 RSpec.describe WebhookAuthenticator do
-  # Add debug output before running tests
-  before(:all) do
-    puts "\n==== WebhookAuthenticator Test Debugging ===="
-    puts "Current test environment: #{defined?(Rails) ? Rails.env : 'Rails not defined'}"
-    puts "========================================\n"
-  end
-
   describe ".valid?" do
     context "with valid tokens" do
       before do
@@ -20,22 +13,16 @@ RSpec.describe WebhookAuthenticator do
 
       it "returns true for valid GitHub token" do
         result = WebhookAuthenticator.valid?("github_secret", "github")
-        puts "Debug valid? for github: #{result.inspect}, using token 'github_secret'"
-        puts "  secret_for('github') returned: #{WebhookAuthenticator.secret_for('github').inspect}"
         expect(result).to be true
       end
 
       it "returns true for valid Jira token" do
         result = WebhookAuthenticator.valid?("jira_secret", "jira")
-        puts "Debug valid? for jira: #{result.inspect}, using token 'jira_secret'"
-        puts "  secret_for('jira') returned: #{WebhookAuthenticator.secret_for('jira').inspect}"
         expect(result).to be true
       end
 
       it "returns true for valid token for custom source" do
         result = WebhookAuthenticator.valid?("default_secret", "custom")
-        puts "Debug valid? for custom: #{result.inspect}, using token 'default_secret'"
-        puts "  secret_for('custom') returned: #{WebhookAuthenticator.secret_for('custom').inspect}"
         expect(result).to be true
       end
     end
@@ -90,22 +77,15 @@ RSpec.describe WebhookAuthenticator do
         # Then mock specific ones we want to test
         allow(ENV).to receive(:[]).with("GITHUB_WEBHOOK_SECRET").and_return("env_github_secret")
         allow(ENV).to receive(:[]).with("JIRA_WEBHOOK_SECRET").and_return("env_jira_secret")
-
-        # Debug what's being mocked
-        puts "Debug ENV mocks in secret_for:"
-        puts "  ENV['GITHUB_WEBHOOK_SECRET'] => #{ENV['GITHUB_WEBHOOK_SECRET'].inspect}"
-        puts "  ENV['JIRA_WEBHOOK_SECRET'] => #{ENV['JIRA_WEBHOOK_SECRET'].inspect}"
       end
 
       it "returns the correct secret for GitHub" do
         result = WebhookAuthenticator.secret_for("github")
-        puts "Debug secret_for('github'): #{result.inspect}"
         expect(result).to eq("env_github_secret")
       end
 
       it "returns the correct secret for Jira" do
         result = WebhookAuthenticator.secret_for("jira")
-        puts "Debug secret_for('jira'): #{result.inspect}"
         expect(result).to eq("env_jira_secret")
       end
     end

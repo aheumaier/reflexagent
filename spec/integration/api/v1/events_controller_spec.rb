@@ -122,9 +122,6 @@ RSpec.describe "Api::V1::EventsController", type: :request do
           # Mock implementation
           true
         end
-
-        # Define QueueBackpressureError within the mock
-        QueueBackpressureError = Class.new(StandardError)
       end.new
     end
 
