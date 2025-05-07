@@ -1,6 +1,4 @@
 require "rails_helper"
-require_relative "../../app/adapters/repositories/metric_repository"
-require_relative "../../app/core/domain/metric"
 
 RSpec.describe "Metric Persistence", type: :integration do
   let(:repository) { Repositories::MetricRepository.new }

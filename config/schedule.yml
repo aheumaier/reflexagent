@@ -1,9 +1,4 @@
 # config/schedule.yml
-metric_aggregation_5min:
-  cron: "*/5 * * * *"  # Every 5 minutes
-  class: "MetricAggregationJob"
-  args: ["5min"]
-  queue: metric_aggregation
 
 metric_aggregation_hourly:
   cron: "5 * * * *"  # 5 minutes past every hour

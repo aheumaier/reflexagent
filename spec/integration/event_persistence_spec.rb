@@ -1,6 +1,4 @@
 require "rails_helper"
-require_relative "../../app/adapters/repositories/event_repository"
-require_relative "../../app/core/domain/event"
 
 RSpec.describe "Event Persistence", type: :integration do
   include_context "event examples"

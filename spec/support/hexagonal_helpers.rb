@@ -134,28 +134,50 @@ module HexagonalHelpers
     class MockCachePort
       include CachePort
 
-      attr_reader :cached_metrics
+      attr_reader :cached_metrics, :metric_history
 
       def initialize
         @cached_metrics = {}
+        @metric_history = {}
       end
 
       def cache_metric(metric)
         key = cache_key(metric.name, metric.dimensions)
         @cached_metrics[key] = metric
+
+        # Store in time series too
+        @metric_history[metric.name] ||= []
+        @metric_history[metric.name] << {
+          timestamp: metric.timestamp,
+          value: metric.value
+        }
+
+        # Keep only the latest 1000 values
+        @metric_history[metric.name] = @metric_history[metric.name].last(1000)
+
         metric
       end
 
       def get_cached_metric(name, dimensions = {})
         key = cache_key(name, dimensions)
-        @cached_metrics[key]
+        metric = @cached_metrics[key]
+        return nil unless metric
+
+        # Return the value, not the whole metric object
+        metric.value
+      end
+
+      def get_metric_history(name, limit = 100)
+        (@metric_history[name] || []).last(limit)
       end
 
       def clear_metric_cache(name = nil)
         if name.nil?
           @cached_metrics = {}
+          @metric_history = {}
         else
           @cached_metrics.delete_if { |key, _| key.start_with?(name) }
+          @metric_history.delete(name)
         end
         true
       end
@@ -194,11 +216,17 @@ module HexagonalHelpers
     class MockQueuePort
       include QueuePort
 
-      attr_reader :enqueued_events, :enqueued_metrics
+      attr_reader :enqueued_events, :enqueued_metrics, :enqueued_raw_events
 
       def initialize
         @enqueued_events = []
         @enqueued_metrics = []
+        @enqueued_raw_events = []
+      end
+
+      def enqueue_raw_event(raw_payload, source)
+        @enqueued_raw_events << { payload: raw_payload, source: source }
+        true
       end
 
       def enqueue_metric_calculation(event)
@@ -209,6 +237,54 @@ module HexagonalHelpers
       def enqueue_anomaly_detection(metric)
         @enqueued_metrics << metric
         true
+      end
+
+      def process_raw_event_batch(worker_id)
+        count = @enqueued_raw_events.size
+        @enqueued_raw_events.clear
+        count
+      end
+
+      def queue_depths
+        {
+          raw_events: @enqueued_raw_events.size,
+          event_processing: 0,
+          metric_calculation: 0,
+          anomaly_detection: 0
+        }
+      end
+
+      def backpressure?
+        false
+      end
+
+      # Method required for tests
+      def with_redis
+        # Mock implementation that immediately yields to the block
+        yield mock_redis
+      end
+
+      private
+
+      def mock_redis
+        # Create a simple mock Redis client for testing
+        Class.new do
+          def llen(key)
+            0 # Always return 0 for length
+          end
+
+          def lpop(key)
+            nil # Always return nil for popping
+          end
+
+          def keys(pattern)
+            [] # Always return empty array for keys
+          end
+
+          def exists?(key)
+            false # Always return false for exists?
+          end
+        end.new
       end
     end
   end

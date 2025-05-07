@@ -30,11 +30,10 @@ RSpec.shared_examples "a cache port implementation" do
 
     it "caches and retrieves metrics" do
       subject.cache_metric(metric)
-      retrieved_metric = subject.get_cached_metric(metric.name, metric.dimensions)
+      retrieved_value = subject.get_cached_metric(metric.name, metric.dimensions)
 
-      expect(retrieved_metric).not_to be_nil
-      expect(retrieved_metric.name).to eq(metric.name)
-      expect(retrieved_metric.value).to eq(metric.value)
+      expect(retrieved_value).not_to be_nil
+      expect(retrieved_value).to eq(metric.value)
     end
 
     it "clears the cache" do
@@ -60,7 +59,7 @@ RSpec.shared_examples "a notification port implementation" do
 
   context "with a message" do
     it "can send a message to a channel" do
-      expect(subject.send_message('test-channel', 'Test message')).to be_truthy
+      expect(subject.send_message("test-channel", "Test message")).to be_truthy
     end
   end
 end

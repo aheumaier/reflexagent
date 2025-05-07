@@ -9,6 +9,7 @@ gem "rails", "~> 7.1.5", ">= 7.1.5.1"
 gem "sprockets-rails"
 
 # Use postgresql as the database for Active Record
+gem "chromable", "~> 0.3.5"
 gem "pg", "~> 1.1"
 
 # Use the Puma web server [https://github.com/puma/puma]
@@ -25,6 +26,8 @@ gem "stimulus-rails"
 
 # Bundle and process CSS [https://github.com/rails/cssbundling-rails]
 gem "cssbundling-rails"
+gem "tailwindcss-rails", "~> 4.2"
+gem "tailwindcss-ruby", "~> 4.1"
 
 # Build JSON APIs with ease [https://github.com/rails/jbuilder]
 gem "jbuilder"
@@ -33,6 +36,9 @@ gem "jbuilder"
 gem "redis", "~> 5.0"
 # Thread-safe connection pools
 gem "connection_pool", "~> 2.4"
+gem "sidekiq", "~> 7.1"
+gem "sidekiq-cron", "~> 1.10"
+gem "sidekiq-scheduler", "~> 5.0"
 
 # Use Kredis to get higher-level data types in Redis [https://github.com/rails/kredis]
 # gem "kredis"
@@ -51,7 +57,7 @@ gem "bootsnap", require: false
 
 group :development, :test do
   # See https://guides.rubyonrails.org/debugging_rails_applications.html#debugging-with-the-debug-gem
-  gem "debug", platforms: [:mri, :windows]
+  gem "debug", platforms: [:mri, :mingw, :x64_mingw]
 
   # Testing framework for Ruby on Rails
   gem "factory_bot_rails", "~> 6.4"
@@ -83,16 +89,10 @@ group :test do
 
   # Additional testing tools
   gem "shoulda-matchers", "~> 6.0"
-  gem "simplecov", "~> 0.22.0", require: false
-  gem "simplecov-console", "~> 0.9.1", require: false
+  gem "simplecov", "~> 0.22.0", require: true
+  gem "simplecov-console", "~> 0.9.1", require: true
+  gem "simplecov-json", require: true
+  gem "simplecov-lcov", "~> 0.8.0", require: false
 end
 
-gem "sidekiq", "~> 7.1"
-gem "sidekiq-cron", "~> 1.10"
-gem "sidekiq-scheduler", "~> 5.0"
-
-gem "tailwindcss-rails", "~> 4.2"
-
-gem "tailwindcss-ruby", "~> 4.1"
-
-gem "chromable", "~> 0.3.5"
+gem "colorize", "~> 1.1"

@@ -1,12 +1,17 @@
 # spec/support/simplecov.rb
 require "simplecov"
 require "simplecov-console"
-require_relative "simplecov_json_formatter"
+require "simplecov_json_formatter"
+require "simplecov-lcov"
+
+SimpleCov::Formatter::LcovFormatter.config.report_with_single_file = true
 
 # Define formatters for output
 SimpleCov.formatters = SimpleCov::Formatter::MultiFormatter.new([
                                                                   SimpleCov::Formatter::HTMLFormatter,
-                                                                  SimpleCov::Formatter::Console,
+                                                                  # Removing console formatter to stop showing summary in terminal
+                                                                  # SimpleCov::Formatter::Console,
+                                                                  SimpleCov::Formatter::LcovFormatter,
                                                                   SimpleCov::Formatter::JSONFormatter
                                                                 ])
 
@@ -44,7 +49,7 @@ SimpleCov.start "rails" do
   refuse_coverage_drop
 end
 
-# Show coverage result in console when running tests
-at_exit do
-  SimpleCov.result.format!
-end
+# # Show coverage result in console when running tests
+# at_exit do
+#   SimpleCov.result.format!
+# end
