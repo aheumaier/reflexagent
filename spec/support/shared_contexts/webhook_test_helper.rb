@@ -5,6 +5,21 @@ require "rails_helper"
 RSpec.shared_context "webhook_testing" do
   let(:valid_token) { "test_token" }
 
+  let(:valid_signature) { "sha256=mock_signature" }
+  let(:invalid_signature) { "sha256=invalid_signature" }
+
+  # Mock WebhookAuthenticator if it's used in the app
+  before do
+    if defined?(WebhookAuthenticator)
+      allow(WebhookAuthenticator).to receive(:valid?).and_return(false)
+      allow(WebhookAuthenticator).to receive(:valid?).with(anything, "github").and_return(true)
+    end
+
+    # No need to stub JSON.parse as that will be handled by the actual request
+    # in request specs, unlike in controller specs where we might need to manually
+    # set the raw post body
+  end
+
   # Create sample GitHub webhook payload
   let(:github_payload_hash) do
     {

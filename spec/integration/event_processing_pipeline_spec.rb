@@ -1,6 +1,8 @@
+# frozen_string_literal: true
+
 require "rails_helper"
 
-RSpec.describe "Event Processing Pipeline", type: :integration do
+RSpec.describe "Event Processing Pipeline", :problematic do
   let(:valid_payload) { { key: "value" }.to_json }
   let(:source) { "github" }
   let(:event_id) { "test-event-123" }

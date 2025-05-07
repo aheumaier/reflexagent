@@ -89,7 +89,10 @@ group :test do
 
   # Additional testing tools
   gem "shoulda-matchers", "~> 6.0"
-  gem "simplecov", "~> 0.22.0", require: false
-  gem "simplecov-console", "~> 0.9.1", require: false
-  gem "simplecov-lcov", "~> 0.8.0"
+  gem "simplecov", "~> 0.22.0", require: true
+  gem "simplecov-console", "~> 0.9.1", require: true
+  gem "simplecov-json", require: true
+  gem "simplecov-lcov", "~> 0.8.0", require: false
 end
+
+gem "colorize", "~> 1.1"

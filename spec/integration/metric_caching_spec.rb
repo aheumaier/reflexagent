@@ -1,8 +1,8 @@
-require "rails_helper"
-require_relative "../../app/adapters/cache/redis_cache"
-require_relative "../../app/core/domain/metric"
+# frozen_string_literal: true
 
-RSpec.describe "Metric Caching", type: :integration do
+require "rails_helper"
+
+RSpec.describe "Metric Caching", :problematic do
   let(:cache) { Cache::RedisCache.new }
 
   # Create a helper method to execute commands on Redis

@@ -108,6 +108,14 @@ RSpec.configure do |config|
   config.include RedisHelpers, type: :integration
   config.include RedisHelpers, type: :adapter
 
+  # Include Rails request helpers for request specs
+  config.include Rails.application.routes.url_helpers, type: :request
+  config.include ActionDispatch::TestProcess::FixtureFile, type: :request
+  config.include ActionDispatch::IntegrationTest::Behavior, type: :request
+
+  # Include API request helpers for all request specs
+  config.include_context "api_request_helpers", type: :request
+
   # Skip Redis-dependent tests if Redis is not available
   config.before(:suite) do
     if RedisHelpers.redis_available?
