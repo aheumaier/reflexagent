@@ -11,6 +11,12 @@ module Cache
     # Default expiration time of 1 hour if not specified
     DEFAULT_TTL = 3600
 
+    # Default TTL for metrics (30 days)
+    METRIC_TTL = 30 * 24 * 60 * 60
+
+    # Maximum number of time series entries to keep
+    MAX_TIMESERIES_SIZE = 1000
+
     # Redis connection management
     def self.redis
       @redis ||= Redis.new(
@@ -203,43 +209,31 @@ module Cache
 
       self.class.with_redis do |redis|
         # Store the latest value for this metric name
-        redis.set(
-          normalized_key("metric:latest:#{metric.name}"),
-          metric.value
-        )
+        latest_key = normalized_key("metric:latest:#{metric.name}")
+        redis.set(latest_key, metric.value)
+        redis.expire(latest_key, METRIC_TTL)
 
         # Store with dimensions as a hash if dimensions exist
         if metric.dimensions.any?
           # Create a key that includes the dimensions
           dimension_string = metric.dimensions.sort.map { |k, v| "#{k}=#{v}" }.join(",")
-          redis.set(
-            normalized_key("metric:latest:#{metric.name}:#{dimension_string}"),
-            metric.value
-          )
+          dimension_key = normalized_key("metric:latest:#{metric.name}:#{dimension_string}")
+          redis.set(dimension_key, metric.value)
+          redis.expire(dimension_key, METRIC_TTL)
         end
 
         # Add to a time-series sorted set with timestamp as score
         # This allows for sliding window queries and expiration
         timestamp = metric.timestamp.to_i
-        redis.zadd(
-          normalized_key("metric:timeseries:#{metric.name}"),
-          timestamp,
-          "#{timestamp}:#{metric.value}"
-        )
+        timeseries_key = normalized_key("metric:timeseries:#{metric.name}")
 
-        # Keep only the last 1000 values (or adjust as needed)
-        redis.zremrangebyrank(
-          normalized_key("metric:timeseries:#{metric.name}"),
-          0,
-          -1001
-        )
-
-        # Set default expiration for all metrics (30 days)
-        [
-          normalized_key("metric:latest:#{metric.name}"),
-          normalized_key("metric:timeseries:#{metric.name}")
-        ].each do |key|
-          redis.expire(key, 30 * 24 * 60 * 60) # 30 days in seconds
+        # Use multi to ensure all operations are atomic
+        redis.multi do
+          redis.zadd(timeseries_key, timestamp, "#{timestamp}:#{metric.value}")
+          # Keep only the last MAX_TIMESERIES_SIZE values to prevent unbounded growth
+          redis.zremrangebyrank(timeseries_key, 0, -(MAX_TIMESERIES_SIZE + 1))
+          # Set TTL on timeseries
+          redis.expire(timeseries_key, METRIC_TTL)
         end
       end
 
@@ -249,63 +243,81 @@ module Cache
 
     def get_cached_metric(name, dimensions = {})
       self.class.with_redis do |redis|
-        # If dimensions are provided, try to fetch the specific metric
-        if dimensions.any?
+        if dimensions.empty?
+          # Simple case, no dimensions
+          value = redis.get(normalized_key("metric:latest:#{name}"))
+          return nil unless value
+
+          # Convert to float if it looks like a number
+          return value.to_f if value.match?(/\A-?\d+(\.\d+)?\z/)
+
+          return value
+        else
+          # With dimensions, construct the key
           dimension_string = dimensions.sort.map { |k, v| "#{k}=#{v}" }.join(",")
-          dimension_key = normalized_key("metric:latest:#{name}:#{dimension_string}")
+          value = redis.get(normalized_key("metric:latest:#{name}:#{dimension_string}"))
+          return nil unless value
 
-          # Only return the value if this specific dimension combination exists
-          if redis.exists?(dimension_key)
-            value = redis.get(dimension_key)
-            return value ? value.to_f : nil
-          end
+          # Convert to float if it looks like a number
+          return value.to_f if value.match?(/\A-?\d+(\.\d+)?\z/)
 
-          # If the specific dimension doesn't exist, return nil instead of falling back
-          return nil
+          return value
         end
-
-        # Fallback to the general metric name
-        value = redis.get(normalized_key("metric:latest:#{name}"))
-        value ? value.to_f : nil
       end
+    rescue Redis::BaseError => e
+      Rails.logger.error("Redis get_cached_metric error: #{e.message}")
+      nil
     end
 
     def get_metric_history(name, limit = 100)
+      results = []
+
       self.class.with_redis do |redis|
-        # Fetch the most recent metrics from the time series
-        redis.zrevrange(
-          normalized_key("metric:timeseries:#{name}"),
-          0,
-          limit - 1
-        ).map do |entry|
-          timestamp, value = entry.split(":")
-          {
-            timestamp: Time.at(timestamp.to_i),
-            value: value.to_f
-          }
+        timeseries_key = normalized_key("metric:timeseries:#{name}")
+
+        # Check if key exists
+        return [] unless redis.exists?(timeseries_key)
+
+        # Get the data points, starting from newest (highest score)
+        data_points = redis.zrevrange(timeseries_key, 0, limit - 1, with_scores: true)
+
+        # Process each data point
+        data_points.each do |value_str, timestamp|
+          # Format is "timestamp:value"
+          parts = value_str.split(":")
+          next if parts.size < 2
+
+          value = parts[1].to_f
+          time = Time.at(timestamp.to_i)
+
+          results << { timestamp: time, value: value }
         end
       end
+
+      results
+    rescue Redis::BaseError => e
+      Rails.logger.error("Redis get_metric_history error: #{e.message}")
+      []
     end
 
     def clear_metric_cache(name = nil)
       self.class.with_redis do |redis|
-        if name
-          # Clear specific metric cache
-          # Use the full namespace in the pattern for scan_each
-          pattern = "cache:#{Rails.env}:metric:*:#{name}*"
-          redis.scan_each(match: pattern) do |key|
+        if name.nil?
+          # Clear all metrics
+          redis.keys(normalized_key("metric:*")).each do |key|
             redis.del(key)
           end
         else
-          # Clear all metrics cache
-          # Use the full namespace in the pattern for scan_each
-          pattern = "cache:#{Rails.env}:metric:*"
-          redis.scan_each(match: pattern) do |key|
+          # Clear specific metric and its variants
+          redis.keys(normalized_key("metric:*:#{name}*")).each do |key|
             redis.del(key)
           end
         end
       end
       true
+    rescue Redis::BaseError => e
+      Rails.logger.error("Redis clear_metric_cache error: #{e.message}")
+      false
     end
 
     # Needed for the QueuePort adapter to access Redis
@@ -313,7 +325,6 @@ module Cache
 
     private
 
-    # Normalize keys to include a namespace
     def normalized_key(key)
       "cache:#{Rails.env}:#{key}"
     end

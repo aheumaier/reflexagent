@@ -6,7 +6,7 @@ module Api
         metrics = use_case.call(filter_params)
 
         render json: metrics.map(&:to_h)
-      rescue => e
+      rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
@@ -17,9 +17,9 @@ module Api
         if metric
           render json: metric.to_h
         else
-          render json: { error: 'Metric not found' }, status: :not_found
+          render json: { error: "Metric not found" }, status: :not_found
         end
-      rescue => e
+      rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end
 
@@ -31,15 +31,15 @@ module Api
           render json: {
             metric_id: params[:id],
             alert_id: alert.id,
-            status: 'anomaly_detected'
-          }
+            status: "anomaly_detected"
+          }, status: :ok
         else
           render json: {
             metric_id: params[:id],
-            status: 'normal'
-          }
+            status: "normal"
+          }, status: :ok
         end
-      rescue => e
+      rescue StandardError => e
         render json: { error: e.message }, status: :unprocessable_entity
       end
 

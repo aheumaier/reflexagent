@@ -51,9 +51,30 @@ begin
 rescue ActiveRecord::PendingMigrationError => e
   abort e.to_s.strip
 end
+
+# Setup dependencies for testing
 RSpec.configure do |config|
+  config.before(:suite) do
+    # Reset the dependency container
+    DependencyContainer.reset
+
+    # Register mock repositories for testing
+    DependencyContainer.register(
+      :event_repository,
+      Repositories::EventRepository.new
+    )
+    DependencyContainer.register(
+      :metric_repository,
+      Repositories::MetricRepository.new
+    )
+    DependencyContainer.register(
+      :alert_repository,
+      Repositories::AlertRepository.new
+    )
+  end
+
   # Remove this line if you're not using ActiveRecord or ActiveRecord fixtures
-  config.fixture_path = Rails.root.join("spec/fixtures")
+  config.fixture_paths = [Rails.root.join("spec/fixtures")]
 
   # If you're not using ActiveRecord, or you'd prefer not to run each of your
   # examples within a transaction, remove the following line or assign false
@@ -86,6 +107,14 @@ RSpec.configure do |config|
   # Include Redis helpers for testing
   config.include RedisHelpers, type: :integration
   config.include RedisHelpers, type: :adapter
+
+  # Include Rails request helpers for request specs
+  config.include Rails.application.routes.url_helpers, type: :request
+  config.include ActionDispatch::TestProcess::FixtureFile, type: :request
+  config.include ActionDispatch::IntegrationTest::Behavior, type: :request
+
+  # Include API request helpers for all request specs
+  config.include_context "api_request_helpers", type: :request
 
   # Skip Redis-dependent tests if Redis is not available
   config.before(:suite) do

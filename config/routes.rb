@@ -24,11 +24,19 @@ Rails.application.routes.draw do
       # Example: POST /api/v1/events?source=github
       resources :events, only: [:create, :index, :show]
 
-      # Metrics
-      resources :metrics, only: [:index, :show]
+      # Metrics with analyze action
+      resources :metrics, only: [:index, :show] do
+        member do
+          post :analyze # Endpoint for detecting anomalies
+        end
+      end
 
-      # Alerts
-      resources :alerts, only: [:index, :show]
+      # Alerts with notify action
+      resources :alerts, only: [:index, :show] do
+        member do
+          post :notify # Endpoint for sending notifications
+        end
+      end
     end
   end
 

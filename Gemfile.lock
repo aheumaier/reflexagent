@@ -80,6 +80,7 @@ GEM
       tzinfo (~> 2.0)
     addressable (2.8.7)
       public_suffix (>= 2.0.2, < 7.0)
+    ansi (1.5.0)
     ast (2.4.3)
     base64 (0.2.0)
     benchmark (0.4.0)
@@ -102,6 +103,7 @@ GEM
       ruby-next (>= 0.15.0)
     chromable (0.3.5)
       chroma-db (>= 0.7.0)
+    colorize (1.1.0)
     concurrent-ruby (1.3.5)
     connection_pool (2.5.3)
     crass (1.0.6)
@@ -351,7 +353,15 @@ GEM
       docile (~> 1.1)
       simplecov-html (~> 0.11)
       simplecov_json_formatter (~> 0.1)
+    simplecov-console (0.9.3)
+      ansi
+      simplecov
+      terminal-table
     simplecov-html (0.13.1)
+    simplecov-json (0.2.3)
+      json
+      simplecov
+    simplecov-lcov (0.8.0)
     simplecov_json_formatter (0.1.4)
     sprockets (4.2.2)
       concurrent-ruby (~> 1.0)
@@ -374,6 +384,8 @@ GEM
     tailwindcss-ruby (4.1.5-x86_64-darwin)
     tailwindcss-ruby (4.1.5-x86_64-linux-gnu)
     tailwindcss-ruby (4.1.5-x86_64-linux-musl)
+    terminal-table (4.0.0)
+      unicode-display_width (>= 1.1.1, < 4)
     thor (1.3.2)
     tilt (2.6.0)
     timeout (0.4.3)
@@ -418,6 +430,7 @@ DEPENDENCIES
   bootsnap
   capybara
   chromable (~> 0.3.5)
+  colorize (~> 1.1)
   connection_pool (~> 2.4)
   cssbundling-rails
   debug
@@ -440,6 +453,9 @@ DEPENDENCIES
   sidekiq-cron (~> 1.10)
   sidekiq-scheduler (~> 5.0)
   simplecov (~> 0.22.0)
+  simplecov-console (~> 0.9.1)
+  simplecov-json
+  simplecov-lcov (~> 0.8.0)
   sprockets-rails
   stimulus-rails
   tailwindcss-rails (~> 4.2)

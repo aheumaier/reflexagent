@@ -1,13 +1,9 @@
 require "rails_helper"
-require_relative "../../app/adapters/repositories/alert_repository"
-require_relative "../../app/models/domain_alert"
-require_relative "../../app/core/domain/alert"
-require_relative "../../app/core/domain/metric"
 
 RSpec.describe "Alert Persistence", type: :integration do
   include_context "alert examples"
 
-  let(:repository) { Adapters::Repositories::AlertRepository.new }
+  let(:repository) { Repositories::AlertRepository.new }
 
   describe "end-to-end persistence" do
     before do

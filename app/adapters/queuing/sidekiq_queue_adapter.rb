@@ -30,6 +30,20 @@ module Queuing
       anomaly_detection: 10
     }
 
+    # Helper method to execute a block with a Redis connection
+    # @param purpose [Symbol] The purpose of the connection (default, queue, etc.)
+    # @yield [Redis] A Redis client
+    # @return [Object] The result of the block
+    def with_redis(purpose = :queue, &block)
+      if defined?(Cache::RedisCache) && Cache::RedisCache.respond_to?(:with_redis)
+        Cache::RedisCache.with_redis(purpose, &block)
+      else
+        # Fallback for test environment
+        redis_client = Redis.new(url: ENV.fetch("REDIS_URL", "redis://localhost:6379/0"))
+        block.call(redis_client)
+      end
+    end
+
     # Enqueues a raw webhook payload for initial processing
     # @param raw_payload [String] The raw JSON webhook payload
     # @param source [String] The source of the webhook (github, jira, etc.)
@@ -128,6 +142,27 @@ module Queuing
     def backpressure?
       queue_depths.any? do |queue_key, depth|
         depth >= MAX_QUEUE_SIZE[queue_key]
+      end
+    end
+
+    # Add a method to get the next batch of events for testing
+    # @param queue_type [Symbol] The type of queue to get events from
+    # @param batch_size [Integer] The number of events to retrieve
+    # @return [Array] An array of events
+    def get_next_batch(queue_type, batch_size = BATCH_SIZE[queue_type])
+      # Implementation for tests
+      with_redis do |redis|
+        queue_name = "queue:events:#{queue_type}"
+        items = []
+
+        batch_size.times do
+          item = redis.lpop(queue_name)
+          break unless item
+
+          items << JSON.parse(item)
+        end
+
+        items
       end
     end
 

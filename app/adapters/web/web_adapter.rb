@@ -80,15 +80,16 @@ module Web
       has_commits = payload.key?(:commits) || payload.key?("commits")
       is_deleted = payload[:deleted] || payload["deleted"]
 
+      # Check for branch/tag deletion events (delete event)
+      # This check needs to come before the create event check
+      return "delete" if ref_type && ref && is_deleted
+
       # SPECIAL FOR CREATE EVENT: Use the fact that no action field indicates it's a "create" event
       # This is an important check for our branch creation events
       return "create" if ref_type && ref && !has_commits && !payload.key?(:action) && !payload.key?("action")
 
       # Check for branch/tag creation events (create event)
       return "create" if ref_type && ref && !has_commits
-
-      # Check for branch/tag deletion events (delete event)
-      return "delete" if ref_type && ref && is_deleted
 
       # Check for push events
       return "push" if ref && has_commits

@@ -1,4 +1,4 @@
-name: Deploy to Render
+name: Test & Deploy to Render
 
 on:
   push:
@@ -6,12 +6,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  build_and_test:
-    name: Run Tests Before Deploy
+  # Unit tests stage - fastest and most focused tests
+  unit_tests:
+    name: Run Unit Tests
     runs-on: ubuntu-latest
     services:
       postgres:
-        image: postgres:14
+        image: postgres:16
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -49,16 +50,121 @@ jobs:
       run: |
         bundle exec rails db:prepare
     
-    - name: Run all tests
+    - name: Run unit tests
       env:
         RAILS_ENV: test
         DATABASE_URL: postgres://postgres:postgres@localhost:5432/reflexagent_test
         REDIS_URL: redis://localhost:6379/1
-      run: bundle exec rspec
+      run: bundle exec rake test:unit
 
+  # Integration tests stage - tests component interactions
+  integration_tests:
+    name: Run Integration Tests
+    needs: unit_tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: reflexagent_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 3.3.2
+        bundler-cache: true
+    
+    - name: Setup database
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/reflexagent_test
+      run: |
+        bundle exec rails db:prepare
+    
+    - name: Run integration tests
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/reflexagent_test
+        REDIS_URL: redis://localhost:6379/1
+      run: bundle exec rake test:integration
+
+  # End-to-End tests stage - tests the complete system
+  e2e_tests:
+    name: Run E2E Tests
+    needs: integration_tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: reflexagent_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - uses: actions/checkout@v3
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 3.3.2
+        bundler-cache: true
+    
+    - name: Setup database
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/reflexagent_test
+      run: |
+        bundle exec rails db:prepare
+    
+    - name: Run E2E tests
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/reflexagent_test
+        REDIS_URL: redis://localhost:6379/1
+      run: bundle exec rake test:e2e
+
+  # Deployment only happens if all test stages pass
   deploy:
     name: Deploy to Render
-    needs: build_and_test
+    needs: [unit_tests, integration_tests, e2e_tests]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
