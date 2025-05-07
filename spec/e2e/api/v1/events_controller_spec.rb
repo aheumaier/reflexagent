@@ -1,7 +1,9 @@
 require "rails_helper"
+require "support/webhook_authentication_test_helper"
 
 RSpec.describe "Events API", type: :request do
   include Rails.application.routes.url_helpers
+  include WebhookAuthenticationTestHelper
 
   let(:valid_token) { "test_token" }
   let(:github_payload_hash) do
@@ -21,9 +23,6 @@ RSpec.describe "Events API", type: :request do
   let(:event_id) { "event-123" }
 
   before do
-    # Enable test mode for webhook authentication
-    allow(Rails.env).to receive(:local?).and_return(true)
-
     # For generating event IDs
     allow(SecureRandom).to receive(:uuid).and_return(event_id)
 
@@ -33,13 +32,16 @@ RSpec.describe "Events API", type: :request do
 
     # Default behavior for queue adapter (can be overridden in specific tests)
     allow(queue_adapter).to receive(:enqueue_raw_event).and_return(true)
+
+    # Directly bypass authentication - using the new method name
+    allow_any_instance_of(Api::V1::EventsController).to receive(:authenticate_webhook!).and_return(true)
   end
 
   describe "POST /api/v1/events" do
     it "accepts the webhook with valid parameters" do
       post "/api/v1/events?source=github",
-           as: :json,
-           params: github_payload_hash
+           params: github_payload_hash.to_json,
+           headers: with_webhook_auth
 
       expect(response).to have_http_status(:accepted)
 
@@ -58,8 +60,8 @@ RSpec.describe "Events API", type: :request do
 
       it "returns a too many requests status with retry information" do
         post "/api/v1/events?source=github",
-             as: :json,
-             params: github_payload_hash
+             params: github_payload_hash.to_json,
+             headers: with_webhook_auth
 
         expect(response).to have_http_status(:too_many_requests)
 
@@ -90,7 +92,8 @@ RSpec.describe "Events API", type: :request do
       end
 
       it "returns 200 and the event data" do
-        get "/api/v1/events/#{event_id}"
+        get "/api/v1/events/#{event_id}",
+            headers: with_webhook_auth
 
         expect(response).to have_http_status(:ok)
         json = JSON.parse(response.body)
@@ -107,7 +110,8 @@ RSpec.describe "Events API", type: :request do
       end
 
       it "returns 404" do
-        get "/api/v1/events/non-existent"
+        get "/api/v1/events/non-existent",
+            headers: with_webhook_auth
 
         expect(response).to have_http_status(:not_found)
         json = JSON.parse(response.body)
