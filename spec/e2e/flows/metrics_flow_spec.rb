@@ -1,7 +1,4 @@
 require "rails_helper"
-require_relative "../../../app/adapters/repositories/event_repository"
-require_relative "../../../app/adapters/repositories/metric_repository"
-require_relative "../../../app/adapters/repositories/alert_repository"
 
 RSpec.describe "Metrics Flow Integration", type: :integration do
   # We'll use real implementations instead of doubles where possible
