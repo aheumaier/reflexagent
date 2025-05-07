@@ -5,14 +5,12 @@ class MetricAggregationJob
 
   sidekiq_options queue: "metric_aggregation", retry: 3
 
-  def perform(time_period = "5min")
+  def perform(time_period = "daily")
     Rails.logger.info("Starting metric aggregation for period: #{time_period}")
 
     # Get timestamp range for this aggregation period
     end_time = Time.current
     start_time = case time_period
-                 when "5min"
-                   5.minutes.ago
                  when "hourly"
                    1.hour.ago
                  when "daily"
@@ -22,18 +20,14 @@ class MetricAggregationJob
                  when "yearly"
                    1.year.ago
                  else
-                   5.minutes.ago
+                   1.day.ago
                  end
 
     # Process metrics in this time window
     metrics_count = process_metrics_in_window(start_time, end_time, time_period)
 
     # Only generate DORA metrics for daily or longer periods
-    if ["daily", "monthly", "yearly"].include?(time_period)
-      Rails.logger.info("Generating DORA metrics for period: #{time_period}")
-      dora_metrics_count = process_dora_metrics(time_period)
-      Rails.logger.info("Generated #{dora_metrics_count} DORA metrics")
-    end
+    dora_metrics_count = process_dora_metrics(time_period) if ["daily", "monthly", "yearly"].include?(time_period)
 
     Rails.logger.info("Completed metric aggregation for period: #{time_period}, processed #{metrics_count} metrics")
   rescue StandardError => e

@@ -1,8 +1,9 @@
+# frozen_string_literal: true
+
 require "rails_helper"
 
 # Integration Test for API v1 Events Controller
-RSpec.describe "Api::V1::EventsController",
-               skip: "Test is failing due to authentication issues that need to be fixed separately", type: :request do
+RSpec.describe "Api::V1::EventsController", type: :request do
   # Include Rails testing helpers explicitly
   include ActionDispatch::IntegrationTest::Behavior
   include Rails.application.routes.url_helpers
@@ -31,11 +32,17 @@ RSpec.describe "Api::V1::EventsController",
   # Disable authentication for all tests
   before do
     # Bypass authentication in the controller
-    allow_any_instance_of(Api::V1::EventsController).to receive(:authenticate_source!).and_return(true)
+    allow_any_instance_of(Api::V1::EventsController).to receive(:authenticate_webhook!).and_return(true)
     # Mock the authenticator
     allow(WebhookAuthenticator).to receive(:valid?).and_return(true)
     # Mock the Rails.env.local? method, not the controller
     allow(Rails.env).to receive(:local?).and_return(false)
+    # Ensure we're in test mode
+    allow(Rails.env).to receive(:test?).and_return(true)
+    allow(Rails.env).to receive(:development?).and_return(false)
+
+    # Mock SecureRandom to generate predictable IDs for testing
+    allow(SecureRandom).to receive(:uuid).and_return(event_id)
   end
 
   describe "GET /api/v1/events/:id" do
@@ -156,7 +163,7 @@ RSpec.describe "Api::V1::EventsController",
     context "with invalid authentication" do
       before do
         # Override the global authentication stub just for this test
-        allow_any_instance_of(Api::V1::EventsController).to receive(:authenticate_source!).and_call_original
+        allow_any_instance_of(Api::V1::EventsController).to receive(:authenticate_webhook!).and_call_original
         allow(WebhookAuthenticator).to receive(:valid?).and_return(false)
       end
 

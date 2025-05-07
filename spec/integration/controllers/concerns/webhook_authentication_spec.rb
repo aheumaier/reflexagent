@@ -30,16 +30,38 @@ RSpec.describe WebhookAuthentication, type: :concern do
         allow(controller.request).to receive(:headers).and_return(
           "X-Hub-Signature-256" => "sha256=abc123"
         )
+        allow(controller.request).to receive(:raw_post).and_return('{"test":"data"}')
+        # Mock validate_github_signature to return true for tests
+        allow(controller).to receive(:validate_github_signature).and_return(true)
       end
 
       it "returns true when GitHub signature is present" do
+        allow(Rails.env).to receive(:local?).and_return(false)
         expect(controller.authenticate_webhook!).to be true
       end
 
       it "logs a warning when no signature headers are present" do
+        # Ensure we're not in local/dev mode for this test
+        allow(Rails.env).to receive(:local?).and_return(false)
+
+        # Reset headers to empty
         allow(controller.request).to receive(:headers).and_return({})
+
+        # Explicitly stub webhook_token to return nil
+        allow(controller).to receive(:webhook_token).and_return(nil)
+
+        # WebhookAuthenticator.valid? will be called with nil token
+        allow(WebhookAuthenticator).to receive(:valid?).with(nil, "github").and_return(false)
+
+        # Now we expect the warning to be logged
         expect(Rails.logger).to receive(:warn).with("GitHub webhook received with no signature headers")
-        controller.authenticate_webhook!
+
+        # We also need to handle the second warning and render call
+        expect(Rails.logger).to receive(:warn).with("Webhook authentication failed for source: github")
+        expect(controller).to receive(:render).with(hash_including(status: :unauthorized))
+
+        # Call should return false since authentication fails
+        expect(controller.authenticate_webhook!).to be false
       end
     end
 

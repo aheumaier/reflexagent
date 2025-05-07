@@ -50,13 +50,14 @@ module WebhookAuthentication
         )
 
         unless result
-          head :unauthorized
+          # Use render instead of head for better testability
+          render(status: :unauthorized, json: { error: "Invalid signature" })
           return false
         end
 
         return true
       else
-        Rails.logger.warn("No GitHub signature headers found")
+        Rails.logger.warn("GitHub webhook received with no signature headers")
       end
     end
 
@@ -73,17 +74,28 @@ module WebhookAuthentication
 
     unless is_valid
       Rails.logger.warn("Webhook authentication failed for source: #{source}")
-      head :unauthorized
+      # Use render instead of head for better testability
+      render(status: :unauthorized, json: { error: "Invalid token" })
       return false
     end
 
     true
   end
 
+  # Method name alias for consistency with tests
+  # @param payload [String] The raw payload data
+  # @param signature [String] The signature to validate
+  # @param source [String] The source of the webhook (github, jira, etc.)
+  # @return [Boolean] Whether the signature is valid
+  def validate_webhook_signature(payload, signature, source = "github")
+    # For non-GitHub sources, return true as they use token auth instead
+    return true unless source.downcase == "github"
+
+    validate_github_signature(payload, signature, source)
+  end
+
   # Validate a GitHub webhook signature (SHA-256 or SHA-1)
   def validate_github_signature(payload, signature, source = "github")
-    return true if Rails.env.local?
-
     # Get the webhook secret
     secret = WebhookAuthenticator.secret_for(source)
 

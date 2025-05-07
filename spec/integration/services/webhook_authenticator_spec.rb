@@ -16,12 +16,6 @@ RSpec.describe WebhookAuthenticator do
         allow(ENV).to receive(:[]).with("GITHUB_WEBHOOK_SECRET").and_return("github_secret")
         allow(ENV).to receive(:[]).with("JIRA_WEBHOOK_SECRET").and_return("jira_secret")
         allow(ENV).to receive(:[]).with("DEFAULT_WEBHOOK_SECRET").and_return("default_secret")
-
-        # Debug what's being mocked
-        puts "Debug ENV mocks:"
-        puts "  ENV['GITHUB_WEBHOOK_SECRET'] => #{ENV['GITHUB_WEBHOOK_SECRET'].inspect}"
-        puts "  ENV['JIRA_WEBHOOK_SECRET'] => #{ENV['JIRA_WEBHOOK_SECRET'].inspect}"
-        puts "  ENV['DEFAULT_WEBHOOK_SECRET'] => #{ENV['DEFAULT_WEBHOOK_SECRET'].inspect}"
       end
 
       it "returns true for valid GitHub token" do
