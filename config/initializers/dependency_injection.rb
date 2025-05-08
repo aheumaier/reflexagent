@@ -4,7 +4,8 @@
 # for wiring ports to adapters in our Hexagonal Architecture
 class DependencyContainer
   class << self
-    def register(port, adapter)
+    def register(port, adapter = nil, &block)
+      adapter = block.call if block_given? && adapter.nil?
       Rails.logger.info { "Registering adapter for port: #{port} with #{adapter.class.name}" }
       adapters[port] = adapter
     end
@@ -38,6 +39,8 @@ Rails.application.config.after_initialize do
     require_relative "../../app/core/domain/actuator"
     require_relative "../../app/core/domain/reflexive_agent"
     require_relative "../../app/core/domain/metric_classifier"
+    require_relative "../../app/core/domain/team"
+    require_relative "../../app/core/domain/code_repository"
 
     # Load classifiers
     require_relative "../../app/core/domain/classifiers/base_classifier"
@@ -56,6 +59,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/ports/cache_port"
     require_relative "../../app/ports/queue_port"
     require_relative "../../app/ports/notification_port"
+    require_relative "../../app/ports/team_repository_port"
 
     # Only after ALL ports are loaded, load adapter classes
     require_relative "../../app/adapters/web/web_adapter"
@@ -66,6 +70,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/adapters/notifications/slack_notifier"
     require_relative "../../app/adapters/notifications/email_notifier"
     require_relative "../../app/adapters/queuing/sidekiq_queue_adapter"
+    require_relative "../../app/adapters/repositories/team_repository"
 
     # Now register them
     Rails.logger.info "Registering adapters..."
@@ -153,6 +158,27 @@ Rails.application.config.after_initialize do
         dimension_extractor: dimension_extractor
       )
     )
+
+    # Register team repository port
+    DependencyContainer.register(:team_repository) do
+      Repositories::TeamRepository.new
+    end
+
+    # Register team repository use cases
+    DependencyContainer.register(:list_team_repositories_use_case) do
+      UseCases::ListTeamRepositories.new(
+        team_repository_port: DependencyContainer.resolve(:team_repository),
+        cache_port: DependencyContainer.resolve(:cache_port),
+        logger_port: Rails.logger
+      )
+    end
+
+    DependencyContainer.register(:register_repository_use_case) do
+      UseCases::RegisterRepository.new(
+        team_repository_port: DependencyContainer.resolve(:team_repository),
+        logger_port: Rails.logger
+      )
+    end
 
     Rails.logger.info "Dependency injection initialized with ports: #{DependencyContainer.adapters.keys.inspect}"
   rescue StandardError => e

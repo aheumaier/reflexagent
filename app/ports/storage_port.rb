@@ -133,4 +133,14 @@ module StoragePort
   def commit_activity_by_day(since:, repository: nil)
     raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
   end
+
+  # Get active repositories with optimized DB-level aggregation
+  # @param start_time [Time] The start time for filtering activity
+  # @param limit [Integer] Maximum number of repositories to return
+  # @param page [Integer] Page number for pagination
+  # @param per_page [Integer] Items per page for pagination
+  # @return [Array<String>] List of repository names
+  def get_active_repositories(start_time:, limit: 50, page: nil, per_page: nil)
+    raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+  end
 end
