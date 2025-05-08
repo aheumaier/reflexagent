@@ -41,11 +41,6 @@ RSpec.describe "CommitMetricsFlow", type: :integration do
       allow(DependencyContainer).to receive(:resolve).with(:metric_repository).and_return(repository)
       allow(DependencyContainer).to receive(:resolve).with(:dashboard_adapter).and_return(mock_dashboard_adapter)
 
-      # Mock the ServiceFactory to use our repository
-      allow(ServiceFactory).to receive(:create_metrics_service).and_return(
-        MetricsService.new(storage_port: repository, cache_port: repository)
-      )
-
       # Set up mock dashboard adapter responses
       allow(mock_dashboard_adapter).to receive(:get_available_repositories)
         .with(time_period: 30, limit: 1)
@@ -59,28 +54,25 @@ RSpec.describe "CommitMetricsFlow", type: :integration do
       allow(mock_dashboard_adapter).to receive(:get_repository_commit_analysis) do |args|
         repo = args[:repository]
 
-        # Create a metrics service to access the repository data
-        metrics_service = MetricsService.new(storage_port: repository, cache_port: repository)
-
-        # Get directory hotspots
-        directory_data = metrics_service.top_metrics(
-          "github.push.directory_changes.daily",
-          dimension: "directory",
-          limit: 10,
-          days: 30
-        )
+        # Get directory hotspots directly from repository
+        directory_data = repository.list_metrics(
+          name: "github.push.directory_changes.daily",
+          dimensions: { directory: nil },
+          start_time: 30.days.ago
+        ).group_by { |m| m.dimensions["directory"] }
+                                   .transform_values { |metrics| metrics.sum(&:value) }
 
         directory_hotspots = directory_data.map do |directory, count|
           { directory: directory, count: count }
         end
 
-        # Get file extension hotspots
-        filetype_data = metrics_service.top_metrics(
-          "github.push.filetype_changes.daily",
-          dimension: "filetype",
-          limit: 10,
-          days: 30
-        )
+        # Get file extension hotspots directly from repository
+        filetype_data = repository.list_metrics(
+          name: "github.push.filetype_changes.daily",
+          dimensions: { filetype: nil },
+          start_time: 30.days.ago
+        ).group_by { |m| m.dimensions["filetype"] }
+                                  .transform_values { |metrics| metrics.sum(&:value) }
 
         file_extension_hotspots = filetype_data.map do |filetype, count|
           { extension: filetype, count: count }
