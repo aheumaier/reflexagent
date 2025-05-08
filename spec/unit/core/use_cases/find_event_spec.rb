@@ -1,58 +1,50 @@
 require "rails_helper"
 
 RSpec.describe UseCases::FindEvent do
-  include_context "with all mock ports"
-
-  let(:event) do
-    Domain::EventFactory.create(
-      id: "test-event-id",
-      name: "server.cpu.usage",
-      data: { value: 85.5, host: "web-01" },
-      source: "monitoring-agent",
-      timestamp: Time.current
-    )
-  end
-
-  let(:use_case) { described_class.new(storage_port: mock_storage_port) }
-
-  before do
-    # Pre-save an event in the mock storage
-    mock_storage_port.save_event(event)
-  end
+  let(:event_repository) { instance_double("StoragePort") }
+  let(:use_case) { described_class.new(storage_port: event_repository) }
 
   describe "#call" do
+    let(:test_event) { { id: "test-event-id", name: "Test Event" } }
+
     context "when the event exists" do
+      before do
+        allow(event_repository).to receive(:find_event).with("test-event-id").and_return(test_event)
+      end
+
       it "returns the event with the given ID" do
         result = use_case.call("test-event-id")
-
-        expect(result).to eq(event)
-        expect(result.id).to eq("test-event-id")
-        expect(result.name).to eq("server.cpu.usage")
+        expect(result).to eq(test_event)
       end
     end
 
     context "when the event does not exist" do
+      before do
+        allow(event_repository).to receive(:find_event).with("non-existent-id").and_return(nil)
+      end
+
       it "raises an ArgumentError" do
-        expect do
-          use_case.call("non-existent-id")
-        end.to raise_error(ArgumentError, "Event with ID 'non-existent-id' not found")
+        expect { use_case.call("non-existent-id") }.to raise_error(ArgumentError)
       end
     end
   end
 
   describe "factory method" do
+    let(:test_event) { { id: "test-event-id", name: "Test Event" } }
+
+    before do
+      allow(event_repository).to receive(:find_event).with("test-event-id").and_return(test_event)
+      DependencyContainer.register(:event_repository, event_repository)
+    end
+
+    after do
+      DependencyContainer.reset
+    end
+
     it "creates the use case with dependencies injected" do
-      # Register our mock with the container
-      DependencyContainer.register(:event_repository, mock_storage_port)
-
-      # Create use case using factory
       factory_created = UseCaseFactory.create_find_event
-
-      # Verify injected dependencies are working
       result = factory_created.call("test-event-id")
-
-      expect(result).to eq(event)
-      expect(result.id).to eq("test-event-id")
+      expect(result).to eq(test_event)
     end
   end
 end

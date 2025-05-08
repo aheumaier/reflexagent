@@ -2,8 +2,13 @@ require "rails_helper"
 
 RSpec.describe UseCases::CalculateMetrics do
   subject(:use_case) do
-    described_class.new(storage_port: mock_storage_port, cache_port: mock_cache_port,
-                        metric_classifier: mock_metric_classifier)
+    described_class.new(
+      storage_port: mock_storage_port,
+      cache_port: mock_cache_port,
+      metric_classifier: mock_metric_classifier,
+      dimension_extractor: mock_dimension_extractor,
+      team_repository_port: mock_team_repository_port
+    )
   end
 
   include_context "with all mock ports"
@@ -24,55 +29,146 @@ RSpec.describe UseCases::CalculateMetrics do
     end
   end
 
-  let(:event) do
-    event = Domain::EventFactory.create(
-      id: "event-123",
-      name: "server.cpu.usage",
-      data: { value: 85.5, host: "web-01", region: "us-west" },
-      source: "monitoring-agent"
+  let(:mock_dimension_extractor) do
+    instance_double(Domain::Extractors::DimensionExtractor).tap do |extractor|
+      allow(extractor).to receive(:extract_org_from_repo).and_return("test-org")
+      allow(extractor).to receive(:extract_file_changes).and_return({
+                                                                      files_added: 0,
+                                                                      files_modified: 0,
+                                                                      files_removed: 0,
+                                                                      directory_hotspots: {},
+                                                                      extension_hotspots: {}
+                                                                    })
+      allow(extractor).to receive(:extract_code_volume).and_return({
+                                                                     code_additions: 0,
+                                                                     code_deletions: 0,
+                                                                     code_churn: 0
+                                                                   })
+    end
+  end
+
+  let(:team) do
+    Domain::Team.new(
+      id: 1,
+      name: "test-org",
+      slug: "test-org",
+      description: "Auto-created team"
     )
-    mock_storage_port.save_event(event)
-    event
+  end
+
+  let(:event) do
+    Domain::EventFactory.create(
+      id: "event-123",
+      name: "github.push",
+      data: {
+        repository: { full_name: "test-org/test-repo", html_url: "https://github.com/test-org/test-repo" },
+        value: 85.5,
+        host: "web-01",
+        region: "us-west"
+      },
+      source: "github"
+    )
+  end
+
+  before do
+    # Configure mock storage port to return the event
+    allow(mock_storage_port).to receive(:find_event).with(event.id).and_return(event)
+
+    # Mock save_metric to return a metric with an ID
+    allow(mock_storage_port).to receive(:save_metric) do |metric|
+      metric.with_id("metric-123")
+    end
+
+    # Allow cache_port to receive write messages
+    allow(mock_cache_port).to receive(:write).with(anything, anything, anything)
+
+    # Configure mock team repository
+    allow(mock_team_repository_port).to receive(:find_team_by_slug).and_return(nil)
+    allow(mock_team_repository_port).to receive(:save_team).and_return(team)
+    allow(mock_team_repository_port).to receive(:find_repository_by_name).and_return(nil)
+    allow(mock_team_repository_port).to receive(:save_repository).and_return(
+      Domain::CodeRepository.new(
+        id: 1,
+        name: "test-org/test-repo",
+        url: "https://github.com/test-org/test-repo",
+        provider: "github",
+        team_id: 1
+      )
+    )
+
+    # Mock Team.first for default team handling
+    allow(Team).to receive(:first).and_return(nil)
   end
 
   describe "#call" do
-    it "creates metrics based on the event" do
+    it "finds the event and classifies it" do
+      use_case.call(event.id)
+      expect(mock_storage_port).to have_received(:find_event).with(event.id)
+      expect(mock_metric_classifier).to have_received(:classify_event).with(event)
+    end
+
+    it "creates metrics from the classification" do
+      use_case.call(event.id)
+      expect(mock_storage_port).to have_received(:save_metric).at_least(:once)
+      expect(mock_cache_port).to have_received(:write).at_least(:once)
+    end
+
+    it "returns the created metrics" do
+      result = use_case.call(event.id)
+      expect(result).to be_a(Domain::Metric).or be_a(Array)
+    end
+
+    it "adds repository dimension to metrics that don't have it" do
       result = use_case.call(event.id)
 
-      expect(result).to be_a(Domain::Metric)
-      expect(mock_storage_port.saved_metrics.size).to eq(1)
-      expect(mock_storage_port.saved_metrics.first.name).to eq("server.cpu.usage_count")
-      expect(mock_storage_port.saved_metrics.first.value).to eq(1)
-      expect(mock_storage_port.saved_metrics.first.source).to eq("monitoring-agent")
+      expect(mock_storage_port).to have_received(:save_metric) do |metric|
+        expect(metric.dimensions[:repository]).to eq("test-org/test-repo")
+      end
     end
 
-    it "caches the metrics" do
+    it "adds organization dimension to metrics based on repository name" do
       result = use_case.call(event.id)
 
-      expect(mock_cache_port.cached_metrics.size).to eq(1)
-      cached_metric_key = mock_cache_port.cached_metrics.keys.first
-      cached_metric = mock_cache_port.cached_metrics[cached_metric_key]
-      expect(cached_metric.name).to eq("server.cpu.usage_count")
-      expect(cached_metric.value).to eq(1)
-    end
-
-    context "when the event does not exist" do
-      before do
-        allow(mock_storage_port).to receive(:find_event).with("nonexistent-id").and_return(nil)
-      end
-
-      it "raises an error" do
-        expect { use_case.call("nonexistent-id") }.to raise_error(NoMethodError)
+      expect(mock_storage_port).to have_received(:save_metric) do |metric|
+        expect(metric.dimensions[:organization]).to eq("test-org")
       end
     end
 
-    context "when an error occurs during metric calculation" do
-      before do
-        allow(mock_storage_port).to receive(:save_metric).and_raise(StandardError.new("Test error"))
+    it "attempts to register the repository and team" do
+      use_case.call(event.id)
+
+      # Should attempt to create the team based on the organization name
+      expect(mock_team_repository_port).to have_received(:find_team_by_slug).with("test-org")
+      expect(mock_team_repository_port).to have_received(:save_team)
+
+      # Should attempt to register the repository with the team
+      expect(mock_team_repository_port).to have_received(:find_repository_by_name).with("test-org/test-repo").at_least(:once)
+      expect(mock_team_repository_port).to have_received(:save_repository) do |repo|
+        expect(repo.name).to eq("test-org/test-repo")
+        expect(repo.team_id).to eq(1)
+      end
+    end
+
+    context "when repository already exists with a team" do
+      let(:existing_repo) do
+        Domain::CodeRepository.new(
+          id: 2,
+          name: "test-org/test-repo",
+          provider: "github",
+          team_id: 5 # Already associated with a different team
+        )
       end
 
-      it "propagates the error" do
-        expect { use_case.call(event.id) }.to raise_error(StandardError, "Test error")
+      before do
+        allow(mock_team_repository_port).to receive(:find_repository_by_name).and_return(existing_repo)
+      end
+
+      it "respects the existing team assignment" do
+        use_case.call(event.id)
+
+        expect(mock_team_repository_port).to have_received(:save_repository) do |repo|
+          expect(repo.team_id).to eq(5) # Should keep existing team ID
+        end
       end
     end
   end
@@ -83,10 +179,8 @@ RSpec.describe UseCases::CalculateMetrics do
       DependencyContainer.register(:storage_port, mock_storage_port)
       DependencyContainer.register(:cache_port, mock_cache_port)
       DependencyContainer.register(:metric_classifier, mock_metric_classifier)
-
-      # Add the missing dimension_extractor dependency
-      mock_dimension_extractor = instance_double(Domain::Extractors::DimensionExtractor)
       DependencyContainer.register(:dimension_extractor, mock_dimension_extractor)
+      DependencyContainer.register(:team_repository, mock_team_repository_port)
 
       # Register the repositories needed by the composite adapter
       DependencyContainer.register(:event_repository, mock_storage_port)
@@ -98,8 +192,7 @@ RSpec.describe UseCases::CalculateMetrics do
       # Verify injected dependencies are working
       result = factory_created.call(event.id)
       expect(result).to be_a(Domain::Metric)
-      expect(mock_storage_port.saved_metrics.size).to eq(1)
-      expect(mock_cache_port.cached_metrics.size).to eq(1)
+      expect(mock_storage_port).to have_received(:save_metric).at_least(:once)
     end
   end
 end

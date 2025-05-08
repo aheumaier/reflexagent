@@ -9,6 +9,9 @@ require_relative "use_cases/list_metrics"
 require_relative "use_cases/list_alerts"
 require_relative "use_cases/analyze_commits"
 require_relative "use_cases/dashboard_metrics"
+require_relative "use_cases/register_repository"
+require_relative "use_cases/list_team_repositories"
+require_relative "use_cases/find_or_create_team"
 
 class UseCaseFactory
   class << self
@@ -16,7 +19,9 @@ class UseCaseFactory
       UseCases::ProcessEvent.new(
         ingestion_port: DependencyContainer.resolve(:ingestion_port),
         storage_port: DependencyContainer.resolve(:event_repository),
-        queue_port: DependencyContainer.resolve(:queue_port)
+        queue_port: DependencyContainer.resolve(:queue_port),
+        team_repository_port: DependencyContainer.resolve(:team_repository),
+        logger_port: Rails.logger
       )
     end
 
@@ -45,7 +50,8 @@ class UseCaseFactory
         storage_port: composite_repository,
         cache_port: DependencyContainer.resolve(:cache_port),
         metric_classifier: DependencyContainer.resolve(:metric_classifier),
-        dimension_extractor: DependencyContainer.resolve(:dimension_extractor)
+        dimension_extractor: DependencyContainer.resolve(:dimension_extractor),
+        team_repository_port: DependencyContainer.resolve(:team_repository)
       )
     end
 
@@ -105,6 +111,28 @@ class UseCaseFactory
       UseCases::DashboardMetrics.new(
         storage_port: DependencyContainer.resolve(:metric_repository),
         cache_port: DependencyContainer.resolve(:cache_port)
+      )
+    end
+
+    def create_register_repository
+      UseCases::RegisterRepository.new(
+        team_repository_port: DependencyContainer.resolve(:team_repository),
+        logger_port: Rails.logger
+      )
+    end
+
+    def create_list_team_repositories
+      UseCases::ListTeamRepositories.new(
+        team_repository_port: DependencyContainer.resolve(:team_repository),
+        cache_port: DependencyContainer.resolve(:cache_port),
+        logger_port: Rails.logger
+      )
+    end
+
+    def create_find_or_create_team
+      UseCases::FindOrCreateTeam.new(
+        team_repository_port: DependencyContainer.resolve(:team_repository),
+        logger_port: Rails.logger
       )
     end
   end

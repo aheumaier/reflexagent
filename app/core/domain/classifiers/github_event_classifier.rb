@@ -39,6 +39,8 @@ module Domain
           classify_workflow_job_event(event, action)
         when "workflow_dispatch"
           classify_workflow_dispatch_event(event)
+        when "repository"
+          classify_repository_event(event, action)
         # Handle CI-specific events from GitHub
         when "ci"
           classify_ci_event(event)
@@ -1010,6 +1012,39 @@ module Domain
             )
           ]
         }
+      end
+
+      # Handle repository events (created, deleted, publicized, privatized, etc.)
+      def classify_repository_event(event, action)
+        # Default to 'total' if action is nil
+        action ||= "total"
+        dimensions = extract_dimensions(event)
+
+        metrics = [
+          create_metric(
+            name: "github.repository.#{action}",
+            value: 1,
+            dimensions: dimensions
+          ),
+          create_metric(
+            name: "github.repository.total",
+            value: 1,
+            dimensions: dimensions
+          )
+        ]
+
+        # Additional metrics for specific repository actions
+        case action
+        when "created", "publicized", "privatized", "edited", "renamed", "transferred"
+          # These actions might trigger repository registration
+          metrics << create_metric(
+            name: "github.repository.registration_event",
+            value: 1,
+            dimensions: dimensions
+          )
+        end
+
+        { metrics: metrics }
       end
 
       # Handle CI-specific events from GitHub Actions

@@ -14,28 +14,53 @@ module UseCases
       start_time = time_period.days.ago
       log_info("Calculating deployment frequency for past #{time_period} days")
 
-      # First try getting github.ci.deploy.completed metrics
+      # First try looking for the specific DORA deployment frequency metric
       deployments = @storage_port.list_metrics(
-        name: "github.ci.deploy.completed",
+        name: "dora.deployment_frequency",
         start_time: start_time
       )
 
-      # If no metrics found, try looking for successful github deployment_status metrics
+      # If no metrics found, try looking for hourly metrics
       if deployments.empty?
-        log_info("No CI deploy metrics found, checking deployment_status metrics")
+        log_info("No dora.deployment_frequency metrics found, checking hourly metrics")
         deployments = @storage_port.list_metrics(
-          name: "github.deployment_status.success",
+          name: "dora.deployment_frequency.hourly",
           start_time: start_time
         )
       end
 
-      # If still no metrics, check for general deployment metrics
+      # If still no metrics, check for 5min metrics
       if deployments.empty?
-        log_info("No deployment_status.success metrics found, checking general deployment metrics")
+        log_info("No hourly deployment frequency metrics found, checking 5min metrics")
         deployments = @storage_port.list_metrics(
-          name: "github.deployment.total",
+          name: "dora.deployment_frequency.5min",
           start_time: start_time
         )
+      end
+
+      # Try traditional raw metrics if no DORA metrics found
+      if deployments.empty?
+        log_info("No DORA metrics found, trying github metrics")
+        deployments = @storage_port.list_metrics(
+          name: "github.ci.deploy.completed",
+          start_time: start_time
+        )
+
+        if deployments.empty?
+          log_info("No CI deploy metrics found, checking deployment_status metrics")
+          deployments = @storage_port.list_metrics(
+            name: "github.deployment_status.success",
+            start_time: start_time
+          )
+        end
+
+        if deployments.empty?
+          log_info("No deployment_status.success metrics found, checking general deployment metrics")
+          deployments = @storage_port.list_metrics(
+            name: "github.deployment.total",
+            start_time: start_time
+          )
+        end
       end
 
       total_deployments = deployments.count
@@ -44,7 +69,6 @@ module UseCases
       # Group by day (for additional context, not primary calculation)
       deployments_by_day = deployments.group_by do |metric|
         date_str = metric.timestamp.strftime("%Y-%m-%d")
-        log_info("Deployment on date: #{date_str}")
         date_str
       end
 

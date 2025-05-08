@@ -60,6 +60,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/ports/queue_port"
     require_relative "../../app/ports/notification_port"
     require_relative "../../app/ports/team_repository_port"
+    require_relative "../../app/ports/dashboard_port"
 
     # Only after ALL ports are loaded, load adapter classes
     require_relative "../../app/adapters/web/web_adapter"
@@ -71,6 +72,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/adapters/notifications/email_notifier"
     require_relative "../../app/adapters/queuing/sidekiq_queue_adapter"
     require_relative "../../app/adapters/repositories/team_repository"
+    require_relative "../../app/adapters/dashboard/dashboard_adapter"
 
     # Now register them
     Rails.logger.info "Registering adapters..."
@@ -164,21 +166,17 @@ Rails.application.config.after_initialize do
       Repositories::TeamRepository.new
     end
 
-    # Register team repository use cases
-    DependencyContainer.register(:list_team_repositories_use_case) do
-      UseCases::ListTeamRepositories.new(
-        team_repository_port: DependencyContainer.resolve(:team_repository),
+    # Register dashboard adapter
+    DependencyContainer.register(:dashboard_adapter) do
+      Dashboard::DashboardAdapter.new(
+        storage_port: DependencyContainer.resolve(:metric_repository),
         cache_port: DependencyContainer.resolve(:cache_port),
         logger_port: Rails.logger
       )
     end
 
-    DependencyContainer.register(:register_repository_use_case) do
-      UseCases::RegisterRepository.new(
-        team_repository_port: DependencyContainer.resolve(:team_repository),
-        logger_port: Rails.logger
-      )
-    end
+    # Load the UseCaseFactory for clients to obtain use cases
+    require_relative "../../app/core/use_case_factory"
 
     Rails.logger.info "Dependency injection initialized with ports: #{DependencyContainer.adapters.keys.inspect}"
   rescue StandardError => e

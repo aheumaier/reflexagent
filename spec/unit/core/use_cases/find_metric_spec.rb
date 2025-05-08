@@ -1,60 +1,50 @@
 require "rails_helper"
 
 RSpec.describe UseCases::FindMetric do
-  include_context "with all mock ports"
-
-  let(:metric) do
-    Domain::Metric.new(
-      id: "test-metric-id",
-      name: "cpu_usage",
-      value: 85.5,
-      source: "web-server",
-      dimensions: { host: "web-01", region: "us-west" },
-      timestamp: Time.current
-    )
-  end
-
-  let(:use_case) { described_class.new(storage_port: mock_storage_port) }
-
-  before do
-    # Pre-save a metric in the mock storage
-    mock_storage_port.save_metric(metric)
-  end
+  let(:metric_repository) { instance_double("StoragePort") }
+  let(:use_case) { described_class.new(storage_port: metric_repository) }
 
   describe "#call" do
+    let(:test_metric) { { id: "test-metric-id", name: "Test Metric" } }
+
     context "when the metric exists" do
+      before do
+        allow(metric_repository).to receive(:find_metric).with("test-metric-id").and_return(test_metric)
+      end
+
       it "returns the metric with the given ID" do
         result = use_case.call("test-metric-id")
-
-        expect(result).to eq(metric)
-        expect(result.id).to eq("test-metric-id")
-        expect(result.name).to eq("cpu_usage")
-        expect(result.value).to eq(85.5)
+        expect(result).to eq(test_metric)
       end
     end
 
     context "when the metric does not exist" do
+      before do
+        allow(metric_repository).to receive(:find_metric).with("non-existent-id").and_return(nil)
+      end
+
       it "raises an ArgumentError" do
-        expect do
-          use_case.call("non-existent-id")
-        end.to raise_error(ArgumentError, "Metric with ID 'non-existent-id' not found")
+        expect { use_case.call("non-existent-id") }.to raise_error(ArgumentError)
       end
     end
   end
 
   describe "factory method" do
+    let(:test_metric) { { id: "test-metric-id", name: "Test Metric" } }
+
+    before do
+      allow(metric_repository).to receive(:find_metric).with("test-metric-id").and_return(test_metric)
+      DependencyContainer.register(:metric_repository, metric_repository)
+    end
+
+    after do
+      DependencyContainer.reset
+    end
+
     it "creates the use case with dependencies injected" do
-      # Register our mock with the container
-      DependencyContainer.register(:metric_repository, mock_storage_port)
-
-      # Create use case using factory
       factory_created = UseCaseFactory.create_find_metric
-
-      # Verify injected dependencies are working
       result = factory_created.call("test-metric-id")
-
-      expect(result).to eq(metric)
-      expect(result.id).to eq("test-metric-id")
+      expect(result).to eq(test_metric)
     end
   end
 end

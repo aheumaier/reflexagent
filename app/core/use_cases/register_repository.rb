@@ -8,13 +8,35 @@ module UseCases
       @logger_port = logger_port || Rails.logger
     end
 
-    # @param name [String] Repository name (e.g., "org/repo")
-    # @param url [String] Repository URL (optional)
-    # @param provider [String] Provider name (default: "github")
-    # @param team_id [Integer, String] Team ID to associate with (optional)
-    # @param team_slug [String] Alternative to team_id - the slug of the team (optional)
+    # Register or update a repository
+    # @overload call(name:, url: nil, provider: "github", team_id: nil, team_slug: nil)
+    #   @param name [String] Repository name (e.g., "org/repo")
+    #   @param url [String] Repository URL (optional)
+    #   @param provider [String] Provider name (default: "github")
+    #   @param team_id [Integer, String] Team ID to associate with (optional)
+    #   @param team_slug [String] Alternative to team_id - the slug of the team (optional)
+    # @overload call(repository)
+    #   @param repository [Domain::CodeRepository] The repository to save
     # @return [Domain::CodeRepository] The registered repository
-    def call(name:, url: nil, provider: "github", team_id: nil, team_slug: nil)
+    def call(*args, **kwargs)
+      # Handle both calling conventions
+      if args.size == 1 && args.first.is_a?(Domain::CodeRepository)
+        # Direct repository object passed
+        repository = args.first
+        name = repository.name
+        url = repository.url
+        provider = repository.provider
+        team_id = repository.team_id
+        team_slug = nil
+      else
+        # Named parameters
+        name = kwargs[:name]
+        url = kwargs[:url]
+        provider = kwargs[:provider] || "github"
+        team_id = kwargs[:team_id]
+        team_slug = kwargs[:team_slug]
+      end
+
       # Find team by slug if team_id not provided but team_slug is
       if team_id.nil? && team_slug.present?
         team = @team_repository_port.find_team_by_slug(team_slug)

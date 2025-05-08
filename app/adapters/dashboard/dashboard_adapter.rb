@@ -62,26 +62,35 @@ module Dashboard
       # Get all repositories first
       repository_names = get_available_repositories(time_period: time_period, limit: limit)
 
-      # Build a result with commit volume data for each repository
-      results = repository_names.map do |repository_name|
+      # Initialize the structure that the view expects
+      result = {
+        push_counts: {},
+        active_repos: {},
+        commit_volume: {},
+        pr_metrics: { open: {}, closed: {}, merged: {} }
+      }
+
+      # Extract active repositories with commit counts
+      active_repos = {}
+
+      repository_names.each do |repository_name|
         commit_volume = calculate_commit_volume_use_case.call(
           time_period: time_period,
           repository: repository_name
         )
 
-        {
-          repository: repository_name,
-          commit_volume: {
-            total_commits: commit_volume[:total_commits],
-            days_with_commits: commit_volume[:days_with_commits],
-            commits_per_day: commit_volume[:commits_per_day],
-            commit_frequency: commit_volume[:commit_frequency]
-          }
-        }
+        # Add to active repos if there are commits
+        commit_count = commit_volume[:total_commits] || 0
+        active_repos[repository_name] = commit_count if commit_count > 0
       end
 
-      # Sort by total_commits descending to show most active first
-      results.sort_by { |r| -r[:commit_volume][:total_commits] }
+      # Sort by commit count descending and take top repositories
+      result[:active_repos] = active_repos.sort_by { |_, count| -count }.to_h
+
+      # Log what we're returning
+      @logger_port&.debug("Repository metrics prepared for view: #{result.inspect}")
+
+      result
     end
 
     # Fetch team metrics for dashboard visualization

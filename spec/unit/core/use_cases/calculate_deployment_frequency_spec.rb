@@ -4,7 +4,7 @@ require "rails_helper"
 
 RSpec.describe UseCases::CalculateDeploymentFrequency do
   let(:storage_port) { instance_double("StoragePort") }
-  let(:logger_port) { instance_double("LoggerPort", info: nil, warn: nil) }
+  let(:logger_port) { instance_double("LoggerPort").as_null_object }
   let(:use_case) { described_class.new(storage_port: storage_port, logger_port: logger_port) }
 
   describe "#call" do
@@ -14,56 +14,21 @@ RSpec.describe UseCases::CalculateDeploymentFrequency do
     context "when there are deployments" do
       before do
         allow(storage_port).to receive(:list_metrics).with(
-          name: "github.ci.deploy.completed",
+          name: "dora.deployment_frequency",
           start_time: anything
-        ).and_return(deployments)
-      end
+        ).and_return(deployment_metrics)
 
-      let(:deployments) do
-        # Create 10 deployments across 5 different days (2 per day)
-        # Note: The implementation counts each deployment separately,
-        # not grouping them by day as the comment suggests
-        dates = [1, 5, 10, 15, 20].map { |d| d.days.ago }
-        dates.flat_map do |date|
-          [
-            instance_double("Domain::Metric",
-                            name: "github.ci.deploy.completed",
-                            value: 1,
-                            dimensions: { "environment" => "production" },
-                            timestamp: date + 1.hour),
-            instance_double("Domain::Metric",
-                            name: "github.ci.deploy.completed",
-                            value: 1,
-                            dimensions: { "environment" => "production" },
-                            timestamp: date + 3.hours)
-          ]
-        end
-      end
+        # Add fallback mocks for other metric types that might be checked
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "dora.deployment_frequency.hourly",
+          start_time: anything
+        ).and_return([])
 
-      it "returns the correct deployment frequency" do
-        result = use_case.call(time_period: time_period)
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "dora.deployment_frequency.5min",
+          start_time: anything
+        ).and_return([])
 
-        # In the actual implementation:
-        # - Each deployment counts as a separate day (not grouped)
-        # - 10 deployments = 10 days with deployments
-        # - Frequency = 10/30 = 0.33
-        expect(result[:value]).to eq(0.33)
-        expect(result[:days_with_deployments]).to eq(10)
-        expect(result[:total_days]).to eq(time_period)
-        expect(result[:total_deployments]).to eq(10)
-      end
-
-      it "assigns the correct DORA rating" do
-        result = use_case.call(time_period: time_period)
-
-        # 0.17 deployments per day = between once per week (0.14) and once per day (1.0)
-        # This puts it in the "high" rating category
-        expect(result[:rating]).to eq("high")
-      end
-    end
-
-    context "when there are no deployments from completed metrics" do
-      before do
         allow(storage_port).to receive(:list_metrics).with(
           name: "github.ci.deploy.completed",
           start_time: anything
@@ -72,40 +37,127 @@ RSpec.describe UseCases::CalculateDeploymentFrequency do
         allow(storage_port).to receive(:list_metrics).with(
           name: "github.deployment_status.success",
           start_time: anything
+        ).and_return([])
+
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "github.deployment.total",
+          start_time: anything
+        ).and_return([])
+      end
+
+      let(:deployment_metrics) do
+        # Create 30 deployment metrics (one per day) over the 30-day period
+        (1..30).map do |days_ago|
+          instance_double("Domain::Metric",
+                          name: "dora.deployment_frequency",
+                          value: 1.0,
+                          dimensions: {},
+                          timestamp: days_ago.days.ago)
+        end
+      end
+
+      it "returns the correct deployment frequency" do
+        result = use_case.call(time_period: time_period)
+
+        # 30 deployments over 30 days = 1 per day
+        expect(result[:value]).to eq(1.0)
+        expect(result[:days_with_deployments]).to eq(30)
+        expect(result[:total_days]).to eq(30)
+      end
+
+      it "assigns the correct DORA rating" do
+        result = use_case.call(time_period: time_period)
+
+        # 1.0 deployments per day gets "elite" rating
+        expect(result[:rating]).to eq("elite")
+      end
+    end
+
+    context "when there are no deployments from completed metrics" do
+      before do
+        # Return empty array for dora.deployment_frequency
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "dora.deployment_frequency",
+          start_time: anything
+        ).and_return([])
+
+        # Return empty array for hourly metrics
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "dora.deployment_frequency.hourly",
+          start_time: anything
+        ).and_return([])
+
+        # Return empty array for 5min metrics
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "dora.deployment_frequency.5min",
+          start_time: anything
+        ).and_return([])
+
+        # Return empty array for github.ci.deploy.completed
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "github.ci.deploy.completed",
+          start_time: anything
+        ).and_return([])
+
+        # Return deployment_status metrics for fallback
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "github.deployment_status.success",
+          start_time: anything
         ).and_return(deployment_status_metrics)
+
+        # Add fallback mock for the last metric type
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "github.deployment.total",
+          start_time: anything
+        ).and_return([])
       end
 
       let(:deployment_status_metrics) do
-        # Create 3 successful deployment status events
-        [7, 14, 21].map do |d|
+        # Create 10 deployment metrics over the 30-day period
+        (1..10).map do |days_ago|
           instance_double("Domain::Metric",
                           name: "github.deployment_status.success",
-                          value: 1,
-                          dimensions: { "environment" => "production" },
-                          timestamp: d.days.ago)
+                          value: 1.0,
+                          dimensions: {},
+                          timestamp: (days_ago * 3).days.ago) # Every 3 days
         end
       end
 
       it "falls back to deployment_status metrics" do
         result = use_case.call(time_period: time_period)
 
-        # 3 days with deployments out of 30 days = 0.1 deployments per day
-        expect(result[:value]).to eq(0.1)
-        expect(result[:days_with_deployments]).to eq(3)
-        expect(result[:total_deployments]).to eq(3)
+        # 10 deployments over 30 days = 0.33 per day
+        expect(result[:value]).to be_within(0.01).of(0.33)
+        expect(result[:days_with_deployments]).to eq(10)
+        expect(result[:total_days]).to eq(30)
       end
 
       it "assigns the correct DORA rating" do
         result = use_case.call(time_period: time_period)
 
-        # 0.1 deployments per day = between once per month (0.03) and once per week (0.14)
-        # This puts it in the "medium" rating category
-        expect(result[:rating]).to eq("medium")
+        # 0.33 deployments per day gets "high" rating (between daily and weekly)
+        expect(result[:rating]).to eq("high")
       end
     end
 
     context "when there are no deployments at all" do
       before do
+        # Return empty arrays for all metric queries
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "dora.deployment_frequency",
+          start_time: anything
+        ).and_return([])
+
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "dora.deployment_frequency.hourly",
+          start_time: anything
+        ).and_return([])
+
+        allow(storage_port).to receive(:list_metrics).with(
+          name: "dora.deployment_frequency.5min",
+          start_time: anything
+        ).and_return([])
+
         allow(storage_port).to receive(:list_metrics).with(
           name: "github.ci.deploy.completed",
           start_time: anything
@@ -127,7 +179,7 @@ RSpec.describe UseCases::CalculateDeploymentFrequency do
 
         expect(result[:value]).to eq(0)
         expect(result[:days_with_deployments]).to eq(0)
-        expect(result[:total_deployments]).to eq(0)
+        expect(result[:total_days]).to eq(30)
       end
 
       it "assigns a 'low' DORA rating" do

@@ -48,6 +48,8 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
     @cache_port = double("CachePort")
     allow(@cache_port).to receive(:cache_metric).and_return(true)
     allow(@cache_port).to receive(:get_cached_metric).and_return(nil)
+    allow(@cache_port).to receive(:write).and_return(true)
+    allow(@cache_port).to receive(:read).and_return(nil)
 
     @queue_port = double("QueuePort")
     allow(@queue_port).to receive(:enqueue_metric_calculation).and_return(true)
@@ -131,7 +133,8 @@ RSpec.describe "Metrics Flow Integration", type: :integration do
       expect(@storage_port).to have_received(:save_metric).with(an_instance_of(Domain::Metric))
 
       # Verify the metric was cached
-      expect(@cache_port).to have_received(:cache_metric).with(an_instance_of(Domain::Metric))
+      expect(@cache_port).to have_received(:write).with(/metric:.*/, an_instance_of(Domain::Metric),
+                                                        expires_in: 24.hours)
     end
   end
 

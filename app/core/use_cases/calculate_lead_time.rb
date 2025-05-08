@@ -16,11 +16,38 @@ module UseCases
       start_time = time_period.days.ago
       log_info("Calculating lead time for changes over past #{time_period} days")
 
-      # Get lead time metrics
+      # First try looking for the specific DORA lead time metric
       lead_time_metrics = @storage_port.list_metrics(
-        name: "github.ci.lead_time",
+        name: "dora.lead_time",
         start_time: start_time
       )
+
+      # If no metrics found, try looking for hourly metrics
+      if lead_time_metrics.empty?
+        log_info("No dora.lead_time metrics found, checking hourly metrics")
+        lead_time_metrics = @storage_port.list_metrics(
+          name: "dora.lead_time.hourly",
+          start_time: start_time
+        )
+      end
+
+      # If still no metrics, check for 5min metrics
+      if lead_time_metrics.empty?
+        log_info("No hourly lead time metrics found, checking 5min metrics")
+        lead_time_metrics = @storage_port.list_metrics(
+          name: "dora.lead_time.5min",
+          start_time: start_time
+        )
+      end
+
+      # Try traditional github metrics if no DORA metrics found
+      if lead_time_metrics.empty?
+        log_info("No DORA metrics found, trying github metrics")
+        lead_time_metrics = @storage_port.list_metrics(
+          name: "github.ci.lead_time",
+          start_time: start_time
+        )
+      end
 
       log_info("Found #{lead_time_metrics.count} lead time metrics")
 
