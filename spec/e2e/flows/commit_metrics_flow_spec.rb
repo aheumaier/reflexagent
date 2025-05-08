@@ -7,6 +7,7 @@ RSpec.describe "CommitMetricsFlow", type: :integration do
     let(:extractor) { Domain::Extractors::DimensionExtractor.new }
     let(:classifier) { Domain::Classifiers::GithubEventClassifier.new(extractor) }
     let(:repository) { Repositories::MetricRepository.new }
+    let(:mock_dashboard_adapter) { instance_double(Dashboard::DashboardAdapter) }
 
     let(:test_event) do
       Domain::Event.new(
@@ -38,11 +39,77 @@ RSpec.describe "CommitMetricsFlow", type: :integration do
 
       # Mock the dependency container to return our repository
       allow(DependencyContainer).to receive(:resolve).with(:metric_repository).and_return(repository)
+      allow(DependencyContainer).to receive(:resolve).with(:dashboard_adapter).and_return(mock_dashboard_adapter)
 
       # Mock the ServiceFactory to use our repository
       allow(ServiceFactory).to receive(:create_metrics_service).and_return(
         MetricsService.new(storage_port: repository, cache_port: repository)
       )
+
+      # Set up mock dashboard adapter responses
+      allow(mock_dashboard_adapter).to receive(:get_available_repositories)
+        .with(time_period: 30, limit: 1)
+        .and_return(["test-repo"])
+
+      allow(mock_dashboard_adapter).to receive(:get_available_repositories)
+        .with(time_period: 30, limit: 50)
+        .and_return(["test-repo"])
+
+      # Set up the mock to return real data generated in the test
+      allow(mock_dashboard_adapter).to receive(:get_repository_commit_analysis) do |args|
+        repo = args[:repository]
+
+        # Create a metrics service to access the repository data
+        metrics_service = MetricsService.new(storage_port: repository, cache_port: repository)
+
+        # Get directory hotspots
+        directory_data = metrics_service.top_metrics(
+          "github.push.directory_changes.daily",
+          dimension: "directory",
+          limit: 10,
+          days: 30
+        )
+
+        directory_hotspots = directory_data.map do |directory, count|
+          { directory: directory, count: count }
+        end
+
+        # Get file extension hotspots
+        filetype_data = metrics_service.top_metrics(
+          "github.push.filetype_changes.daily",
+          dimension: "filetype",
+          limit: 10,
+          days: 30
+        )
+
+        file_extension_hotspots = filetype_data.map do |filetype, count|
+          { extension: filetype, count: count }
+        end
+
+        # Return structured data
+        {
+          repository: repo,
+          directory_hotspots: directory_hotspots,
+          file_extension_hotspots: file_extension_hotspots,
+          commit_types: [],
+          author_activity: [],
+          breaking_changes: { total: 0, by_author: [] },
+          commit_volume: {
+            total_commits: 0,
+            days_with_commits: 0,
+            days_analyzed: 30,
+            commits_per_day: 0,
+            commit_frequency: 0,
+            daily_activity: []
+          },
+          code_churn: {
+            additions: 0,
+            deletions: 0,
+            total_churn: 0,
+            churn_ratio: 0
+          }
+        }
+      end
     end
 
     after do
@@ -114,6 +181,7 @@ RSpec.describe "CommitMetricsFlow", type: :integration do
 
       # Step 4: Test controller
       controller = Dashboards::CommitMetricsController.new
+      allow(controller).to receive(:dashboard_adapter).and_return(mock_dashboard_adapter)
       controller.instance_variable_set(:@days, 30)
 
       metrics_data = controller.send(:fetch_commit_metrics, 30)

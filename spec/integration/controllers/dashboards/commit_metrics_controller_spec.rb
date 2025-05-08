@@ -5,83 +5,109 @@ require "rails_helper"
 RSpec.describe Dashboards::CommitMetricsController, type: :controller do
   include Rails.application.routes.url_helpers
 
-  # Define mock metrics service
-  let(:mock_metrics_service) { instance_double(MetricsService) }
+  # Define mock dashboard adapter
+  let(:mock_dashboard_adapter) { instance_double(Dashboard::DashboardAdapter) }
 
   # Sample data for the tests
-  let(:directory_data) do
+  let(:directory_hotspots) do
+    [
+      { directory: "app", count: 8.0 },
+      { directory: "app/models", count: 4.0 },
+      { directory: "config", count: 4.0 }
+    ]
+  end
+
+  let(:file_extension_hotspots) do
+    [
+      { extension: "rb", count: 12.0 },
+      { extension: "html", count: 5.0 },
+      { extension: "css", count: 3.0 }
+    ]
+  end
+
+  let(:commit_types) do
+    [
+      { type: "feat", count: 10.0, percentage: 55.6 },
+      { type: "fix", count: 5.0, percentage: 27.8 },
+      { type: "chore", count: 3.0, percentage: 16.7 }
+    ]
+  end
+
+  let(:author_activity) do
+    [
+      { author: "user1", commit_count: 5.0, lines_added: 0, lines_deleted: 0, lines_changed: 0 },
+      { author: "user2", commit_count: 3.0, lines_added: 0, lines_deleted: 0, lines_changed: 0 },
+      { author: "user3", commit_count: 2.0, lines_added: 0, lines_deleted: 0, lines_changed: 0 }
+    ]
+  end
+
+  let(:breaking_changes) do
+    { total: 0, by_author: [] }
+  end
+
+  let(:commit_volume) do
     {
-      "app" => 8.0,
-      "app/models" => 4.0,
-      "config" => 4.0
+      total_commits: 10,
+      days_with_commits: 5,
+      days_analyzed: 30,
+      commits_per_day: 0.33,
+      commit_frequency: 0.17,
+      daily_activity: []
     }
   end
 
-  let(:filetype_data) do
+  let(:code_churn) do
     {
-      "rb" => 12.0,
-      "html" => 5.0,
-      "css" => 3.0
+      additions: 0,
+      deletions: 0,
+      total_churn: 0,
+      churn_ratio: 0
     }
   end
 
-  let(:commit_type_data) do
+  let(:repository_commit_analysis) do
     {
-      "feat" => 10.0,
-      "fix" => 5.0,
-      "chore" => 3.0
+      repository: "test-repo",
+      directory_hotspots: directory_hotspots,
+      file_extension_hotspots: file_extension_hotspots,
+      commit_types: commit_types,
+      author_activity: author_activity,
+      breaking_changes: breaking_changes,
+      commit_volume: commit_volume,
+      code_churn: code_churn
     }
   end
 
-  let(:author_data) do
-    {
-      "user1" => 5.0,
-      "user2" => 3.0,
-      "user3" => 2.0
-    }
+  let(:specific_repo_analysis) do
+    repository_commit_analysis.merge(repository: "specific-repo")
   end
 
   let(:days) { 30 }
+  let(:available_repositories) { ["repo1", "repo2", "repo3"] }
 
   before do
-    # Mock the service factory
-    allow(ServiceFactory).to receive(:create_metrics_service).and_return(mock_metrics_service)
-
-    # Mock the metrics service calls
-    allow(mock_metrics_service).to receive(:top_metrics)
-      .with(any_args)
-      .and_return({})
-
-    # Set up specific mock responses
-    allow(mock_metrics_service).to receive(:top_metrics)
-      .with("github.push.total", dimension: "repository", limit: 1, days: days)
-      .and_return({ "test-repo" => 25.0 })
-
-    allow(mock_metrics_service).to receive(:top_metrics)
-      .with("github.push.directory_changes.daily", dimension: "directory", limit: 10, days: days)
-      .and_return(directory_data)
-
-    allow(mock_metrics_service).to receive(:top_metrics)
-      .with("github.push.filetype_changes.daily", dimension: "filetype", limit: 10, days: days)
-      .and_return(filetype_data)
-
-    allow(mock_metrics_service).to receive(:top_metrics)
-      .with("github.push.commit_type", dimension: "type", limit: 10, days: days)
-      .and_return(commit_type_data)
-
-    allow(mock_metrics_service).to receive(:top_metrics)
-      .with("github.push.by_author", dimension: "author", limit: 10, days: days)
-      .and_return(author_data)
+    # Mock the dashboard_adapter method to return our mock adapter
+    allow(controller).to receive(:dashboard_adapter).and_return(mock_dashboard_adapter)
 
     # Mock the repository list
-    allow(mock_metrics_service).to receive(:top_metrics)
-      .with("github.push.total", dimension: "repository", limit: 50, days: days)
-      .and_return({ "repo1" => 15, "repo2" => 10, "repo3" => 5 })
+    allow(mock_dashboard_adapter).to receive(:get_available_repositories)
+      .with(time_period: days, limit: 50)
+      .and_return(available_repositories)
 
-    # Mock aggregate calls
-    allow(mock_metrics_service).to receive(:aggregate)
-      .with(any_args)
-      .and_return(0)
+    # Mock get_available_repositories with limit 1 for top repo
+    allow(mock_dashboard_adapter).to receive(:get_available_repositories)
+      .with(time_period: days, limit: 1)
+      .and_return(["test-repo"])
+
+    # Mock get_repository_commit_analysis for default repository
+    allow(mock_dashboard_adapter).to receive(:get_repository_commit_analysis)
+      .with(repository: "test-repo", time_period: days)
+      .and_return(repository_commit_analysis)
+
+    # Mock get_repository_commit_analysis for specific repository
+    allow(mock_dashboard_adapter).to receive(:get_repository_commit_analysis)
+      .with(repository: "specific-repo", time_period: days)
+      .and_return(specific_repo_analysis)
   end
 
   describe "#index" do
@@ -94,13 +120,17 @@ RSpec.describe Dashboards::CommitMetricsController, type: :controller do
 
     it "uses provided days parameter" do
       # For provided days, we need to update the mocks
-      allow(mock_metrics_service).to receive(:top_metrics)
-        .with("github.push.total", dimension: "repository", limit: 1, days: 90)
-        .and_return({ "test-repo" => 25.0 })
+      allow(mock_dashboard_adapter).to receive(:get_available_repositories)
+        .with(time_period: 90, limit: 1)
+        .and_return(["test-repo"])
 
-      allow(mock_metrics_service).to receive(:top_metrics)
-        .with("github.push.total", dimension: "repository", limit: 50, days: 90)
-        .and_return({ "repo1" => 15, "repo2" => 10, "repo3" => 5 })
+      allow(mock_dashboard_adapter).to receive(:get_available_repositories)
+        .with(time_period: 90, limit: 50)
+        .and_return(available_repositories)
+
+      allow(mock_dashboard_adapter).to receive(:get_repository_commit_analysis)
+        .with(repository: "test-repo", time_period: 90)
+        .and_return(repository_commit_analysis)
 
       get :index, params: { days: 90 }
 
