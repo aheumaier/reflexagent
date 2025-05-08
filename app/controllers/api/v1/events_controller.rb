@@ -30,8 +30,8 @@ module Api
       end
 
       # Implementation of IngestionPort interface, delegating to the concern
-      def validate_webhook_signature(payload, signature)
-        validate_github_signature(payload, signature, params[:source])
+      def validate_webhook_signature(payload, signature, source = nil)
+        validate_github_signature(payload, signature, source || params[:source])
       end
 
       def show

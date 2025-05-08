@@ -67,7 +67,10 @@ RSpec.describe Repositories::MetricRepository do
 
   describe "#list_metrics" do
     before do
-      # Create a few metrics for testing
+      # Clear existing metrics to get a clean slate
+      DomainMetric.delete_all
+
+      # Create a few metrics with well-defined timestamps for testing
       repository.save_metric(
         Domain::Metric.new(
           name: "cpu.usage",
@@ -108,11 +111,15 @@ RSpec.describe Repositories::MetricRepository do
     it "returns metrics filtered by time range" do
       results = repository.list_metrics(start_time: 90.minutes.ago)
       expect(results.length).to eq(2)
+      expect(results.map(&:name).sort).to eq(["cpu.usage", "memory.usage"])
     end
 
     it "returns the most recent metrics first when ordered" do
       results = repository.list_metrics(latest_first: true)
+      expect(results.length).to eq(3)
       expect(results.first.name).to eq("memory.usage")
+      expect(results.last.name).to eq("cpu.usage")
+      expect(results.first.timestamp).to be > results.last.timestamp
     end
   end
 

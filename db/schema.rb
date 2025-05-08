@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_05_01_000001) do
+ActiveRecord::Schema[7.1].define(version: 2025_05_08_162332) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -59,13 +59,18 @@ ActiveRecord::Schema[7.1].define(version: 2025_05_01_000001) do
     t.text "source", null: false
     t.jsonb "dimensions"
     t.timestamptz "recorded_at", default: -> { "now()" }, null: false
+    t.index ["dimensions"], name: "idx_metrics_dimensions", using: :gin
+    t.index ["dimensions"], name: "idx_metrics_dimensions_path_ops", opclass: :jsonb_path_ops, using: :gin
     t.index ["name", "recorded_at"], name: "metrics_name_recorded_at_idx"
+    t.index ["name", "source", "recorded_at"], name: "idx_metrics_name_source_recorded_at"
+    t.index ["name"], name: "idx_metrics_name"
     t.index ["name"], name: "metrics_name_idx"
     t.index ["recorded_at"], name: "metrics_recorded_at_idx"
+    t.index ["source"], name: "idx_metrics_source"
   end
 
   create_table "metrics_2025_04", primary_key: ["id", "recorded_at"], force: :cascade do |t|
-    t.bigint "id", default: -> { "nextval('metrics_id_seq'::regclass)" }, null: false
+    t.bigint "id", null: false
     t.text "name", null: false
     t.float "value", null: false
     t.text "source", null: false
@@ -83,9 +88,31 @@ ActiveRecord::Schema[7.1].define(version: 2025_05_01_000001) do
     t.text "source", null: false
     t.jsonb "dimensions"
     t.timestamptz "recorded_at", default: -> { "now()" }, null: false
+    t.index ["dimensions"], name: "metrics_2025_05_dimensions_idx", using: :gin
+    t.index ["dimensions"], name: "metrics_2025_05_dimensions_idx1", opclass: :jsonb_path_ops, using: :gin
     t.index ["name", "recorded_at"], name: "metrics_2025_05_name_recorded_at_idx"
+    t.index ["name", "source", "recorded_at"], name: "metrics_2025_05_name_source_recorded_at_idx"
     t.index ["name"], name: "metrics_2025_05_name_idx"
+    t.index ["name"], name: "metrics_2025_05_name_idx1"
     t.index ["recorded_at"], name: "metrics_2025_05_recorded_at_idx"
+    t.index ["source"], name: "metrics_2025_05_source_idx"
+  end
+
+  create_table "metrics_2025_06", primary_key: ["id", "recorded_at"], force: :cascade do |t|
+    t.bigint "id", default: -> { "nextval('metrics_id_seq'::regclass)" }, null: false
+    t.text "name", null: false
+    t.float "value", null: false
+    t.text "source", null: false
+    t.jsonb "dimensions"
+    t.timestamptz "recorded_at", default: -> { "now()" }, null: false
+    t.index ["dimensions"], name: "metrics_2025_06_dimensions_idx", using: :gin
+    t.index ["dimensions"], name: "metrics_2025_06_dimensions_idx1", opclass: :jsonb_path_ops, using: :gin
+    t.index ["name", "recorded_at"], name: "metrics_2025_06_name_recorded_at_idx"
+    t.index ["name", "source", "recorded_at"], name: "metrics_2025_06_name_source_recorded_at_idx"
+    t.index ["name"], name: "metrics_2025_06_name_idx"
+    t.index ["name"], name: "metrics_2025_06_name_idx1"
+    t.index ["recorded_at"], name: "metrics_2025_06_recorded_at_idx"
+    t.index ["source"], name: "metrics_2025_06_source_idx"
   end
 
   create_table "teams", force: :cascade do |t|

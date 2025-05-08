@@ -54,25 +54,31 @@ RSpec.describe "CommitMetricsFlow", type: :integration do
       allow(mock_dashboard_adapter).to receive(:get_repository_commit_analysis) do |args|
         repo = args[:repository]
 
-        # Get directory hotspots directly from repository
-        directory_data = repository.list_metrics(
-          name: "github.push.directory_changes.daily",
-          dimensions: { directory: nil },
-          start_time: 30.days.ago
-        ).group_by { |m| m.dimensions["directory"] }
-                                   .transform_values { |metrics| metrics.sum(&:value) }
+        # Get directory hotspots directly from database
+        directory_metrics = DomainMetric.where(
+          "name = ? AND dimensions->>'source' = ?",
+          "github.push.directory_changes.daily",
+          "test_integration"
+        )
+
+        # Group by directory
+        directory_data = directory_metrics.group_by { |m| m.dimensions["directory"] }
+                                          .transform_values { |metrics| metrics.sum(&:value) }
 
         directory_hotspots = directory_data.map do |directory, count|
           { directory: directory, count: count }
         end
 
-        # Get file extension hotspots directly from repository
-        filetype_data = repository.list_metrics(
-          name: "github.push.filetype_changes.daily",
-          dimensions: { filetype: nil },
-          start_time: 30.days.ago
-        ).group_by { |m| m.dimensions["filetype"] }
-                                  .transform_values { |metrics| metrics.sum(&:value) }
+        # Get file extension hotspots directly from database
+        filetype_metrics = DomainMetric.where(
+          "name = ? AND dimensions->>'source' = ?",
+          "github.push.filetype_changes.daily",
+          "test_integration"
+        )
+
+        # Group by filetype
+        filetype_data = filetype_metrics.group_by { |m| m.dimensions["filetype"] }
+                                        .transform_values { |metrics| metrics.sum(&:value) }
 
         file_extension_hotspots = filetype_data.map do |filetype, count|
           { extension: filetype, count: count }

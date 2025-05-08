@@ -55,103 +55,54 @@ module Repositories
         return @metrics_cache[id_str]
       end
 
-      # Find in database - for composite primary key, we need to use find_by
+      # Delegate to the ActiveRecord model for database queries
       begin
-        # Get a fresh database connection from the pool
-        ActiveRecord::Base.connection_pool.with_connection do |conn|
-          # Since metrics has a composite primary key (id, recorded_at),
-          # we need a more specific approach
-          @logger_port.debug { "Using composite key approach for metric lookup" }
+        # Use the model's find_latest_by_id method (to be implemented in DomainMetric)
+        domain_metric = DomainMetric.find_latest_by_id(id_str.to_i)
 
-          # Try to find by ID only (ignoring the recorded_at part of composite key)
-          domain_metric = DomainMetric.find_by_id_only(id_str.to_i)
-
-          # If not found, try a direct query
-          if domain_metric.nil?
-            @logger_port.debug { "Trying direct query for metric ID: #{id_str.to_i}" }
-            begin
-              id_int = id_str.to_i
-              sql = "SELECT id, name, value, source, dimensions::text as dimensions_text, recorded_at FROM metrics WHERE id = ? ORDER BY recorded_at DESC LIMIT 1"
-              result = conn.exec_query(sql, "Direct Metric Lookup", [id_int])
-
-              if result.rows.any?
-                # Parse the results
-                record = result.to_a.first
-
-                # Parse JSONB data
-                dimensions = {}
-                if record["dimensions_text"].present?
-                  begin
-                    dimensions = JSON.parse(record["dimensions_text"])
-                  rescue JSON::ParserError => e
-                    @logger_port.error { "Failed to parse dimensions JSON: #{e.message}" }
-                    dimensions = {}
-                  end
-                end
-
-                # Create the domain model directly
-                metric = Domain::Metric.new(
-                  id: record["id"].to_s,
-                  name: record["name"],
-                  value: record["value"].to_f,
-                  source: record["source"],
-                  dimensions: dimensions,
-                  timestamp: record["recorded_at"]
-                )
-
-                # Cache for future lookups
-                @metrics_cache[metric.id] = metric
-
-                @logger_port.debug { "Created metric from direct SQL: #{metric.id} (#{metric.name})" }
-                return metric
-              end
-            rescue StandardError => e
-              @logger_port.error { "Error in direct database query: #{e.message}" }
-              @logger_port.error { e.backtrace.join("\n") }
-            end
-          end
-
-          unless domain_metric
-            @logger_port.warn { "Metric not found in database: #{id_str}" }
-            return nil
-          end
-
-          @logger_port.debug { "Found metric in database: #{domain_metric.id} (#{domain_metric.name})" }
-
-          # Convert to domain model
-          metric = Domain::Metric.new(
-            id: domain_metric.id.to_s,
-            name: domain_metric.name,
-            value: domain_metric.value,
-            source: domain_metric.source,
-            dimensions: domain_metric.dimensions || {},
-            timestamp: domain_metric.recorded_at
-          )
-
-          # Cache for future lookups
-          @metrics_cache[metric.id] = metric
-
-          return metric
+        # Return nil if not found
+        unless domain_metric
+          @logger_port.warn { "Metric not found in database: #{id_str}" }
+          return nil
         end
-      rescue ActiveRecord::StatementInvalid, ActiveRecord::RecordNotFound => e
+
+        @logger_port.debug { "Found metric in database: #{domain_metric.id} (#{domain_metric.name})" }
+
+        # Convert to domain model
+        metric = Domain::Metric.new(
+          id: domain_metric.id.to_s,
+          name: domain_metric.name,
+          value: domain_metric.value.to_f,
+          source: domain_metric.source,
+          dimensions: domain_metric.dimensions || {},
+          timestamp: domain_metric.recorded_at
+        )
+
+        # Cache for future lookups
+        @metrics_cache[metric.id] = metric
+
+        metric
+      rescue StandardError => e
         @logger_port.error { "Database error finding metric #{id_str}: #{e.message}" }
+        @logger_port.error { e.backtrace.join("\n") }
         nil
       end
     end
 
     def list_metrics(filters = {})
-      # Start with a base query
-      query = DomainMetric.all
-
-      # Apply filters
-      query = query.with_name(filters[:name]) if filters[:name]
-      query = query.since(filters[:start_time]) if filters[:start_time]
-      query = query.until(filters[:end_time]) if filters[:end_time]
-      query = query.latest_first if filters[:latest_first]
-      query = query.limit(filters[:limit]) if filters[:limit]
+      # Delegate to the ActiveRecord model's list_metrics class method
+      domain_metrics = DomainMetric.list_metrics(
+        name: filters[:name],
+        source: filters[:source],
+        start_time: filters[:start_time],
+        end_time: filters[:end_time],
+        dimensions: filters[:dimensions],
+        latest_first: filters[:latest_first],
+        limit: filters[:limit]
+      )
 
       # Convert to domain models
-      query.map do |domain_metric|
+      domain_metrics.map do |domain_metric|
         Domain::Metric.new(
           id: domain_metric.id.to_s,
           name: domain_metric.name,
