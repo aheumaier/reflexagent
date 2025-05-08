@@ -23,7 +23,8 @@ RSpec.describe UseCases::SendNotification do
       metric: metric,
       threshold: 90.0
     )
-    mock_storage_port.save_alert(alert)
+    # Mock storage_port.find_alert to return this alert
+    allow(mock_storage_port).to receive(:find_alert).with(alert.id).and_return(alert)
     alert
   end
 
@@ -31,8 +32,7 @@ RSpec.describe UseCases::SendNotification do
     it "sends the alert via notification port" do
       use_case.call(alert.id)
 
-      expect(mock_notification_port.sent_alerts.size).to eq(1)
-      expect(mock_notification_port.sent_alerts.first).to eq(alert)
+      expect(mock_notification_port).to have_received(:send_alert).with(alert)
     end
 
     context "when the alert does not exist" do
@@ -42,7 +42,7 @@ RSpec.describe UseCases::SendNotification do
 
       it "sends a nil alert" do
         use_case.call("nonexistent-id")
-        expect(mock_notification_port.sent_alerts).to eq([nil])
+        expect(mock_notification_port).to have_received(:send_alert).with(nil)
       end
     end
 
@@ -68,8 +68,7 @@ RSpec.describe UseCases::SendNotification do
 
       # Verify injected dependencies are working
       factory_created.call(alert.id)
-      expect(mock_notification_port.sent_alerts.size).to eq(1)
-      expect(mock_notification_port.sent_alerts.first).to eq(alert)
+      expect(mock_notification_port).to have_received(:send_alert).with(alert)
     end
   end
 end

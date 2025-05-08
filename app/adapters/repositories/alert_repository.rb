@@ -32,8 +32,13 @@ module Repositories
         scope = scope.where("timestamp <= ?", filters[:to_timestamp])
       end
 
+      scope = scope.where("timestamp >= ?", filters[:start_time]) if filters[:start_time].present?
+
       scope = scope.limit(filters[:limit]) if filters[:limit].present?
-      scope = filters[:recent] ? scope.order(timestamp: :desc) : scope.order(timestamp: :asc)
+
+      # Order by timestamp, descending if :recent or :latest_first is true
+      order_desc = filters[:recent] || filters[:latest_first]
+      scope = order_desc ? scope.order(timestamp: :desc) : scope.order(timestamp: :asc)
 
       scope.map(&:to_domain_model)
     end

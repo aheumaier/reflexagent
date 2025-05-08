@@ -442,5 +442,49 @@ module Repositories
         }
       end
     end
+
+    # Get active repositories with optimized DB-level aggregation
+    # @param start_time [Time] The start time for filtering activity
+    # @param limit [Integer] Maximum number of repositories to return
+    # @param page [Integer] Page number for pagination
+    # @param per_page [Integer] Items per page for pagination
+    # @return [Array<String>] List of repository names
+    def get_active_repositories(start_time:, limit: 50, page: nil, per_page: nil)
+      Rails.logger.debug { "Getting active repositories since #{start_time}" }
+
+      # Create a raw SQL query that efficiently aggregates repositories at the database level
+      # This avoids loading all metrics into memory
+      sql = <<-SQL
+        SELECT DISTINCT jsonb_extract_path_text(dimensions, 'repository') AS repository_name,
+               COUNT(*) AS push_count
+        FROM metrics
+        WHERE name = 'github.push.total'
+          AND recorded_at >= ?
+          AND dimensions @> '{"repository": {}}'::jsonb
+        GROUP BY repository_name
+        ORDER BY push_count DESC, repository_name ASC
+      SQL
+
+      # Apply pagination or limit
+      if page && per_page
+        offset = (page - 1) * per_page
+        sql += " LIMIT ? OFFSET ?"
+        params = [start_time, per_page, offset]
+      else
+        sql += " LIMIT ?"
+        params = [start_time, limit]
+      end
+
+      # Execute the query directly for better performance
+      result = ActiveRecord::Base.connection.exec_query(sql, "Get Active Repositories", params)
+
+      # Extract repository names from the result
+      result.map { |row| row["repository_name"] }.compact
+    rescue StandardError => e
+      Rails.logger.error { "Error fetching active repositories: #{e.message}" }
+      Rails.logger.error { e.backtrace.join("\n") }
+      # Fallback to empty array on error
+      []
+    end
   end
 end

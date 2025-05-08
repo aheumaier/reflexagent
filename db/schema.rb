@@ -10,9 +10,21 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_05_01_000000) do
+ActiveRecord::Schema[7.1].define(version: 2025_05_01_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
+
+  create_table "code_repositories", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "url"
+    t.string "provider", default: "github", null: false
+    t.bigint "team_id"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["name", "provider"], name: "index_code_repositories_on_name_and_provider", unique: true
+    t.index ["name"], name: "index_code_repositories_on_name"
+    t.index ["team_id"], name: "index_code_repositories_on_team_id"
+  end
 
   create_table "domain_alerts", force: :cascade do |t|
     t.string "name", null: false
@@ -76,4 +88,14 @@ ActiveRecord::Schema[7.1].define(version: 2025_05_01_000000) do
     t.index ["recorded_at"], name: "metrics_2025_05_recorded_at_idx"
   end
 
+  create_table "teams", force: :cascade do |t|
+    t.string "name", null: false
+    t.string "slug", null: false
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_teams_on_slug", unique: true
+  end
+
+  add_foreign_key "code_repositories", "teams"
 end

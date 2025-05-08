@@ -14,8 +14,8 @@ require "time"
 WEBHOOK_HOST = ENV["WEBHOOK_HOST"] || "localhost"
 WEBHOOK_PORT = ENV["WEBHOOK_PORT"] || "3000"
 WEBHOOK_TOKEN = ENV["WEBHOOK_TOKEN"] || "Test1234"
-BATCH_SIZE = (ENV["BATCH_SIZE"] || "10").to_i
-EVENTS_COUNT = (ENV["EVENTS_COUNT"] || "150").to_i
+BATCH_SIZE = (ENV["BATCH_SIZE"] || "25").to_i
+EVENTS_COUNT = (ENV["EVENTS_COUNT"] || "200").to_i
 SEND_DELAY = (ENV["SEND_DELAY"] || "0.1").to_f # seconds between batches
 DAYS_TO_SIMULATE = (ENV["DAYS_TO_SIMULATE"] || "14").to_i
 TEAM_SIZE = 8 # Number of team members
@@ -39,6 +39,17 @@ def send_webhook(source, payload, auth_type = "token")
     request["X-Webhook-Token"] = WEBHOOK_TOKEN
   end
 
+  # For GitHub events, add the X-GitHub-Event header based on the event name
+  if source == "github" && payload[:name].present?
+    # Split the name (e.g., "deployment_status.created" -> "deployment_status")
+    event_type = payload[:name].to_s.split('.').first
+    if event_type.present?
+      puts "Adding X-GitHub-Event header: #{event_type}"
+      request["X-GitHub-Event"] = event_type
+      request["X-GitHub-Delivery"] = SecureRandom.uuid
+    end
+  end
+
   # Set the payload
   request.body = payload.to_json
 
@@ -56,7 +67,11 @@ def send_webhook_batch(events_batch)
   threads = []
   events_batch.each do |event|
     threads << Thread.new do
-      send_webhook(event[:source], event[:payload])
+      # Debug info for GitHub events
+      if event[:source] == "github"
+        puts "Sending GitHub event: #{event[:name]} - Has deployment_status: #{event[:payload].key?(:deployment_status)}"
+      end
+      send_webhook(event[:source], event[:payload].merge(name: event[:name]))
     end
   end
   threads.each(&:join)

@@ -39,6 +39,8 @@ module Domain
           classify_workflow_job_event(event, action)
         when "workflow_dispatch"
           classify_workflow_dispatch_event(event)
+        when "repository"
+          classify_repository_event(event, action)
         # Handle CI-specific events from GitHub
         when "ci"
           classify_ci_event(event)
@@ -64,6 +66,7 @@ module Domain
 
       def classify_push_event(event)
         dimensions = extract_dimensions(event)
+        push_data = event.data || {}
 
         metrics = []
 
@@ -74,8 +77,18 @@ module Domain
           dimensions: dimensions
         )
 
+        # Extract branch information
+        branch = extract_branch_from_ref(push_data[:ref])
+        metrics << create_metric(
+          name: "github.push.branch_activity",
+          value: 1,
+          dimensions: dimensions.merge(
+            branch: branch
+          )
+        )
+
         # Count number of commits
-        commit_count = @dimension_extractor ? @dimension_extractor.extract_commit_count(event) : 1
+        commit_count = push_data[:commits]&.size || 0
         metrics << create_metric(
           name: "github.push.commits",
           value: commit_count,
@@ -83,159 +96,434 @@ module Domain
         )
 
         # Track commits per author
+        author = extract_push_author(push_data)
+
+        # Look for author in existing test data
+        if @dimension_extractor && @dimension_extractor.respond_to?(:extract_author)
+          test_author = @dimension_extractor.extract_author(event)
+          author = test_author if test_author.present? && test_author != "unknown"
+        end
+
         metrics << create_metric(
           name: "github.push.by_author",
           value: commit_count,
           dimensions: dimensions.merge(
-            author: @dimension_extractor ? @dimension_extractor.extract_author(event) : "unknown"
+            author: author
           )
         )
 
-        # Track push by branch
-        metrics << create_metric(
-          name: "github.push.branch_activity",
-          value: 1,
-          dimensions: dimensions.merge(
-            branch: @dimension_extractor ? @dimension_extractor.extract_branch(event) : "unknown"
-          )
-        )
+        # If we're running without a dimension extractor, stop here with just basic metrics
+        return { metrics: metrics } if @dimension_extractor.nil?
 
         # Enhanced metrics for commits
-        if @dimension_extractor && event.data[:commits]
-          # Process each commit for commit type metrics
-          event.data[:commits].each do |commit|
-            commit_parts = @dimension_extractor.extract_conventional_commit_parts(commit)
+        if push_data[:commits].present?
+          process_commits(push_data[:commits], metrics, dimensions, event)
 
-            # Track commit messages by type (conventional or inferred)
-            next unless commit_parts[:commit_type].present?
-
-            # Track by commit type (feat, fix, chore, etc.)
-            metrics << create_metric(
-              name: "github.push.commit_type",
-              value: 1,
-              dimensions: dimensions.merge(
-                type: commit_parts[:commit_type],
-                scope: commit_parts[:commit_scope] || "none",
-                conventional: commit_parts[:commit_conventional] ? "true" : "false"
-              )
-            )
-
-            # If this was an inferred type (non-conventional), track it separately for analysis
-            if !commit_parts[:commit_conventional] && commit_parts[:commit_type_inferred]
-              metrics << create_metric(
-                name: "github.push.inferred_commit_type",
-                value: 1,
-                dimensions: dimensions.merge(
-                  type: commit_parts[:commit_type],
-                  message_sample: commit_parts[:commit_description].truncate(50)
-                )
-              )
-            end
-
-            # Track breaking changes separately
-            next unless commit_parts[:commit_breaking]
-
-            metrics << create_metric(
-              name: "github.push.breaking_change",
-              value: 1,
-              dimensions: dimensions.merge(
-                type: commit_parts[:commit_type],
-                scope: commit_parts[:commit_scope] || "none",
-                author: @dimension_extractor.extract_author(event)
-              )
-            )
-          end
-
-          # Extract file changes and add file-based metrics
-          file_changes = @dimension_extractor.extract_file_changes(event)
-
-          # Track overall file changes
-          metrics << create_metric(
-            name: "github.push.files_added",
-            value: file_changes[:files_added],
-            dimensions: dimensions
-          )
-
-          metrics << create_metric(
-            name: "github.push.files_modified",
-            value: file_changes[:files_modified],
-            dimensions: dimensions
-          )
-
-          metrics << create_metric(
-            name: "github.push.files_removed",
-            value: file_changes[:files_removed],
-            dimensions: dimensions
-          )
-
-          # Track top directory changes
-          if file_changes[:top_directory].present?
-            metrics << create_metric(
-              name: "github.push.directory_hotspot",
-              value: file_changes[:top_directory_count],
-              dimensions: dimensions.merge(
-                directory: file_changes[:top_directory]
-              )
-            )
-
-            # Track each directory in the hotspot list
-            if file_changes[:directory_hotspots].present?
-              file_changes[:directory_hotspots].each do |dir, count|
-                metrics << create_metric(
-                  name: "github.push.directory_changes",
-                  value: count,
-                  dimensions: dimensions.merge(directory: dir)
-                )
-              end
-            end
-          end
-
-          # Track top file extension changes
-          if file_changes[:top_extension].present?
-            metrics << create_metric(
-              name: "github.push.filetype_hotspot",
-              value: file_changes[:top_extension_count],
-              dimensions: dimensions.merge(
-                filetype: file_changes[:top_extension]
-              )
-            )
-
-            # Track each extension in the hotspot list
-            if file_changes[:extension_hotspots].present?
-              file_changes[:extension_hotspots].each do |ext, count|
-                metrics << create_metric(
-                  name: "github.push.filetype_changes",
-                  value: count,
-                  dimensions: dimensions.merge(filetype: ext)
-                )
-              end
-            end
-          end
-
-          # Track code volume metrics
-          code_volume = @dimension_extractor.extract_code_volume(event)
-          if code_volume[:code_additions] > 0 || code_volume[:code_deletions] > 0
-            metrics << create_metric(
-              name: "github.push.code_additions",
-              value: code_volume[:code_additions],
-              dimensions: dimensions
-            )
-
-            metrics << create_metric(
-              name: "github.push.code_deletions",
-              value: code_volume[:code_deletions],
-              dimensions: dimensions
-            )
-
-            metrics << create_metric(
-              name: "github.push.code_churn",
-              value: code_volume[:code_churn],
-              dimensions: dimensions
-            )
-          end
+          # Extract and process file changes
+          process_file_changes(push_data[:commits], metrics, dimensions, event)
         end
 
         { metrics: metrics }
+      end
+
+      # Helper method to extract branch name from ref
+      def extract_branch_from_ref(ref)
+        return "unknown" unless ref.present?
+
+        if ref.start_with?("refs/heads/")
+          ref.gsub("refs/heads/", "")
+        elsif ref.start_with?("refs/tags/")
+          "tag:#{ref.gsub('refs/tags/', '')}"
+        else
+          ref
+        end
+      end
+
+      # Helper method to extract push author information
+      def extract_push_author(push_data)
+        # Try to get the author from head commit first
+        if push_data[:head_commit].present? && push_data[:head_commit][:author].present?
+          return push_data[:head_commit][:author][:name] || push_data[:head_commit][:author][:email] || "unknown"
+        end
+
+        # Fall back to pusher
+        return push_data[:pusher][:name] || push_data[:pusher][:email] || "unknown" if push_data[:pusher].present?
+
+        # Final fallback
+        "unknown"
+      end
+
+      # Process commits in a push event
+      def process_commits(commits, metrics, dimensions, event)
+        commits.each do |commit|
+          # Skip if no commit data
+          next unless commit.present?
+
+          # Extract commit message parts (conventional commit format)
+          commit_parts = if @dimension_extractor && @dimension_extractor.respond_to?(:extract_conventional_commit_parts)
+                           # Use existing method for tests compatibility
+                           @dimension_extractor.extract_conventional_commit_parts(commit)
+                         else
+                           extract_conventional_commit_parts(commit[:message])
+                         end
+
+          # Normalize field names for compatibility with tests
+          commit_type = commit_parts[:commit_type] || commit_parts[:type]
+          commit_scope = commit_parts[:commit_scope] || commit_parts[:scope]
+          commit_breaking = commit_parts[:commit_breaking] || commit_parts[:breaking]
+          commit_conventional = commit_parts[:commit_conventional] || commit_parts[:conventional]
+
+          # Track commit messages by type (conventional or inferred)
+          next unless commit_type.present?
+
+          # Track by commit type (feat, fix, chore, etc.)
+          metrics << create_metric(
+            name: "github.push.commit_type",
+            value: 1,
+            dimensions: dimensions.merge(
+              type: commit_type,
+              scope: commit_scope || "none",
+              conventional: commit_conventional ? "true" : "false"
+            )
+          )
+
+          # Track breaking changes separately
+          next unless commit_breaking
+
+          # Try to extract author from commit
+          author_from_commit = if commit[:author].is_a?(Hash)
+                                 commit[:author][:name] || "unknown"
+                               else
+                                 "unknown"
+                               end
+
+          # Allow dimension_extractor to override author for test compatibility
+          author = author_from_commit
+          if @dimension_extractor && @dimension_extractor.respond_to?(:extract_author)
+            test_author = @dimension_extractor.extract_author(event)
+            author = test_author if test_author.present? && test_author != "unknown"
+          end
+
+          metrics << create_metric(
+            name: "github.push.breaking_change",
+            value: 1,
+            dimensions: dimensions.merge(
+              type: commit_type,
+              scope: commit_scope || "none",
+              author: author
+            )
+          )
+        end
+      end
+
+      # Extract conventional commit parts from commit message
+      def extract_conventional_commit_parts(message)
+        return {} unless message.present?
+
+        # Basic conventional commit regex
+        # Format: type(scope): description [BREAKING CHANGE]
+        conventional_regex = /^(feat|fix|docs|style|refactor|perf|test|build|ci|chore|revert)(\(([^)]+)\))?!?:\s*(.+)$/i
+
+        if message =~ conventional_regex
+          {
+            type: Regexp.last_match(1).downcase,
+            scope: Regexp.last_match(3),
+            description: Regexp.last_match(4),
+            breaking: message.include?("BREAKING CHANGE") || message.include?("!:"),
+            conventional: true,
+            inferred: false
+          }
+        else
+          # If not conventional, try to infer type
+          inferred_type = infer_commit_type(message)
+          {
+            type: inferred_type,
+            description: message,
+            breaking: message.downcase.include?("break") || message.include?("!"),
+            conventional: false,
+            inferred: true
+          }
+        end
+      end
+
+      # Infer commit type from non-conventional message
+      def infer_commit_type(message)
+        message = message.downcase
+
+        if message.match?(/fix|bug|issue|problem|error/)
+          "fix"
+        elsif message.match?(/feat|feature|add|new|implement/)
+          "feat"
+        elsif message.match?(/doc|readme|comment|guide/)
+          "docs"
+        elsif message.match?(/test|spec|rspec/)
+          "test"
+        elsif message.match?(/style|format|indent|css/)
+          "style"
+        elsif message.match?(/refactor|clean|improve|simplify/)
+          "refactor"
+        elsif message.match?(/perf|performance|optimize|speed/)
+          "perf"
+        elsif message.match?(/build|webpack|deps|dependency/)
+          "build"
+        elsif message.match?(/ci|travis|jenkins|github|action/)
+          "ci"
+        elsif message.match?(/revert|rollback|undo/)
+          "revert"
+        else
+          "chore"
+        end
+      end
+
+      # Process file changes from commits
+      def process_file_changes(commits, metrics, dimensions, event)
+        # If dimension_extractor has a compatible method, use it for test compatibility
+        if @dimension_extractor && @dimension_extractor.respond_to?(:extract_file_changes)
+          file_changes = @dimension_extractor.extract_file_changes(event)
+
+          if file_changes.present?
+            # Track overall file changes
+            metrics << create_metric(
+              name: "github.push.files_added",
+              value: file_changes[:files_added],
+              dimensions: dimensions
+            )
+
+            metrics << create_metric(
+              name: "github.push.files_modified",
+              value: file_changes[:files_modified],
+              dimensions: dimensions
+            )
+
+            metrics << create_metric(
+              name: "github.push.files_removed",
+              value: file_changes[:files_removed],
+              dimensions: dimensions
+            )
+
+            # Track top directory changes
+            if file_changes[:top_directory].present?
+              metrics << create_metric(
+                name: "github.push.directory_hotspot",
+                value: file_changes[:top_directory_count],
+                dimensions: dimensions.merge(
+                  directory: file_changes[:top_directory]
+                )
+              )
+
+              # Track each directory in the hotspot list
+              if file_changes[:directory_hotspots].present?
+                file_changes[:directory_hotspots].each do |dir, count|
+                  metrics << create_metric(
+                    name: "github.push.directory_changes",
+                    value: count,
+                    dimensions: dimensions.merge(directory: dir)
+                  )
+                end
+              end
+            end
+
+            # Track top file extension changes
+            if file_changes[:top_extension].present?
+              metrics << create_metric(
+                name: "github.push.filetype_hotspot",
+                value: file_changes[:top_extension_count],
+                dimensions: dimensions.merge(
+                  filetype: file_changes[:top_extension]
+                )
+              )
+
+              # Track each extension in the hotspot list
+              if file_changes[:extension_hotspots].present?
+                file_changes[:extension_hotspots].each do |ext, count|
+                  metrics << create_metric(
+                    name: "github.push.filetype_changes",
+                    value: count,
+                    dimensions: dimensions.merge(filetype: ext)
+                  )
+                end
+              end
+            end
+
+            # Track code volume metrics
+            if @dimension_extractor && @dimension_extractor.respond_to?(:extract_code_volume)
+              code_volume = @dimension_extractor.extract_code_volume(event)
+              if code_volume[:code_additions] > 0 || code_volume[:code_deletions] > 0
+                metrics << create_metric(
+                  name: "github.push.code_additions",
+                  value: code_volume[:code_additions],
+                  dimensions: dimensions
+                )
+
+                metrics << create_metric(
+                  name: "github.push.code_deletions",
+                  value: code_volume[:code_deletions],
+                  dimensions: dimensions
+                )
+
+                metrics << create_metric(
+                  name: "github.push.code_churn",
+                  value: code_volume[:code_churn],
+                  dimensions: dimensions
+                )
+              end
+            end
+
+            return # Skip our custom implementation if we used the dimension_extractor
+          end
+        end
+
+        # Custom implementation when dimension_extractor doesn't have the needed methods
+        track_file_changes_custom(commits, metrics, dimensions)
+      end
+
+      # Custom implementation for tracking file changes
+      def track_file_changes_custom(commits, metrics, dimensions)
+        # Track file changes
+        files_added = Set.new
+        files_modified = Set.new
+        files_removed = Set.new
+
+        # Track directories and file extensions
+        directories = Hash.new(0)
+        file_extensions = Hash.new(0)
+
+        # Track code volume
+        code_additions = 0
+        code_deletions = 0
+
+        commits.each do |commit|
+          # Add files
+          Array(commit[:added]).each do |file|
+            files_added.add(file)
+            track_file_metadata(file, file_extensions, directories)
+          end
+
+          # Modified files
+          Array(commit[:modified]).each do |file|
+            files_modified.add(file)
+            track_file_metadata(file, file_extensions, directories)
+          end
+
+          # Removed files
+          Array(commit[:removed]).each do |file|
+            files_removed.add(file)
+            track_file_metadata(file, file_extensions, directories)
+          end
+
+          # Try to extract code volume metrics if available
+          if commit[:stats].is_a?(Hash)
+            code_additions += commit[:stats][:additions].to_i
+            code_deletions += commit[:stats][:deletions].to_i
+          end
+        end
+
+        # Create metrics for file counts
+        metrics << create_metric(
+          name: "github.push.files_added",
+          value: files_added.size,
+          dimensions: dimensions
+        )
+
+        metrics << create_metric(
+          name: "github.push.files_modified",
+          value: files_modified.size,
+          dimensions: dimensions
+        )
+
+        metrics << create_metric(
+          name: "github.push.files_removed",
+          value: files_removed.size,
+          dimensions: dimensions
+        )
+
+        # Create metrics for directory hotspots
+        directories.each do |dir, count|
+          metrics << create_metric(
+            name: "github.push.directory_changes",
+            value: count,
+            dimensions: dimensions.merge(directory: dir)
+          )
+        end
+
+        # Create metrics for top directory hotspot
+        if directories.any?
+          top_directory = directories.max_by { |_, count| count }
+          metrics << create_metric(
+            name: "github.push.directory_hotspot",
+            value: top_directory[1],
+            dimensions: dimensions.merge(
+              directory: top_directory[0]
+            )
+          )
+        end
+
+        # Create metrics for file extension hotspots
+        file_extensions.each do |ext, count|
+          metrics << create_metric(
+            name: "github.push.filetype_changes",
+            value: count,
+            dimensions: dimensions.merge(filetype: ext)
+          )
+        end
+
+        # Create metrics for top file extension hotspot
+        if file_extensions.any?
+          top_extension = file_extensions.max_by { |_, count| count }
+          metrics << create_metric(
+            name: "github.push.filetype_hotspot",
+            value: top_extension[1],
+            dimensions: dimensions.merge(
+              filetype: top_extension[0]
+            )
+          )
+        end
+
+        # Add code volume metrics if we have data
+        return unless code_additions > 0 || code_deletions > 0
+
+        metrics << create_metric(
+          name: "github.push.code_additions",
+          value: code_additions,
+          dimensions: dimensions
+        )
+
+        metrics << create_metric(
+          name: "github.push.code_deletions",
+          value: code_deletions,
+          dimensions: dimensions
+        )
+
+        metrics << create_metric(
+          name: "github.push.code_churn",
+          value: code_additions + code_deletions,
+          dimensions: dimensions
+        )
+      end
+
+      # Track file metadata (extensions and directories)
+      def track_file_metadata(file_path, file_extensions, directories)
+        return unless file_path.present?
+
+        # Get file extension
+        extension = File.extname(file_path).delete(".")
+        file_extensions[extension.presence || "none"] += 1
+
+        # Get directory
+        directory = File.dirname(file_path)
+        directory = "root" if directory == "."
+
+        # Track the directory and parent directories
+        current_path = directory
+        loop do
+          directories[current_path] += 1
+
+          # Move up one level
+          parent_path = File.dirname(current_path)
+          break if parent_path == "." || parent_path == current_path
+
+          current_path = parent_path
+        end
       end
 
       def classify_pull_request_event(event, action)
@@ -393,6 +681,7 @@ module Domain
       end
 
       def classify_deployment_status_event(event, action)
+        puts "classify_deployment_status_event"
         environment = event.data.dig(:deployment, :environment) || "unknown"
         state = event.data.dig(:deployment_status, :state) || "unknown"
         dimensions = extract_dimensions(event).merge(environment: environment)
@@ -537,23 +826,180 @@ module Domain
       def classify_workflow_job_event(event, action)
         # Default to 'total' if action is nil
         action ||= "total"
-        conclusion = event.data.dig(:workflow_job, :conclusion) || "unknown"
+        workflow_job = event.data[:workflow_job] || {}
+        conclusion = workflow_job[:conclusion] || "unknown"
         dimensions = extract_dimensions(event)
 
-        {
-          metrics: [
-            create_metric(
-              name: "github.workflow_job.#{action}",
-              value: 1,
-              dimensions: dimensions
-            ),
-            create_metric(
-              name: "github.workflow_job.conclusion.#{conclusion}",
-              value: 1,
-              dimensions: dimensions
+        # Add more detailed dimensions
+        enhanced_dimensions = dimensions.merge(
+          job_name: workflow_job[:name],
+          workflow_name: workflow_job[:workflow_name],
+          branch: workflow_job[:head_branch],
+          runner: workflow_job[:runner_name],
+          run_attempt: workflow_job[:run_attempt]
+        )
+
+        metrics = []
+
+        # Basic workflow job metrics
+        metrics << create_metric(
+          name: "github.workflow_job.#{action}",
+          value: 1,
+          dimensions: enhanced_dimensions
+        )
+
+        metrics << create_metric(
+          name: "github.workflow_job.conclusion.#{conclusion}",
+          value: 1,
+          dimensions: enhanced_dimensions
+        )
+
+        # Duration metrics if available
+        if workflow_job[:started_at] && workflow_job[:completed_at]
+          begin
+            started_at = Time.parse(workflow_job[:started_at].to_s)
+            completed_at = Time.parse(workflow_job[:completed_at].to_s)
+            duration = (completed_at - started_at).to_i
+
+            metrics << create_metric(
+              name: "github.workflow_job.duration",
+              value: duration,
+              dimensions: enhanced_dimensions
             )
-          ]
-        }
+
+            # For test jobs specifically
+            if workflow_job[:name].to_s.downcase.include?("test")
+              metrics << create_metric(
+                name: "github.ci.test.duration",
+                value: duration,
+                dimensions: enhanced_dimensions
+              )
+
+              # Test success/failure metric (0 for failure, 1 for success)
+              metrics << create_metric(
+                name: "github.ci.test.success",
+                value: conclusion == "success" ? 1 : 0,
+                dimensions: enhanced_dimensions
+              )
+            end
+
+            # For deployment jobs
+            if workflow_job[:name].to_s.downcase.include?("deploy")
+              metrics << create_metric(
+                name: "github.ci.deploy.duration",
+                value: duration,
+                dimensions: enhanced_dimensions
+              )
+
+              # Track deployment success/failure
+              metrics << if conclusion == "success"
+                           create_metric(
+                             name: "github.ci.deploy.completed",
+                             value: 1,
+                             dimensions: enhanced_dimensions
+                           )
+                         else
+                           create_metric(
+                             name: "github.ci.deploy.failed",
+                             value: 1,
+                             dimensions: enhanced_dimensions
+                           )
+                         end
+
+              # Also add DORA metrics for deployments
+              metrics << create_metric(
+                name: "dora.deployment.attempt",
+                value: 1,
+                dimensions: enhanced_dimensions.merge(
+                  timestamp: completed_at.iso8601
+                )
+              )
+
+              if conclusion != "success"
+                metrics << create_metric(
+                  name: "dora.deployment.failure",
+                  value: 1,
+                  dimensions: enhanced_dimensions.merge(
+                    reason: conclusion,
+                    timestamp: completed_at.iso8601
+                  )
+                )
+              end
+            end
+          rescue StandardError => e
+            Rails.logger.error("Error calculating workflow job duration: #{e.message}")
+          end
+        end
+
+        # Step metrics - analyze important steps
+        if workflow_job[:steps] && workflow_job[:steps].is_a?(Array)
+          metrics.concat(analyze_workflow_steps(workflow_job[:steps], enhanced_dimensions))
+        end
+
+        { metrics: metrics }
+      end
+
+      # Analyze steps in a workflow job to create step-level metrics
+      def analyze_workflow_steps(steps, dimensions)
+        metrics = []
+
+        # Track critical steps separately (like test execution, build, deployment)
+        steps.each do |step|
+          step_name = step[:name].to_s.downcase
+
+          # Skip setup/teardown steps
+          next if step_name.match?(/set up|post|initialize|complete/)
+
+          next unless step[:started_at] && step[:completed_at]
+
+          begin
+            started_at = Time.parse(step[:started_at].to_s)
+            completed_at = Time.parse(step[:completed_at].to_s)
+            duration = (completed_at - started_at).to_i
+
+            # Create a metric for important steps
+            if step_name.match?(/test|build|deploy|check|install|publish/)
+              step_type =
+                if step_name.include?("test") then "test"
+                elsif step_name.include?("build") then "build"
+                elsif step_name.include?("deploy") then "deploy"
+                elsif step_name.include?("check") then "check"
+                elsif step_name.include?("install") then "install"
+                elsif step_name.include?("publish") then "publish"
+                else
+                  "other"
+                end
+
+              metrics << create_metric(
+                name: "github.workflow_step.#{step_type}.duration",
+                value: duration,
+                dimensions: dimensions.merge(step_name: step[:name])
+              )
+
+              # Track success/failure
+              metrics << if step[:conclusion] == "success"
+                           create_metric(
+                             name: "github.workflow_step.#{step_type}.success",
+                             value: 1,
+                             dimensions: dimensions.merge(step_name: step[:name])
+                           )
+                         else
+                           create_metric(
+                             name: "github.workflow_step.#{step_type}.failure",
+                             value: 1,
+                             dimensions: dimensions.merge(
+                               step_name: step[:name],
+                               conclusion: step[:conclusion]
+                             )
+                           )
+                         end
+            end
+          rescue StandardError => e
+            Rails.logger.error("Error calculating workflow step duration: #{e.message}")
+          end
+        end
+
+        metrics
       end
 
       def classify_workflow_dispatch_event(event)
@@ -566,6 +1012,39 @@ module Domain
             )
           ]
         }
+      end
+
+      # Handle repository events (created, deleted, publicized, privatized, etc.)
+      def classify_repository_event(event, action)
+        # Default to 'total' if action is nil
+        action ||= "total"
+        dimensions = extract_dimensions(event)
+
+        metrics = [
+          create_metric(
+            name: "github.repository.#{action}",
+            value: 1,
+            dimensions: dimensions
+          ),
+          create_metric(
+            name: "github.repository.total",
+            value: 1,
+            dimensions: dimensions
+          )
+        ]
+
+        # Additional metrics for specific repository actions
+        case action
+        when "created", "publicized", "privatized", "edited", "renamed", "transferred"
+          # These actions might trigger repository registration
+          metrics << create_metric(
+            name: "github.repository.registration_event",
+            value: 1,
+            dimensions: dimensions
+          )
+        end
+
+        { metrics: metrics }
       end
 
       # Handle CI-specific events from GitHub Actions
