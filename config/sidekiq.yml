@@ -9,7 +9,16 @@
   - [metric_aggregation, 5]
   - [anomaly_detection, 3]
   - [default, 1]
+  - mailers
+  - maintenance
 
 :max_retries: 3
 :poll_interval_average: 15
-:average_scheduled_poll_interval: 15 
+:average_scheduled_poll_interval: 15
+
+:scheduler:
+  :schedule:
+    metrics_maintenance:
+      cron: '0 0 * * 0'  # Run at midnight every Sunday
+      class: MetricsMaintenanceJob
+      queue: maintenance 
