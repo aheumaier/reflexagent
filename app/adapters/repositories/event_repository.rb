@@ -10,9 +10,10 @@ module Repositories
 
     require "securerandom"
 
-    def initialize
+    def initialize(logger_port: nil)
       # Use memory as a cache, not primary storage
       @events_cache = {}
+      @logger_port = logger_port || Rails.logger
     end
 
     # Save an event to the database
@@ -50,11 +51,11 @@ module Repositories
         # Cache the event
         @events_cache[new_event.id] = new_event
 
-        Rails.logger.debug { "Event persisted to database: #{new_event.id}, position: #{record.position}" }
+        @logger_port.debug { "Event persisted to database: #{new_event.id}, position: #{record.position}" }
         new_event
       end
     rescue ActiveRecord::RecordInvalid => e
-      Rails.logger.error("Failed to save event: #{e.message}")
+      @logger_port.error("Failed to save event: #{e.message}")
       raise "Failed to save event: #{e.message}"
     end
 
@@ -74,7 +75,7 @@ module Repositories
 
       # Check if this is a UUID - if so, find by aggregate_id
       if valid_uuid?(id_str)
-        Rails.logger.debug { "Looking up event by UUID: #{id_str}" }
+        @logger_port.debug { "Looking up event by UUID: #{id_str}" }
         record = DomainEvent.find_by(aggregate_id: id_str)
 
         # If not found by aggregate_id, try one more approach
@@ -90,11 +91,11 @@ module Repositories
         end
       elsif id_str.match?(/^\d+$/)
         # If it's a numeric string, try to find by database ID
-        Rails.logger.debug { "Looking up event by numeric ID: #{id_str}" }
+        @logger_port.debug { "Looking up event by numeric ID: #{id_str}" }
         record = DomainEvent.find_by(id: id_str.to_i)
       else
         # Otherwise, try both approaches
-        Rails.logger.debug { "Looking up event by ID (mixed strategy): #{id_str}" }
+        @logger_port.debug { "Looking up event by ID (mixed strategy): #{id_str}" }
         record = DomainEvent.find_by(id: id_str)
         record ||= DomainEvent.find_by(aggregate_id: id_str)
       end
@@ -104,7 +105,7 @@ module Repositories
       # Convert to domain event using the factory and cache
       domain_event = Domain::EventFactory.from_record(record)
       @events_cache[domain_event.id] = domain_event
-      Rails.logger.debug { "Found event: #{domain_event.id} (#{domain_event.name})" }
+      @logger_port.debug { "Found event: #{domain_event.id} (#{domain_event.name})" }
       domain_event
     end
 

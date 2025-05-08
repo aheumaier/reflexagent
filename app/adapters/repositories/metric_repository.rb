@@ -6,8 +6,9 @@ module Repositories
   class MetricRepository
     include StoragePort
 
-    def initialize
+    def initialize(logger_port: nil)
       @metrics_cache = {} # In-memory cache for tests
+      @logger_port = logger_port || Rails.logger
     end
 
     def save_metric(metric)
@@ -21,21 +22,21 @@ module Repositories
       )
 
       # Log the created metric ID
-      Rails.logger.debug { "Created metric in database with ID: #{domain_metric.id}" }
+      @logger_port.debug { "Created metric in database with ID: #{domain_metric.id}" }
 
       # Update the domain metric with the database ID if needed
       if metric.id.nil? || metric.id.empty?
-        Rails.logger.debug { "Updating metric with database ID: #{domain_metric.id}" }
+        @logger_port.debug { "Updating metric with database ID: #{domain_metric.id}" }
         metric = metric.with_id(domain_metric.id.to_s)
       end
 
       # Make sure we actually have an ID
-      Rails.logger.error { "Metric still has nil/empty ID after save attempt" } if metric.id.nil? || metric.id.empty?
+      @logger_port.error { "Metric still has nil/empty ID after save attempt" } if metric.id.nil? || metric.id.empty?
 
       # Store in memory cache for tests
       @metrics_cache[metric.id] = metric
 
-      Rails.logger.debug { "Returning metric with ID: #{metric.id}" }
+      @logger_port.debug { "Returning metric with ID: #{metric.id}" }
 
       # Return the domain metric
       metric
@@ -43,14 +44,14 @@ module Repositories
 
     def find_metric(id)
       # Log the ID we're trying to find
-      Rails.logger.debug { "Finding metric with ID: #{id}" }
+      @logger_port.debug { "Finding metric with ID: #{id}" }
 
       # Normalize the ID to string
       id_str = id.to_s
 
       # Try to find in memory cache first (for tests)
       if @metrics_cache.key?(id_str)
-        Rails.logger.debug { "Found metric in cache: #{id_str}" }
+        @logger_port.debug { "Found metric in cache: #{id_str}" }
         return @metrics_cache[id_str]
       end
 
@@ -60,14 +61,14 @@ module Repositories
         ActiveRecord::Base.connection_pool.with_connection do |conn|
           # Since metrics has a composite primary key (id, recorded_at),
           # we need a more specific approach
-          Rails.logger.debug { "Using composite key approach for metric lookup" }
+          @logger_port.debug { "Using composite key approach for metric lookup" }
 
           # Try to find by ID only (ignoring the recorded_at part of composite key)
           domain_metric = DomainMetric.find_by_id_only(id_str.to_i)
 
           # If not found, try a direct query
           if domain_metric.nil?
-            Rails.logger.debug { "Trying direct query for metric ID: #{id_str.to_i}" }
+            @logger_port.debug { "Trying direct query for metric ID: #{id_str.to_i}" }
             begin
               id_int = id_str.to_i
               sql = "SELECT id, name, value, source, dimensions::text as dimensions_text, recorded_at FROM metrics WHERE id = ? ORDER BY recorded_at DESC LIMIT 1"
@@ -83,7 +84,7 @@ module Repositories
                   begin
                     dimensions = JSON.parse(record["dimensions_text"])
                   rescue JSON::ParserError => e
-                    Rails.logger.error { "Failed to parse dimensions JSON: #{e.message}" }
+                    @logger_port.error { "Failed to parse dimensions JSON: #{e.message}" }
                     dimensions = {}
                   end
                 end
@@ -101,21 +102,21 @@ module Repositories
                 # Cache for future lookups
                 @metrics_cache[metric.id] = metric
 
-                Rails.logger.debug { "Created metric from direct SQL: #{metric.id} (#{metric.name})" }
+                @logger_port.debug { "Created metric from direct SQL: #{metric.id} (#{metric.name})" }
                 return metric
               end
             rescue StandardError => e
-              Rails.logger.error { "Error in direct database query: #{e.message}" }
-              Rails.logger.error { e.backtrace.join("\n") }
+              @logger_port.error { "Error in direct database query: #{e.message}" }
+              @logger_port.error { e.backtrace.join("\n") }
             end
           end
 
           unless domain_metric
-            Rails.logger.warn { "Metric not found in database: #{id_str}" }
+            @logger_port.warn { "Metric not found in database: #{id_str}" }
             return nil
           end
 
-          Rails.logger.debug { "Found metric in database: #{domain_metric.id} (#{domain_metric.name})" }
+          @logger_port.debug { "Found metric in database: #{domain_metric.id} (#{domain_metric.name})" }
 
           # Convert to domain model
           metric = Domain::Metric.new(
@@ -133,7 +134,7 @@ module Repositories
           return metric
         end
       rescue ActiveRecord::StatementInvalid, ActiveRecord::RecordNotFound => e
-        Rails.logger.error { "Database error finding metric #{id_str}: #{e.message}" }
+        @logger_port.error { "Database error finding metric #{id_str}: #{e.message}" }
         nil
       end
     end
@@ -246,7 +247,7 @@ module Repositories
     def update_metric(metric)
       # Ensure we have an ID
       if metric.id.nil? || metric.id.empty?
-        Rails.logger.error { "Cannot update metric without ID" }
+        @logger_port.error { "Cannot update metric without ID" }
         return save_metric(metric) # Fall back to creating a new one
       end
 
@@ -254,7 +255,7 @@ module Repositories
       domain_metric = DomainMetric.find_by_id_only(metric.id.to_i)
 
       unless domain_metric
-        Rails.logger.warn { "Metric not found for update, creating new: #{metric.id}" }
+        @logger_port.warn { "Metric not found for update, creating new: #{metric.id}" }
         return save_metric(metric)
       end
 
@@ -293,7 +294,7 @@ module Repositories
       base_query = CommitMetric.since(since)
       base_query = base_query.by_repository(repository) if repository.present?
 
-      Rails.logger.debug { "Finding hotspot directories since #{since}" }
+      @logger_port.debug { "Finding hotspot directories since #{since}" }
 
       # Get hotspot directories from the CommitMetric model
       hotspots = base_query.hotspot_directories(since: since, limit: limit)
@@ -316,7 +317,7 @@ module Repositories
       base_query = CommitMetric.since(since)
       base_query = base_query.by_repository(repository) if repository.present?
 
-      Rails.logger.debug { "Finding hotspot filetypes since #{since}" }
+      @logger_port.debug { "Finding hotspot filetypes since #{since}" }
 
       # Get hotspot file types from the CommitMetric model
       hotspots = base_query.hotspot_files_by_extension(since: since, limit: limit)
@@ -338,7 +339,7 @@ module Repositories
       base_query = CommitMetric.since(since)
       base_query = base_query.by_repository(repository) if repository.present?
 
-      Rails.logger.debug { "Finding commit type distribution since #{since}" }
+      @logger_port.debug { "Finding commit type distribution since #{since}" }
 
       # Get commit type distribution from the CommitMetric model
       distribution = base_query.commit_type_distribution(since: since)
@@ -361,7 +362,7 @@ module Repositories
       base_query = CommitMetric.since(since)
       base_query = base_query.by_repository(repository) if repository.present?
 
-      Rails.logger.debug { "Finding author activity since #{since}" }
+      @logger_port.debug { "Finding author activity since #{since}" }
 
       # Get author activity from the CommitMetric model
       authors = base_query.author_activity(since: since, limit: limit)
@@ -383,7 +384,7 @@ module Repositories
       base_query = CommitMetric.since(since)
       base_query = base_query.by_repository(repository) if repository.present?
 
-      Rails.logger.debug { "Finding lines changed by author since #{since}" }
+      @logger_port.debug { "Finding lines changed by author since #{since}" }
 
       # Get lines changed by author from the CommitMetric model
       authors = base_query.lines_changed_by_author(since: since)
@@ -407,7 +408,7 @@ module Repositories
       base_query = CommitMetric.since(since)
       base_query = base_query.by_repository(repository) if repository.present?
 
-      Rails.logger.debug { "Finding breaking changes by author since #{since}" }
+      @logger_port.debug { "Finding breaking changes by author since #{since}" }
 
       # Get breaking changes by author from the CommitMetric model
       authors = base_query.breaking_changes_by_author(since: since)
@@ -429,7 +430,7 @@ module Repositories
       base_query = CommitMetric.since(since)
       base_query = base_query.by_repository(repository) if repository.present?
 
-      Rails.logger.debug { "Finding commit activity by day since #{since}" }
+      @logger_port.debug { "Finding commit activity by day since #{since}" }
 
       # Get commit activity by day from the CommitMetric model
       activity = base_query.commit_activity_by_day(since: since)
@@ -450,7 +451,7 @@ module Repositories
     # @param per_page [Integer] Items per page for pagination
     # @return [Array<String>] List of repository names
     def get_active_repositories(start_time:, limit: 50, page: nil, per_page: nil)
-      Rails.logger.debug { "Getting active repositories since #{start_time}" }
+      @logger_port.debug { "Getting active repositories since #{start_time}" }
 
       # Create a raw SQL query that efficiently aggregates repositories at the database level
       # This avoids loading all metrics into memory
@@ -481,10 +482,84 @@ module Repositories
       # Extract repository names from the result
       result.map { |row| row["repository_name"] }.compact
     rescue StandardError => e
-      Rails.logger.error { "Error fetching active repositories: #{e.message}" }
-      Rails.logger.error { e.backtrace.join("\n") }
+      @logger_port.error { "Error fetching active repositories: #{e.message}" }
+      @logger_port.error { e.backtrace.join("\n") }
       # Fallback to empty array on error
       []
+    end
+
+    # New method for direct database lookup of metrics by ID
+    # @param id_int [Integer] The integer ID of the metric to find
+    # @return [Domain::Metric, nil] The found metric or nil if not found
+    def find_metric_direct(id_int)
+      @logger_port.debug { "Direct database lookup for metric ID: #{id_int}" }
+
+      # Try using our direct database method first
+      begin
+        domain_metric = DomainMetric.find_by_id_direct(id_int)
+
+        if domain_metric
+          @logger_port.debug { "Found metric via find_by_id_direct: #{domain_metric.id} (#{domain_metric.name})" }
+          metric = Domain::Metric.new(
+            id: domain_metric.id.to_s,
+            name: domain_metric.name,
+            value: domain_metric.value.to_f,
+            source: domain_metric.source,
+            dimensions: domain_metric.dimensions_hash || {},
+            timestamp: domain_metric.recorded_at
+          )
+
+          # Cache for future lookups
+          @metrics_cache[metric.id] = metric
+
+          return metric
+        end
+
+        # Fallback to raw SQL as a last resort
+        ActiveRecord::Base.connection_pool.with_connection do |conn|
+          # Use direct SQL query as a last resort, getting only the most recent metric
+          sql = "SELECT id, name, value, source, dimensions::text as dimensions_text, recorded_at FROM metrics WHERE id = ? ORDER BY recorded_at DESC LIMIT 1"
+
+          # Use safer parameter binding
+          result = conn.exec_query(sql, "Direct Metric Lookup", [id_int])
+
+          if result.rows.any?
+            record = result.to_a.first
+
+            # Parse the JSONB dimensions field
+            dimensions = {}
+            if record["dimensions_text"].present?
+              begin
+                dimensions = JSON.parse(record["dimensions_text"])
+              rescue JSON::ParserError => e
+                @logger_port.error { "Failed to parse dimensions JSON: #{e.message}" }
+                dimensions = {}
+              end
+            end
+
+            # Create the domain metric directly
+            @logger_port.debug { "Found metric via direct SQL: #{record['id']} (#{record['name']})" }
+            metric = Domain::Metric.new(
+              id: record["id"].to_s,
+              name: record["name"],
+              value: record["value"].to_f,
+              source: record["source"],
+              dimensions: dimensions,
+              timestamp: record["recorded_at"]
+            )
+
+            # Cache for future lookups
+            @metrics_cache[metric.id] = metric
+
+            return metric
+          end
+        end
+      rescue StandardError => e
+        @logger_port.error { "Error in direct metric lookup: #{e.message}" }
+        @logger_port.error { e.backtrace.join("\n") }
+      end
+
+      nil
     end
   end
 end

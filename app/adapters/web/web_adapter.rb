@@ -7,6 +7,10 @@ module Web
   class WebAdapter
     include IngestionPort
 
+    def initialize(logger_port: nil)
+      @logger_port = logger_port || Rails.logger
+    end
+
     # Implements the IngestionPort interface
     # Parses the raw payload and creates a Domain Event
     # @param raw_payload [String] The raw JSON webhook payload
@@ -32,7 +36,7 @@ module Web
         handle_generic_event(parsed_payload, source)
       end
     rescue JSON::ParserError => e
-      Rails.logger.error("Invalid JSON payload: #{e.message}")
+      @logger_port.error("Invalid JSON payload: #{e.message}")
       raise InvalidPayloadError, "Invalid JSON payload"
     end
 
@@ -57,7 +61,7 @@ module Web
 
       # If we have the GitHub event header, use it directly
       if github_event_header.present?
-        Rails.logger.debug { "Using GitHub event type from header: #{github_event_header}" }
+        @logger_port.debug { "Using GitHub event type from header: #{github_event_header}" }
         # Still need to determine action from payload for events like PR opened/closed
         action = payload[:action] || payload["action"] || "created"
         event_type = "#{github_event_header}.#{action}"
@@ -75,7 +79,7 @@ module Web
           timestamp: Time.current
         )
       rescue StandardError => e
-        Rails.logger.error("Error creating event: #{e.message}")
+        @logger_port.error("Error creating event: #{e.message}")
         raise e
       end
     end
@@ -201,7 +205,7 @@ module Web
       )
     end
 
-    # Generic handler for other sources
+    # Handle generic event mapping for unrecognized sources
     def handle_generic_event(payload, source)
       # Extract a reasonable event name or use a default
       event_type = payload[:type] || payload[:event] || payload[:action] || "event"

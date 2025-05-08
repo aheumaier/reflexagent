@@ -61,6 +61,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/ports/notification_port"
     require_relative "../../app/ports/team_repository_port"
     require_relative "../../app/ports/dashboard_port"
+    require_relative "../../app/ports/logger_port"
 
     # Only after ALL ports are loaded, load adapter classes
     require_relative "../../app/adapters/web/web_adapter"
@@ -77,25 +78,30 @@ Rails.application.config.after_initialize do
     # Now register them
     Rails.logger.info "Registering adapters..."
 
+    # Create a logger port using Rails.logger
+    # We'll use this for all adapters to make it easier to replace later
+    logger_port = Rails.logger
+    DependencyContainer.register(:logger_port, logger_port)
+
     # Ingestion port implementation
     DependencyContainer.register(
       :ingestion_port,
-      Web::WebAdapter.new
+      Web::WebAdapter.new(logger_port: logger_port)
     )
 
     # Register domain-specific repositories directly
     # Each repository is now explicitly used by the appropriate use cases
     DependencyContainer.register(
       :event_repository,
-      Repositories::EventRepository.new
+      Repositories::EventRepository.new(logger_port: logger_port)
     )
     DependencyContainer.register(
       :metric_repository,
-      Repositories::MetricRepository.new
+      Repositories::MetricRepository.new(logger_port: logger_port)
     )
     DependencyContainer.register(
       :alert_repository,
-      Repositories::AlertRepository.new
+      Repositories::AlertRepository.new(logger_port: logger_port)
     )
 
     # Cache port implementation
@@ -163,7 +169,7 @@ Rails.application.config.after_initialize do
 
     # Register team repository port
     DependencyContainer.register(:team_repository) do
-      Repositories::TeamRepository.new
+      Repositories::TeamRepository.new(logger_port: logger_port)
     end
 
     # Register dashboard adapter
@@ -171,7 +177,7 @@ Rails.application.config.after_initialize do
       Dashboard::DashboardAdapter.new(
         storage_port: DependencyContainer.resolve(:metric_repository),
         cache_port: DependencyContainer.resolve(:cache_port),
-        logger_port: Rails.logger
+        logger_port: logger_port
       )
     end
 

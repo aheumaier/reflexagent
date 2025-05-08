@@ -4,28 +4,30 @@ module UseCases
   # CalculateMetrics is responsible for generating metrics from events
   # It uses MetricClassifier to determine which metrics to create for each event
   class CalculateMetrics
-    def initialize(storage_port:, cache_port:, metric_classifier:, dimension_extractor: nil, team_repository_port: nil)
+    def initialize(storage_port:, cache_port:, metric_classifier:, dimension_extractor: nil, team_repository_port: nil,
+                   logger_port: nil)
       @storage_port = storage_port
       @cache_port = cache_port
       @metric_classifier = metric_classifier
       @dimension_extractor = dimension_extractor
       @team_repository_port = team_repository_port
+      @logger_port = logger_port || Rails.logger
     end
 
     def call(event_id)
       # Log the event ID we're trying to process
-      Rails.logger.debug { "CalculateMetrics.call for event ID: #{event_id}" }
+      @logger_port.debug { "CalculateMetrics.call for event ID: #{event_id}" }
 
       # Try to find the event
       event = @storage_port.find_event(event_id)
 
       # Check if we found an event
       unless event
-        Rails.logger.warn { "Event with ID #{event_id} not found in calculate_metrics" }
+        @logger_port.warn { "Event with ID #{event_id} not found in calculate_metrics" }
         raise NoMethodError, "Event with ID #{event_id} not found"
       end
 
-      Rails.logger.debug { "Found event: #{event.id} (#{event.name})" }
+      @logger_port.debug { "Found event: #{event.id} (#{event.name})" }
 
       # Use the metric classifier to determine which metrics to create
       classification = @metric_classifier.classify_event(event)
@@ -42,7 +44,7 @@ module UseCases
       # Create and save each metric
       saved_metrics = process_metrics(classification[:metrics], event)
 
-      Rails.logger.debug { "Created #{saved_metrics.size} metrics from event: #{event.id}" }
+      @logger_port.debug { "Created #{saved_metrics.size} metrics from event: #{event.id}" }
 
       # If only one metric was created, return it for backward compatibility
       # Otherwise, return the array of metrics
@@ -93,7 +95,7 @@ module UseCases
       if org_name.present?
         find_or_create_team_use_case = UseCases::FindOrCreateTeam.new(
           team_repository_port: @team_repository_port,
-          logger_port: Rails.logger
+          logger_port: @logger_port
         )
 
         team = find_or_create_team_use_case.call(name: org_name)
@@ -119,7 +121,7 @@ module UseCases
       # Register the repository
       register_repository_use_case = UseCases::RegisterRepository.new(
         team_repository_port: @team_repository_port,
-        logger_port: Rails.logger
+        logger_port: @logger_port
       )
 
       register_repository_use_case.call(
@@ -129,7 +131,7 @@ module UseCases
         team_id: team_id
       )
     rescue StandardError => e
-      Rails.logger.error { "Error registering repository/team in calculate_metrics: #{e.message}" }
+      @logger_port.error { "Error registering repository/team in calculate_metrics: #{e.message}" }
       # Continue processing even if registration fails
     end
 
@@ -291,7 +293,7 @@ module UseCases
     #       updated_aggregate = aggregate.with_value(aggregate.value + metric.value)
     #       @storage_port.update_metric(updated_aggregate)
     #
-    #       Rails.logger.debug { "Updated aggregate metric: #{aggregate_name} (#{time_period})" }
+    #       @logger_port.debug { "Updated aggregate metric: #{aggregate_name} (#{time_period})" }
     #     else
     #       # Create new aggregate
     #       new_aggregate = Domain::Metric.new(
@@ -303,11 +305,11 @@ module UseCases
     #       )
     #       @storage_port.save_metric(new_aggregate)
     #
-    #       Rails.logger.debug { "Created new aggregate metric: #{aggregate_name} (#{time_period})" }
+    #       @logger_port.debug { "Created new aggregate metric: #{aggregate_name} (#{time_period})" }
     #     end
     #   rescue StandardError => e
     #     # Log error but don't fail the entire operation
-    #     Rails.logger.error { "Error updating aggregate #{aggregate_name}: #{e.message}" }
+    #     @logger_port.error { "Error updating aggregate #{aggregate_name}: #{e.message}" }
     #   end
     # end
     #
