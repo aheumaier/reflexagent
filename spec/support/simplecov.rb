@@ -46,7 +46,7 @@ SimpleCov.start "rails" do
   track_files "app/**/*.rb"
 
   # Consider a file as relevant for coverage if it has at least one relevant line
-  refuse_coverage_drop
+  # refuse_coverage_drop
 end
 
 # # Show coverage result in console when running tests

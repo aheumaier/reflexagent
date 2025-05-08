@@ -52,10 +52,19 @@ module Web
     def handle_github_event(payload)
       # Process the GitHub event
 
-      # Determine event type from payload
-      # GitHub webhooks can have various formats depending on the event type
-      event_type = determine_github_event_type(payload)
-      repository = payload.dig(:repository, :full_name) || "unknown"
+      # First check if we have the event type in the X-GitHub-Event header
+      github_event_header = Thread.current[:http_headers]&.dig("X-GitHub-Event")
+
+      # If we have the GitHub event header, use it directly
+      if github_event_header.present?
+        Rails.logger.debug { "Using GitHub event type from header: #{github_event_header}" }
+        # Still need to determine action from payload for events like PR opened/closed
+        action = payload[:action] || payload["action"] || "created"
+        event_type = "#{github_event_header}.#{action}"
+      else
+        # Fallback to determining event type from payload structure
+        event_type = determine_github_event_type(payload)
+      end
 
       # Create a domain event using the EventFactory
       begin
@@ -109,11 +118,11 @@ module Web
       check_suite = payload[:check_suite] || payload["check_suite"]
       repository = payload[:repository] || payload["repository"]
 
+      # FIX: Check for deployment_status events first (IMPORTANT: this must come before deployment events check)
+      return "deployment_status.#{action}" if deployment_status && action
+
       # Check for deployment events
       return "deployment.#{action}" if deployment && action
-
-      # Check for deployment status events
-      return "deployment_status.#{action}" if deployment_status && action
 
       # Check for workflow run events
       return "workflow_run.#{action}" if workflow_run && action
