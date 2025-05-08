@@ -45,10 +45,11 @@ module Dashboard
 
     # Fetch CI/CD metrics for dashboard visualization
     # @param time_period [Integer] The number of days to look back
+    # @param repository [String, nil] Optional repository filter
     # @return [Hash] Formatted CI/CD metrics for display
-    def get_cicd_metrics(time_period:)
+    def get_cicd_metrics(time_period:, repository: nil)
       {
-        builds: analyze_build_performance_use_case.call(time_period: time_period),
+        builds: analyze_build_performance_use_case.call(time_period: time_period, repository: repository),
         deployments: analyze_deployment_performance_use_case.call(time_period: time_period)
       }
     end
@@ -58,10 +59,29 @@ module Dashboard
     # @param limit [Integer] Maximum number of repositories to return
     # @return [Hash] Formatted repository metrics for display
     def get_repository_metrics(time_period:, limit: 5)
-      fetch_engineering_dashboard_metrics_use_case.call(
-        time_period: time_period,
-        filters: { limit: limit }
-      )[:repo_metrics]
+      # Get all repositories first
+      repository_names = get_available_repositories(time_period: time_period, limit: limit)
+
+      # Build a result with commit volume data for each repository
+      results = repository_names.map do |repository_name|
+        commit_volume = calculate_commit_volume_use_case.call(
+          time_period: time_period,
+          repository: repository_name
+        )
+
+        {
+          repository: repository_name,
+          commit_volume: {
+            total_commits: commit_volume[:total_commits],
+            days_with_commits: commit_volume[:days_with_commits],
+            commits_per_day: commit_volume[:commits_per_day],
+            commit_frequency: commit_volume[:commit_frequency]
+          }
+        }
+      end
+
+      # Sort by total_commits descending to show most active first
+      results.sort_by { |r| -r[:commit_volume][:total_commits] }
     end
 
     # Fetch team metrics for dashboard visualization
@@ -89,18 +109,37 @@ module Dashboard
     # Fetch available repositories for filtering
     # @param time_period [Integer] The number of days to look back
     # @param limit [Integer] Maximum number of repositories to return
+    # @param team_id [Integer, String] Optional team ID to filter repositories
+    # @param team_slug [String] Optional team slug to filter repositories
     # @return [Array<String>] List of repository names
-    def get_available_repositories(time_period:, limit: 50)
-      # Implementation using storage_port
-      metrics = @storage_port.list_metrics(
-        name: "github.push.total",
-        start_time: time_period.days.ago,
-        latest_first: true
+    def get_available_repositories(time_period:, limit: 50, team_id: nil, team_slug: nil)
+      if team_id.present? || team_slug.present?
+        # If a team identifier is provided, use the team-specific method
+        get_team_repositories(team_id: team_id, team_slug: team_slug, limit: limit)
+      else
+        # Otherwise, get all repositories
+        repositories = team_repository.list_repositories(limit: limit)
+        repositories.map(&:name)
+      end
+    end
+
+    # Fetch repositories for a specific team
+    # @param team_id [Integer, String] The ID of the team
+    # @param team_slug [String] Alternative to team_id - the slug of the team
+    # @param limit [Integer] Maximum number of repositories to return
+    # @param offset [Integer] Offset for pagination
+    # @return [Array<String>] List of repository names for the team
+    def get_team_repositories(team_id: nil, team_slug: nil, limit: 50, offset: 0)
+      # Use the ListTeamRepositories use case to get repositories for a specific team
+      repositories = list_team_repositories_use_case.call(
+        team_id: team_id,
+        team_slug: team_slug,
+        limit: limit,
+        offset: offset
       )
 
-      # Extract unique repository names from dimensions
-      repos = metrics.map { |m| m.dimensions["repository"] }.compact.uniq
-      repos.sort.first(limit)
+      # Only return repository names
+      repositories.map(&:name)
     end
 
     # Fetch directory hotspots for a repository
@@ -225,6 +264,14 @@ module Dashboard
       true
     end
 
+    # Fetch build performance metrics directly
+    # @param time_period [Integer] The number of days to look back
+    # @param repository [String, nil] Optional repository filter
+    # @return [Hash] Build performance metrics
+    def get_build_performance_metrics(time_period:, repository: nil)
+      analyze_build_performance_use_case.call(time_period: time_period, repository: repository)
+    end
+
     private
 
     # Factory methods for use cases
@@ -331,6 +378,18 @@ module Dashboard
       @list_active_alerts_use_case ||= UseCases::ListActiveAlerts.new(
         storage_port: @storage_port,
         cache_port: @cache_port
+      )
+    end
+
+    def team_repository
+      @team_repository ||= DependencyContainer.resolve(:team_repository)
+    end
+
+    def list_team_repositories_use_case
+      @list_team_repositories_use_case ||= UseCases::ListTeamRepositories.new(
+        team_repository_port: team_repository,
+        cache_port: @cache_port,
+        logger_port: @logger_port
       )
     end
   end

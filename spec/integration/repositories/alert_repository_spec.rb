@@ -5,6 +5,11 @@ RSpec.describe Repositories::AlertRepository do
 
   include_context "alert examples"
 
+  # Clear the database before each test
+  before do
+    DomainAlert.delete_all
+  end
+
   describe "#save_alert" do
     it "persists the alert to the database" do
       result = repository.save_alert(alert)
