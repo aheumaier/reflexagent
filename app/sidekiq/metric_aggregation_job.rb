@@ -1,5 +1,10 @@
 # frozen_string_literal: true
 
+require_relative "../core/use_cases/calculate_deployment_frequency"
+require_relative "../core/use_cases/calculate_lead_time"
+require_relative "../core/use_cases/calculate_time_to_restore"
+require_relative "../core/use_cases/calculate_change_failure_rate"
+
 class MetricAggregationJob
   include Sidekiq::Job
 
@@ -127,8 +132,26 @@ class MetricAggregationJob
   def process_dora_metrics(time_period)
     metric_repository = DependencyContainer.resolve(:metric_repository)
 
-    # Create service instances
-    dora_service = ServiceFactory.create_dora_service
+    # Initialize use cases for DORA metrics
+    calculate_deployment_frequency = UseCases::CalculateDeploymentFrequency.new(
+      storage_port: metric_repository,
+      logger_port: Rails.logger
+    )
+
+    calculate_lead_time = UseCases::CalculateLeadTime.new(
+      storage_port: metric_repository,
+      logger_port: Rails.logger
+    )
+
+    calculate_time_to_restore = UseCases::CalculateTimeToRestore.new(
+      storage_port: metric_repository,
+      logger_port: Rails.logger
+    )
+
+    calculate_change_failure_rate = UseCases::CalculateChangeFailureRate.new(
+      storage_port: metric_repository,
+      logger_port: Rails.logger
+    )
 
     # Calculate different time periods to generate DORA metrics for
     # Regardless of aggregation schedule, we want metrics for standard dashboard filter periods
@@ -142,10 +165,10 @@ class MetricAggregationJob
     # Process each standard time period
     standard_periods.each do |days|
       # Get each DORA metric for this period
-      deployment_frequency = dora_service.deployment_frequency(days)
-      lead_time = dora_service.lead_time_for_changes(days)
-      time_to_restore = dora_service.time_to_restore_service(days)
-      change_failure_rate = dora_service.change_failure_rate(days)
+      deployment_frequency = calculate_deployment_frequency.call(time_period: days)
+      lead_time = calculate_lead_time.call(time_period: days)
+      time_to_restore = calculate_time_to_restore.call(time_period: days)
+      change_failure_rate = calculate_change_failure_rate.call(time_period: days)
 
       # Record current timestamp for consistency across all metrics
       timestamp = Time.current
