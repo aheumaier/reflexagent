@@ -512,5 +512,28 @@ module Repositories
 
       nil
     end
+
+    # List metrics with a name matching a pattern using SQL LIKE syntax
+    # @param pattern [String] SQL LIKE pattern for the metric name
+    # @param start_time [Time, nil] Optional start time filter
+    # @param end_time [Time, nil] Optional end time filter
+    # @return [Array<Domain::Metric>] Array of matching metrics
+    def list_metrics_with_name_pattern(pattern, start_time: nil, end_time: nil)
+      Rails.logger.info("Listing metrics with name pattern: #{pattern}, start_time: #{start_time}, end_time: #{end_time}")
+
+      # Use the ActiveRecord query interface
+      query = DomainMetric.where("name LIKE ?", pattern)
+
+      # Add time constraints if provided
+      query = query.where("recorded_at >= ?", start_time) if start_time
+      query = query.where("recorded_at <= ?", end_time) if end_time
+
+      # Execute the query and log the results
+      metrics = query.to_a
+      Rails.logger.info("Found #{metrics.size} metrics matching pattern '#{pattern}'")
+
+      # Convert to domain metrics
+      metrics.map { |m| to_domain_metric(m) }
+    end
   end
 end

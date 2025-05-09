@@ -187,8 +187,8 @@ Rails.application.config.after_initialize do
     # Register dashboard adapter
     DependencyContainer.register(:dashboard_adapter) do
       Dashboard::DashboardAdapter.new(
-        storage_port: DependencyContainer.resolve(:metric_repository),
-        cache_port: DependencyContainer.resolve(:cache_port),
+        storage_port: Repositories::MetricRepository.new(logger_port: logger_port),
+        cache_port: Cache::RedisCache.new,
         logger_port: logger_port
       )
     end

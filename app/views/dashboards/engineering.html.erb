@@ -609,11 +609,14 @@
                 <div class="px-4 py-5 sm:p-6">
                   <dt class="text-sm font-medium text-gray-500 truncate">Build Success Rate</dt>
                   <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                    <%= (@ci_cd_metrics && @ci_cd_metrics[:builds] && @ci_cd_metrics[:builds][:success_rate]) || 0 %>%
+                    <%= (@ci_cd_metrics.dig(:builds, :success_rate) || 0).round(1) %>%
                   </dd>
                   <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                    <div class="bg-green-600 h-2.5 rounded-full" style="width: <%= (@ci_cd_metrics && @ci_cd_metrics[:builds] && @ci_cd_metrics[:builds][:success_rate]) || 0 %>%"></div>
+                    <div class="bg-green-600 h-2.5 rounded-full" style="width: <%= (@ci_cd_metrics.dig(:builds, :success_rate) || 0).round(1) %>%"></div>
                   </div>
+                  <p class="mt-2 text-sm text-gray-500">
+                    Total: <%= @ci_cd_metrics.dig(:builds, :total) || 0 %> builds
+                  </p>
                 </div>
               </div>
               
@@ -622,8 +625,20 @@
                 <div class="px-4 py-5 sm:p-6">
                   <dt class="text-sm font-medium text-gray-500 truncate">Avg Build Duration</dt>
                   <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                    <%= @ci_cd_metrics[:builds][:avg_duration]&.round(2) || 'N/A' %> <%= @ci_cd_metrics[:builds][:avg_duration] ? 'min' : '' %>
+                    <% avg_duration = @ci_cd_metrics.dig(:builds, :avg_duration) %>
+                    <% if avg_duration && avg_duration > 0 %>
+                      <%= avg_duration.round(1) %>
+                      <span class="text-lg">min</span>
+                    <% else %>
+                      N/A
+                    <% end %>
                   </dd>
+                  <% workflows = @ci_cd_metrics.dig(:builds, :longest_workflow_durations) || {} %>
+                  <% if workflows.any? %>
+                    <p class="mt-2 text-sm text-gray-500">
+                      Longest: <%= workflows.keys.first %> (<%= workflows.values.first.round(1) %>min)
+                    </p>
+                  <% end %>
                 </div>
               </div>
               
@@ -632,24 +647,74 @@
                 <div class="px-4 py-5 sm:p-6">
                   <dt class="text-sm font-medium text-gray-500 truncate">Deploy Success Rate</dt>
                   <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                    <%= @ci_cd_metrics[:deployments][:success_rate] %>%
+                    <%= (@ci_cd_metrics.dig(:deployments, :success_rate) || 0).round(1) %>%
                   </dd>
                   <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: <%= @ci_cd_metrics[:deployments][:success_rate] %>%"></div>
+                    <div class="bg-blue-600 h-2.5 rounded-full" style="width: <%= (@ci_cd_metrics.dig(:deployments, :success_rate) || 0).round(1) %>%"></div>
                   </div>
+                  <p class="mt-2 text-sm text-gray-500">
+                    <%= @ci_cd_metrics.dig(:deployments, :total) || 0 %> deployments
+                  </p>
                 </div>
               </div>
               
-              <!-- Deployment Count -->
+              <!-- Deployment Frequency -->
               <div class="bg-white overflow-hidden shadow rounded-lg">
                 <div class="px-4 py-5 sm:p-6">
-                  <dt class="text-sm font-medium text-gray-500 truncate">Total Deployments</dt>
+                  <dt class="text-sm font-medium text-gray-500 truncate">Deployment Frequency</dt>
                   <dd class="mt-1 text-3xl font-semibold text-gray-900">
-                    <%= @ci_cd_metrics[:deployments][:total].is_a?(Hash) ? @ci_cd_metrics[:deployments][:total].values.sum.to_i : @ci_cd_metrics[:deployments][:total].to_i %>
+                    <% deployment_frequency = @ci_cd_metrics.dig(:deployments, :deployment_frequency) || 0 %>
+                    <%= deployment_frequency.round(2) %>
+                    <span class="text-lg">per day</span>
                   </dd>
+                  <% if @ci_cd_metrics.dig(:deployments, :durations_by_environment)&.any? %>
+                    <% first_env = @ci_cd_metrics.dig(:deployments, :durations_by_environment).keys.first %>
+                    <% duration = @ci_cd_metrics.dig(:deployments, :durations_by_environment)[first_env] %>
+                    <p class="mt-2 text-sm text-gray-500">
+                      Avg time: <%= duration&.round(1) || 0 %>min in <%= first_env %>
+                    </p>
+                  <% end %>
                 </div>
               </div>
             </div>
+            
+            <% if (@ci_cd_metrics.dig(:builds, :builds_by_workflow) || {}).any? %>
+              <div class="mt-6 bg-white overflow-hidden shadow rounded-lg">
+                <div class="px-4 py-5 sm:p-6">
+                  <h3 class="text-base font-medium text-gray-800 mb-3">CI/CD Workflow Distribution</h3>
+                  <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h4 class="text-sm font-medium text-gray-600 mb-2">Build Workflows</h4>
+                      <div class="space-y-2">
+                        <% @ci_cd_metrics.dig(:builds, :builds_by_workflow).sort_by { |_, count| -count }.take(5).each do |workflow, count| %>
+                          <div class="flex justify-between items-center">
+                            <span class="text-sm text-gray-600"><%= workflow %></span>
+                            <span class="text-sm font-medium text-gray-800"><%= count %> builds</span>
+                          </div>
+                        <% end %>
+                      </div>
+                    </div>
+                    
+                    <div>
+                      <h4 class="text-sm font-medium text-gray-600 mb-2">Flaky Builds</h4>
+                      <% flaky_builds = @ci_cd_metrics.dig(:builds, :flaky_builds) || [] %>
+                      <% if flaky_builds.any? %>
+                        <div class="space-y-2">
+                          <% flaky_builds.each do |flaky| %>
+                            <div class="flex justify-between items-center">
+                              <span class="text-sm text-gray-600"><%= flaky[:workflow_name] %></span>
+                              <span class="text-sm font-medium text-red-600"><%= flaky[:transition_rate].round(1) %>% flaky</span>
+                            </div>
+                          <% end %>
+                        </div>
+                      <% else %>
+                        <p class="text-sm text-gray-500 italic">No flaky builds detected</p>
+                      <% end %>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            <% end %>
           </section>
           
           <!-- Team Performance -->

@@ -48,9 +48,32 @@ module Dashboard
     # @param repository [String, nil] Optional repository filter
     # @return [Hash] Formatted CI/CD metrics for display
     def get_cicd_metrics(time_period:, repository: nil)
+      builds_metrics = get_build_performance_metrics(time_period: time_period, repository: repository)
+      deploy_metrics = get_deployment_performance_metrics(time_period: time_period, repository: repository)
+
+      # Map to the expected structure in the view - directly use the fields from the use case response
       {
-        builds: analyze_build_performance_use_case.call(time_period: time_period, repository: repository),
-        deployments: analyze_deployment_performance_use_case.call(time_period: time_period)
+        builds: {
+          total: builds_metrics[:total] || 0,
+          success_rate: builds_metrics[:success_rate] || 0,
+          avg_duration: builds_metrics[:avg_duration] || 0,
+          builds_by_day: builds_metrics[:builds_by_day] || {},
+          success_by_day: builds_metrics[:success_by_day] || {},
+          builds_by_workflow: builds_metrics[:builds_by_workflow] || {},
+          longest_workflow_durations: builds_metrics[:longest_workflow_durations] || {},
+          flaky_builds: builds_metrics[:flaky_builds] || []
+        },
+        deployments: {
+          total: deploy_metrics[:total] || 0,
+          success_rate: deploy_metrics[:success_rate] || 0,
+          avg_duration: deploy_metrics[:avg_duration] || 0,
+          deployment_frequency: deploy_metrics[:deployment_frequency] || 0.0,
+          deploys_by_day: deploy_metrics[:deploys_by_day] || {},
+          success_rate_by_day: deploy_metrics[:success_rate_by_day] || {},
+          deploys_by_workflow: deploy_metrics[:deploys_by_workflow] || {},
+          durations_by_environment: deploy_metrics[:durations_by_environment] || {},
+          common_failure_reasons: deploy_metrics[:common_failure_reasons] || {}
+        }
       }
     end
 
@@ -330,7 +353,39 @@ module Dashboard
     # @param repository [String, nil] Optional repository filter
     # @return [Hash] Build performance metrics
     def get_build_performance_metrics(time_period:, repository: nil)
-      analyze_build_performance_use_case.call(time_period: time_period, repository: repository)
+      # Create a direct instance of the metric repository instead of using DependencyContainer
+      metric_repository = Repositories::MetricRepository.new(logger_port: @logger_port)
+
+      # Create a direct instance of the use case with the metric repository
+      use_case = UseCases::AnalyzeBuildPerformance.new(
+        storage_port: metric_repository,
+        cache_port: @cache_port,
+        metric_naming_port: Adapters::Metrics::MetricNamingAdapter.new,
+        logger_port: @logger_port
+      )
+
+      # Call the use case directly
+      use_case.call(time_period: time_period, repository: repository)
+    end
+
+    # Fetch deployment performance metrics directly
+    # @param time_period [Integer] The number of days to look back
+    # @param repository [String, nil] Optional repository filter
+    # @return [Hash] Deployment performance metrics
+    def get_deployment_performance_metrics(time_period:, repository: nil)
+      # Create a direct instance of the metric repository instead of using DependencyContainer
+      metric_repository = Repositories::MetricRepository.new(logger_port: @logger_port)
+
+      # Create a direct instance of the use case with the metric repository
+      use_case = UseCases::AnalyzeDeploymentPerformance.new(
+        storage_port: metric_repository,
+        cache_port: @cache_port,
+        metric_naming_port: Adapters::Metrics::MetricNamingAdapter.new,
+        logger_port: @logger_port
+      )
+
+      # Call the use case directly
+      use_case.call(time_period: time_period, repository: repository)
     end
 
     private
@@ -374,15 +429,19 @@ module Dashboard
 
     def analyze_build_performance_use_case
       @analyze_build_performance_use_case ||= UseCases::AnalyzeBuildPerformance.new(
-        storage_port: @storage_port,
-        cache_port: @cache_port
+        storage_port: Repositories::MetricRepository.new(logger_port: @logger_port),
+        cache_port: @cache_port,
+        metric_naming_port: DependencyContainer.resolve(:metric_naming_port),
+        logger_port: @logger_port
       )
     end
 
     def analyze_deployment_performance_use_case
       @analyze_deployment_performance_use_case ||= UseCases::AnalyzeDeploymentPerformance.new(
-        storage_port: @storage_port,
-        cache_port: @cache_port
+        storage_port: Repositories::MetricRepository.new(logger_port: @logger_port),
+        cache_port: @cache_port,
+        metric_naming_port: DependencyContainer.resolve(:metric_naming_port),
+        logger_port: @logger_port
       )
     end
 

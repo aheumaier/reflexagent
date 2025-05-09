@@ -3,7 +3,16 @@ class ApplicationController < ActionController::Base
   # This provides a consistent way for all controllers to access the dashboard adapter
   # @return [Dashboard::DashboardAdapter] The dashboard adapter instance
   def dashboard_adapter
-    @dashboard_adapter ||= DependencyContainer.resolve(:dashboard_adapter)
+    @dashboard_adapter ||= begin
+      # Create a direct instance of the dashboard adapter
+      metric_repository = Repositories::MetricRepository.new(logger_port: Rails.logger)
+
+      Dashboard::DashboardAdapter.new(
+        storage_port: metric_repository,
+        cache_port: Cache::RedisCache.new,
+        logger_port: Rails.logger
+      )
+    end
   end
 
   # Helper method to safely call dashboard adapter methods with standardized error handling

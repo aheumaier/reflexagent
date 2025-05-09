@@ -3,9 +3,11 @@
 module UseCases
   # AnalyzeBuildPerformance tracks build success rates and durations
   class AnalyzeBuildPerformance
-    def initialize(storage_port:, cache_port: nil)
+    def initialize(storage_port:, cache_port: nil, metric_naming_port: nil, logger_port: nil)
       @storage_port = storage_port
       @cache_port = cache_port
+      @metric_naming_port = metric_naming_port || DependencyContainer.resolve(:metric_naming_port)
+      @logger_port = logger_port || Rails.logger
     end
 
     # Analyze build performance metrics from workflow job and CI build data
@@ -19,64 +21,125 @@ module UseCases
 
       start_time = time_period.days.ago
 
-      # Get workflow job metrics related to builds
-      build_metrics = @storage_port.list_metrics(
-        name: "github.workflow_job.completed",
-        start_time: start_time
-      )
+      # First try the port-based approach
+      result = analyze_metrics(start_time, repository)
 
-      # Filter by repository if provided
-      if repository.present?
-        build_metrics = build_metrics.select do |metric|
-          metric.dimensions["repository"] == repository
+      # If the result is empty, try a direct database query as a fallback
+      if result[:total] == 0
+        # Direct database query
+        completed_count = DomainMetric.where(name: "github.workflow_run.completed")
+                                      .where("recorded_at >= ?", start_time)
+                                      .count
+
+        success_count = DomainMetric.where(name: "github.workflow_run.conclusion.success")
+                                    .where("recorded_at >= ?", start_time)
+                                    .count
+
+        failure_count = DomainMetric.where(name: "github.workflow_run.conclusion.failure")
+                                    .where("recorded_at >= ?", start_time)
+                                    .count
+
+        if completed_count > 0 || success_count > 0 || failure_count > 0
+          total_builds = completed_count > 0 ? completed_count : success_count + failure_count
+          success_rate = total_builds > 0 ? (success_count.to_f / total_builds) * 100 : 0
+
+          result[:total] = total_builds
+          result[:success_rate] = success_rate.round(1)
         end
       end
 
-      # Get CI build metrics for duration data
-      duration_metrics = @storage_port.list_metrics(
-        name: "github.ci.build.duration",
-        start_time: start_time
-      )
-
-      # Filter by repository if provided
-      if repository.present?
-        duration_metrics = duration_metrics.select do |metric|
-          metric.dimensions["repository"] == repository
-        end
-      end
-
-      # Get successful and failed builds
-      success_metrics = @storage_port.list_metrics(
-        name: "github.workflow_job.conclusion.success",
-        start_time: start_time
-      )
-
-      failure_metrics = @storage_port.list_metrics(
-        name: "github.workflow_job.conclusion.failure",
-        start_time: start_time
-      )
-
-      if repository.present?
-        success_metrics = success_metrics.select { |m| m.dimensions["repository"] == repository }
-        failure_metrics = failure_metrics.select { |m| m.dimensions["repository"] == repository }
-      end
-
-      # Calculate metrics
-      result = calculate_metrics(
-        build_metrics,
-        duration_metrics,
-        success_metrics,
-        failure_metrics,
-        start_time
-      )
-
-      # Cache results
+      # Store in cache if available
       cache_results(result, time_period, repository) if @cache_port
 
       result
     end
 
     private
+
+    # Fetch primary build metrics
+    def fetch_build_metrics(start_time, repository)
+      metrics = @storage_port.list_metrics(
+        name: "github.workflow_run.completed",
+        start_time: start_time
+      )
+
+      filter_by_repository(metrics, repository)
+    end
+
+    # Fetch build duration metrics
+    def fetch_duration_metrics(start_time, repository)
+      metrics = @storage_port.list_metrics(
+        name: "github.ci.build.duration",
+        start_time: start_time
+      )
+
+      # If no ci.build.duration metrics, try workflow metrics
+      if metrics.empty?
+        metrics = @storage_port.list_metrics(
+          name: "github.workflow_run.duration",
+          start_time: start_time
+        )
+      end
+
+      filter_by_repository(metrics, repository)
+    end
+
+    # Fetch success metrics
+    def fetch_success_metrics(start_time, repository)
+      metrics = @storage_port.list_metrics(
+        name: "github.workflow_run.conclusion.success",
+        start_time: start_time
+      )
+
+      filter_by_repository(metrics, repository)
+    end
+
+    # Fetch failure metrics
+    def fetch_failure_metrics(start_time, repository)
+      metrics = @storage_port.list_metrics(
+        name: "github.workflow_run.conclusion.failure",
+        start_time: start_time
+      )
+
+      filter_by_repository(metrics, repository)
+    end
+
+    # Fetch check run metrics as fallback
+    def fetch_check_run_metrics(start_time, repository)
+      metrics = @storage_port.list_metrics(
+        name: "github.check_run.completed",
+        start_time: start_time
+      )
+
+      filter_by_repository(metrics, repository)
+    end
+
+    # Filter metrics by repository if provided
+    def filter_by_repository(metrics, repository)
+      return metrics unless repository.present?
+
+      metrics.select { |metric| metric.dimensions["repository"] == repository }
+    end
+
+    # Apply direct DB fallback when results are empty but DB has data
+    def apply_db_fallback(result, completed_count, success_count, failure_count)
+      return unless result[:total] == 0 && (completed_count > 0 || success_count > 0 || failure_count > 0)
+
+      total_builds = completed_count
+      successful_builds = success_count
+
+      # If no direct completion count but we have success/failure counts
+      if total_builds == 0 && (successful_builds > 0 || failure_count > 0)
+        total_builds = successful_builds + failure_count
+      end
+
+      # Calculate success rate
+      success_rate = total_builds.positive? ? (successful_builds.to_f / total_builds) * 100 : 0
+
+      # Update the result with actual counts
+      result[:total] = total_builds
+      result[:success_rate] = success_rate.round(2)
+    end
 
     # Calculate core build performance metrics
     def calculate_metrics(build_metrics, duration_metrics, success_metrics, failure_metrics, start_time)
@@ -111,11 +174,9 @@ module UseCases
 
       # Compile all metrics into result hash
       {
-        total_builds: total_builds,
-        successful_builds: successful_builds,
-        failed_builds: failed_builds,
+        total: total_builds,
         success_rate: success_rate.round(2),
-        average_build_duration: average_duration.round(2),
+        avg_duration: average_duration.round(2),
         builds_by_day: builds_by_day,
         success_by_day: success_by_day,
         builds_by_workflow: builds_by_workflow,
@@ -209,6 +270,45 @@ module UseCases
     def cache_key(time_period, repository)
       repo_part = repository ? "repo_#{repository.gsub('/', '_')}" : "all_repos"
       "build_performance:days_#{time_period}:#{repo_part}"
+    end
+
+    # Extract metrics analysis to a separate method
+    def analyze_metrics(start_time, repository)
+      # Get direct DB counts for potential fallback
+      completed_count = DomainMetric.where(name: "github.workflow_run.completed").count
+      success_count = DomainMetric.where(name: "github.workflow_run.conclusion.success").count
+      failure_count = DomainMetric.where(name: "github.workflow_run.conclusion.failure").count
+
+      # Get workflow build metrics according to naming convention
+      build_metrics = fetch_build_metrics(start_time, repository)
+      duration_metrics = fetch_duration_metrics(start_time, repository)
+      success_metrics = fetch_success_metrics(start_time, repository)
+      failure_metrics = fetch_failure_metrics(start_time, repository)
+
+      # Try alternative metrics if we don't have any data
+      if build_metrics.empty? && success_metrics.empty? && failure_metrics.empty?
+        check_metrics = fetch_check_run_metrics(start_time, repository)
+
+        if check_metrics.any?
+          build_metrics = check_metrics
+          success_metrics = check_metrics.select { |m| m.dimensions["conclusion"] == "success" }
+          failure_metrics = check_metrics.select { |m| m.dimensions["conclusion"] == "failure" }
+        end
+      end
+
+      # Calculate metrics
+      result = calculate_metrics(
+        build_metrics,
+        duration_metrics,
+        success_metrics,
+        failure_metrics,
+        start_time
+      )
+
+      # Use direct DB counts as fallback if needed
+      apply_db_fallback(result, completed_count, success_count, failure_count)
+
+      result
     end
   end
 end

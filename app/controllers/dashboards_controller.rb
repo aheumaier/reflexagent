@@ -27,9 +27,8 @@ class DashboardsController < ApplicationController
   end
 
   def commit_metrics
-    # Get time range from params with logging
+    # Get time range from params with default of 30 days
     @days = (params[:days] || 30).to_i
-    Rails.logger.info("Commit metrics dashboard filtering for #{@days} days")
 
     # Store selected period for UI highlighting
     @selected_period = @days
@@ -55,9 +54,6 @@ class DashboardsController < ApplicationController
       time_period: @days,
       limit: 50
     )
-
-    # Log completion
-    Rails.logger.info("Commit metrics data fetched successfully for #{@days} days period")
   end
 
   private
@@ -74,21 +70,26 @@ class DashboardsController < ApplicationController
 
   def default_cicd_metrics
     {
-      builds_by_day: {},
-      total_builds: 0,
-      average_build_duration: 0,
-      deploys_by_day: {},
-      total_deploys: 0,
-      average_deploy_duration: 0,
       builds: {
         total: 0,
         success_rate: 0,
-        avg_duration: 0
+        avg_duration: 0,
+        builds_by_day: {},
+        success_by_day: {},
+        builds_by_workflow: {},
+        longest_workflow_durations: {},
+        flaky_builds: []
       },
       deployments: {
         total: 0,
         success_rate: 0,
-        avg_duration: 0
+        avg_duration: 0,
+        deployment_frequency: 0.0,
+        deploys_by_day: {},
+        success_rate_by_day: {},
+        deploys_by_workflow: {},
+        durations_by_environment: {},
+        common_failure_reasons: {}
       }
     }
   end
@@ -124,5 +125,22 @@ class DashboardsController < ApplicationController
                        commit_frequency: 0, daily_activity: [] },
       code_churn: { additions: 0, deletions: 0, total_churn: 0, churn_ratio: 0 }
     }
+  end
+
+  # Safely call methods on the dashboard adapter with default fallback
+  def with_dashboard_adapter(method_name, default_value, **)
+    result = get_dashboard_adapter.send(method_name, **)
+    result.nil? ? default_value : result
+  rescue StandardError => e
+    Rails.logger.error("Dashboard adapter error: #{method_name} - #{e.message}")
+    default_value
+  end
+
+  def get_dashboard_adapter
+    @dashboard_adapter ||= Dashboard::DashboardAdapter.new(
+      storage_port: Repositories::MetricRepository.new(logger_port: Rails.logger),
+      cache_port: nil,
+      logger_port: Rails.logger
+    )
   end
 end
