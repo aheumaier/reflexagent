@@ -59,9 +59,6 @@ module Dashboard
     # @param limit [Integer] Maximum number of repositories to return
     # @return [Hash] Formatted repository metrics for display
     def get_repository_metrics(time_period:, limit: 5)
-      # Get all repositories first
-      repository_names = get_available_repositories(time_period: time_period, limit: limit)
-
       # Initialize the structure that the view expects
       result = {
         push_counts: {},
@@ -70,22 +67,77 @@ module Dashboard
         pr_metrics: { open: {}, closed: {}, merged: {} }
       }
 
-      # Extract active repositories with commit counts
-      active_repos = {}
+      # Add commit volume data first
+      commit_volume_metrics = @storage_port.list_metrics(
+        name: "github.commit_volume.daily",
+        start_time: time_period.days.ago
+      )
 
-      repository_names.each do |repository_name|
-        commit_volume = calculate_commit_volume_use_case.call(
-          time_period: time_period,
-          repository: repository_name
+      # Format for the dashboard - group by date
+      commit_volume_by_day = {}
+      commit_volume_metrics.each do |metric|
+        date = metric.dimensions["date"]
+        commit_volume_by_day[date] = metric.value if date
+      end
+
+      # If no commit volume metrics found, try calculating from commit metrics
+      if commit_volume_by_day.empty?
+        commit_metrics = @storage_port.list_metrics(
+          name: "github.push.commits",
+          start_time: time_period.days.ago
         )
 
-        # Add to active repos if there are commits
-        commit_count = commit_volume[:total_commits] || 0
-        active_repos[repository_name] = commit_count if commit_count > 0
+        # Group by day
+        commit_metrics.group_by { |m| m.timestamp.strftime("%Y-%m-%d") }.each do |day, day_metrics|
+          commit_volume_by_day[day] = day_metrics.sum(&:value)
+        end
+      end
+
+      # Save the commit volume data
+      result[:commit_volume] = commit_volume_by_day
+
+      # First approach: Try to get active repositories from metrics
+      # Get metrics that have repository dimension
+      repo_metrics = @storage_port.list_metrics(
+        name: "github.push.commits",
+        start_time: time_period.days.ago
+      )
+
+      # Group by repository and count commits
+      active_repos = {}
+      repo_metrics.each do |metric|
+        repo_name = metric.dimensions["repository"]
+        next unless repo_name.present?
+
+        active_repos[repo_name] ||= 0
+        active_repos[repo_name] += metric.value.to_i
+      end
+
+      # If no repositories found through metrics, try getting them from the database
+      if active_repos.empty?
+        # Get all repositories from database
+        repository_names = get_available_repositories(time_period: time_period, limit: limit)
+
+        # Try to calculate commits for each known repository
+        repository_names.each do |repository_name|
+          commit_volume = calculate_commit_volume_use_case.call(
+            time_period: time_period,
+            repository: repository_name
+          )
+
+          # Add to active repos if there are commits
+          commit_count = commit_volume[:total_commits] || 0
+          active_repos[repository_name] = commit_count if commit_count > 0
+        end
+      end
+
+      # If we still have no active repos but we have commit data, create a fallback entry
+      if active_repos.empty? && !commit_volume_by_day.empty?
+        active_repos["All Repositories"] = commit_volume_by_day.values.sum
       end
 
       # Sort by commit count descending and take top repositories
-      result[:active_repos] = active_repos.sort_by { |_, count| -count }.to_h
+      result[:active_repos] = active_repos.sort_by { |_, count| -count }.to_h.first(limit).to_h
 
       # Log what we're returning
       @logger_port&.debug("Repository metrics prepared for view: #{result.inspect}")

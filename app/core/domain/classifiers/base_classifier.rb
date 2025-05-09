@@ -24,13 +24,19 @@ module Domain
       # @param name [String] The metric name
       # @param value [Numeric] The metric value
       # @param dimensions [Hash] The metric dimensions
+      # @param timestamp [Time] Optional timestamp for the metric
       # @return [Hash] A metric definition hash
-      def create_metric(name:, value:, dimensions: {})
-        {
+      def create_metric(name:, value:, dimensions: {}, timestamp: nil)
+        metric = {
           name: name,
           value: value,
           dimensions: dimensions
         }
+
+        # Add timestamp if provided
+        metric[:timestamp] = timestamp if timestamp
+
+        metric
       end
 
       # Helper method to extract event sub type and action

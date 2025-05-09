@@ -79,3 +79,17 @@ ReflexAgent uses a Hexagonal Architecture pattern with:
 - Adapters implemented in `app/adapters`
 
 The dependency injection system wires everything together at runtime.
+
+## Documentation
+
+Comprehensive documentation for ReflexAgent is available in the `/docs` directory:
+
+- [Documentation Index](docs/README.md): Central documentation hub
+- [Architecture Documentation](docs/architecture/README.md): System architecture and design
+- [Domain Model](docs/domain.md): Core domain concepts and models
+- [Technical Details](docs/technical_depth.md): Technical implementation details
+- [Testing Approach](docs/testing.md): Testing strategies and methods
+- [API Documentation](docs/api/README.md): API endpoints and usage
+- [User and Developer Guides](docs/guides/README.md): Step-by-step guides
+
+For documentation standards and contribution guidelines, see the [Documentation Index](docs/README.md).

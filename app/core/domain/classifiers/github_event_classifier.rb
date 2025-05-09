@@ -9,6 +9,13 @@ module Domain
       # @param event [Domain::Event] The GitHub event to classify
       # @return [Hash] A hash with a :metrics key containing an array of metric definitions
       def classify(event)
+        metrics = []
+        dimensions = {
+          repository: "unknown",
+          organization: "unknown",
+          source: event.source
+        }
+
         # Extract the main event type and action from the event name
         # Format should be: github.[event_name].[action]
         _, event_name, action = event.name.split(".")
@@ -61,7 +68,51 @@ module Domain
       private
 
       def extract_dimensions(event)
-        @dimension_extractor ? @dimension_extractor.extract_github_dimensions(event) : {}
+        if @dimension_extractor
+          # Use the dimension extractor if available
+          dims = @dimension_extractor.extract_github_dimensions(event)
+
+          # Ensure repository and organization are populated with proper values
+          if dims[:repository].nil? || dims[:repository] == "unknown"
+            # Try to extract repository directly from event data
+            repo_full_name = nil
+
+            # Try to extract using symbols first
+            repo_full_name = event.data[:repository][:full_name] if event.data && event.data[:repository]
+
+            # If not found, try with string keys
+            if repo_full_name.nil? && event.data && event.data["repository"]
+              repo_full_name = event.data["repository"]["full_name"]
+            end
+
+            dims[:repository] = repo_full_name || "unknown"
+
+            # Extract organization from repository full name (format: org/repo)
+            if dims[:repository] != "unknown" && dims[:repository].include?("/")
+              dims[:organization] = dims[:repository].split("/").first
+            end
+
+            # If organization still not found, try to extract directly from owner field
+            if dims[:organization].nil? || dims[:organization] == "unknown"
+              dims[:organization] = if event.data && event.data[:repository] && event.data[:repository][:owner]
+                                      event.data[:repository][:owner][:login] || "unknown"
+                                    elsif event.data && event.data["repository"] && event.data["repository"]["owner"]
+                                      event.data["repository"]["owner"]["login"] || "unknown"
+                                    else
+                                      "unknown"
+                                    end
+            end
+          end
+
+          # Ensure source is set
+          dims[:source] ||= event.source
+
+          dims
+        else
+          # Return empty hash when no dimension extractor is provided to maintain
+          # backward compatibility with tests and existing behavior
+          {}
+        end
       end
 
       def classify_push_event(event)
@@ -78,7 +129,7 @@ module Domain
         )
 
         # Extract branch information
-        branch = extract_branch_from_ref(push_data[:ref])
+        branch = extract_branch_from_ref(extract_from_data(push_data, :ref))
         metrics << create_metric(
           name: "github.push.branch_activity",
           value: 1,
@@ -87,8 +138,11 @@ module Domain
           )
         )
 
+        # Get commits using extract_from_data helper
+        commits = extract_from_data(push_data, :commits)
+
         # Count number of commits
-        commit_count = push_data[:commits]&.size || 0
+        commit_count = commits&.size || 0
         metrics << create_metric(
           name: "github.push.commits",
           value: commit_count,
@@ -116,11 +170,11 @@ module Domain
         return { metrics: metrics } if @dimension_extractor.nil?
 
         # Enhanced metrics for commits
-        if push_data[:commits].present?
-          process_commits(push_data[:commits], metrics, dimensions, event)
+        if commits.present?
+          process_commits(commits, metrics, dimensions, event)
 
           # Extract and process file changes
-          process_file_changes(push_data[:commits], metrics, dimensions, event)
+          process_file_changes(commits, metrics, dimensions, event)
         end
 
         { metrics: metrics }
@@ -142,30 +196,83 @@ module Domain
       # Helper method to extract push author information
       def extract_push_author(push_data)
         # Try to get the author from head commit first
-        if push_data[:head_commit].present? && push_data[:head_commit][:author].present?
-          return push_data[:head_commit][:author][:name] || push_data[:head_commit][:author][:email] || "unknown"
+        head_commit = extract_from_data(push_data, :head_commit)
+        if head_commit.present?
+          author = extract_from_data(head_commit, :author)
+          return extract_from_data(author, :name) || extract_from_data(author, :email) || "unknown" if author.present?
         end
 
         # Fall back to pusher
-        return push_data[:pusher][:name] || push_data[:pusher][:email] || "unknown" if push_data[:pusher].present?
+        pusher = extract_from_data(push_data, :pusher)
+        return extract_from_data(pusher, :name) || extract_from_data(pusher, :email) || "unknown" if pusher.present?
 
         # Final fallback
         "unknown"
       end
 
-      # Process commits in a push event
+      # Extract value from event data handling both string and symbol keys
+      def extract_from_data(data, *keys)
+        return nil if data.nil? || !keys.any?
+
+        stringified_keys = keys.map(&:to_s)
+        symbolized_keys = keys.map(&:to_sym)
+
+        # Try symbol path first
+        value = begin
+          data.dig(*symbolized_keys)
+        rescue StandardError
+          nil
+        end
+
+        # Fall back to string path if needed
+        if value.nil?
+          value = begin
+            data.dig(*stringified_keys)
+          rescue StandardError
+            nil
+          end
+        end
+
+        value
+      end
+
+      # Parse timestamp string to date string (YYYY-MM-DD format)
+      # @param timestamp_str [String] String representation of a timestamp
+      # @return [String, nil] Date string in YYYY-MM-DD format or nil if invalid
+      def parse_timestamp_to_date(timestamp_str)
+        return nil unless timestamp_str.present?
+
+        begin
+          Time.parse(timestamp_str).strftime("%Y-%m-%d")
+        rescue ArgumentError, TypeError => e
+          Rails.logger.error("Error parsing timestamp '#{timestamp_str}': #{e.message}")
+          nil
+        end
+      end
+
       def process_commits(commits, metrics, dimensions, event)
+        # Group commits by their actual commit date
+        commits_by_date = {}
+        Rails.logger.debug { "Processing #{commits.size} commits" }
+
         commits.each do |commit|
           # Skip if no commit data
           next unless commit.present?
 
+          # Extract commit timestamp if available (handling both string and symbol keys)
+          timestamp_str = extract_from_data(commit, :timestamp)
+
+          # Try to get commit date if timestamp is present
+          commit_date = parse_timestamp_to_date(timestamp_str)
+          if commit_date
+            # Increment count for this date
+            commits_by_date[commit_date] ||= 0
+            commits_by_date[commit_date] += 1
+            Rails.logger.debug { "Added commit with timestamp #{timestamp_str} to date #{commit_date}" }
+          end
+
           # Extract commit message parts (conventional commit format)
-          commit_parts = if @dimension_extractor && @dimension_extractor.respond_to?(:extract_conventional_commit_parts)
-                           # Use existing method for tests compatibility
-                           @dimension_extractor.extract_conventional_commit_parts(commit)
-                         else
-                           extract_conventional_commit_parts(commit[:message])
-                         end
+          commit_parts = extract_conventional_commit_parts(commit)
 
           # Normalize field names for compatibility with tests
           commit_type = commit_parts[:commit_type] || commit_parts[:type]
@@ -191,11 +298,7 @@ module Domain
           next unless commit_breaking
 
           # Try to extract author from commit
-          author_from_commit = if commit[:author].is_a?(Hash)
-                                 commit[:author][:name] || "unknown"
-                               else
-                                 "unknown"
-                               end
+          author_from_commit = extract_from_data(commit, :author, :name) || "unknown"
 
           # Allow dimension_extractor to override author for test compatibility
           author = author_from_commit
@@ -214,10 +317,35 @@ module Domain
             )
           )
         end
+
+        # Log the aggregated commit data before creating metrics
+        Rails.logger.debug { "Commits by date: #{commits_by_date.inspect}" }
+
+        # Generate daily commit volume metrics with actual dates
+        commits_by_date.each do |date, count|
+          metrics << create_metric(
+            name: "github.commit_volume.daily",
+            value: count,
+            dimensions: dimensions.merge(
+              date: date,
+              commit_date: date,
+              delivery_date: Time.now.strftime("%Y-%m-%d")
+            ),
+            timestamp: Date.parse(date).to_time
+          )
+          Rails.logger.debug { "Created commit volume metric for date #{date} with value #{count}" }
+        end
       end
 
       # Extract conventional commit parts from commit message
-      def extract_conventional_commit_parts(message)
+      def extract_conventional_commit_parts(commit_data)
+        # Handle either a string message or a commit hash
+        message = if commit_data.is_a?(Hash)
+                    extract_from_data(commit_data, :message)
+                  else
+                    commit_data.to_s
+                  end
+
         return {} unless message.present?
 
         # Basic conventional commit regex
@@ -393,28 +521,32 @@ module Domain
         code_deletions = 0
 
         commits.each do |commit|
-          # Add files
-          Array(commit[:added]).each do |file|
+          # Add files - use extract_from_data to handle both string and symbol keys
+          added_files = extract_from_data(commit, :added)
+          Array(added_files).each do |file|
             files_added.add(file)
             track_file_metadata(file, file_extensions, directories)
           end
 
           # Modified files
-          Array(commit[:modified]).each do |file|
+          modified_files = extract_from_data(commit, :modified)
+          Array(modified_files).each do |file|
             files_modified.add(file)
             track_file_metadata(file, file_extensions, directories)
           end
 
           # Removed files
-          Array(commit[:removed]).each do |file|
+          removed_files = extract_from_data(commit, :removed)
+          Array(removed_files).each do |file|
             files_removed.add(file)
             track_file_metadata(file, file_extensions, directories)
           end
 
           # Try to extract code volume metrics if available
-          if commit[:stats].is_a?(Hash)
-            code_additions += commit[:stats][:additions].to_i
-            code_deletions += commit[:stats][:deletions].to_i
+          stats = extract_from_data(commit, :stats)
+          if stats.is_a?(Hash)
+            code_additions += extract_from_data(stats, :additions).to_i
+            code_deletions += extract_from_data(stats, :deletions).to_i
           end
         end
 
@@ -681,7 +813,6 @@ module Domain
       end
 
       def classify_deployment_status_event(event, action)
-        puts "classify_deployment_status_event"
         environment = event.data.dig(:deployment, :environment) || "unknown"
         state = event.data.dig(:deployment_status, :state) || "unknown"
         dimensions = extract_dimensions(event).merge(environment: environment)

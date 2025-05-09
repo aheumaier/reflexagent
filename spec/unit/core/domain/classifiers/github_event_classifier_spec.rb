@@ -552,5 +552,138 @@ RSpec.describe Domain::Classifiers::GithubEventClassifier do
         expect(commits_metric[:value]).to eq(1) # Default value
       end
     end
+
+    context "with push event containing timestamps" do
+      let(:event) do
+        FactoryBot.build(
+          :event,
+          name: "github.push",
+          source: "github",
+          data: {
+            repository: { full_name: "example/repo" },
+            commits: [
+              {
+                id: "commit1",
+                message: "feat(users): add login feature",
+                timestamp: "2023-01-15T12:00:00Z",
+                added: ["src/login.rb"],
+                modified: [],
+                removed: []
+              },
+              {
+                id: "commit2",
+                message: "fix(users): fix login bug",
+                timestamp: "2023-01-15T14:30:00Z",
+                added: [],
+                modified: ["src/login.rb"],
+                removed: []
+              },
+              {
+                id: "commit3",
+                message: "test(users): add login tests",
+                timestamp: "2023-01-16T09:15:00Z",
+                added: ["test/login_test.rb"],
+                modified: [],
+                removed: []
+              },
+              {
+                id: "commit4",
+                message: "Invalid commit with no conventional format",
+                timestamp: "2023-01-17T10:20:00Z",
+                added: [],
+                modified: ["README.md"],
+                removed: []
+              },
+              {
+                id: "commit5",
+                message: "docs: update documentation",
+                # Deliberately missing timestamp to test graceful handling
+                added: [],
+                modified: ["docs/README.md"],
+                removed: []
+              }
+            ],
+            ref: "refs/heads/main",
+            sender: { login: "developer" }
+          }
+        )
+      end
+
+      it "creates daily commit volume metrics from commit timestamps" do
+        result = classifier.classify(event)
+
+        # Find all daily commit volume metrics
+        daily_metrics = result[:metrics].select { |m| m[:name] == "github.commit_volume.daily" }
+
+        # Should have metrics for 3 different days
+        expect(daily_metrics.size).to eq(3)
+
+        # Check Jan 15 metric (2 commits)
+        jan15_metric = daily_metrics.find { |m| m[:dimensions][:date] == "2023-01-15" }
+        expect(jan15_metric).to be_present
+        expect(jan15_metric[:value]).to eq(2)
+        expect(jan15_metric[:timestamp]).to eq(Date.parse("2023-01-15").to_time)
+        expect(jan15_metric[:dimensions][:commit_date]).to eq("2023-01-15")
+        expect(jan15_metric[:dimensions][:delivery_date]).to be_present
+
+        # Check Jan 16 metric (1 commit)
+        jan16_metric = daily_metrics.find { |m| m[:dimensions][:date] == "2023-01-16" }
+        expect(jan16_metric).to be_present
+        expect(jan16_metric[:value]).to eq(1)
+        expect(jan16_metric[:timestamp]).to eq(Date.parse("2023-01-16").to_time)
+        expect(jan16_metric[:dimensions][:commit_date]).to eq("2023-01-16")
+        expect(jan16_metric[:dimensions][:delivery_date]).to be_present
+
+        # Check Jan 17 metric (1 commit)
+        jan17_metric = daily_metrics.find { |m| m[:dimensions][:date] == "2023-01-17" }
+        expect(jan17_metric).to be_present
+        expect(jan17_metric[:value]).to eq(1)
+        expect(jan17_metric[:timestamp]).to eq(Date.parse("2023-01-17").to_time)
+        expect(jan17_metric[:dimensions][:commit_date]).to eq("2023-01-17")
+        expect(jan17_metric[:dimensions][:delivery_date]).to be_present
+      end
+
+      it "handles missing or invalid timestamps gracefully" do
+        # Create an event with invalid timestamp formats
+        invalid_timestamp_event = FactoryBot.build(
+          :event,
+          name: "github.push",
+          source: "github",
+          data: {
+            repository: { full_name: "example/repo" },
+            commits: [
+              {
+                id: "invalid1",
+                message: "Test commit with invalid timestamp",
+                timestamp: "not-a-timestamp",
+                added: ["test.rb"]
+              },
+              {
+                id: "invalid2",
+                message: "Test commit with empty timestamp",
+                timestamp: "",
+                added: ["test2.rb"]
+              },
+              {
+                id: "valid",
+                message: "Valid commit",
+                timestamp: "2023-01-20T15:30:00Z",
+                added: ["valid.rb"]
+              }
+            ],
+            ref: "refs/heads/main"
+          }
+        )
+
+        # Should not raise any errors
+        result = classifier.classify(invalid_timestamp_event)
+
+        # Should only have one daily metric for the valid timestamp
+        daily_metrics = result[:metrics].select { |m| m[:name] == "github.commit_volume.daily" }
+        expect(daily_metrics.size).to eq(1)
+        expect(daily_metrics.first[:dimensions][:date]).to eq("2023-01-20")
+        expect(daily_metrics.first[:value]).to eq(1)
+      end
+    end
   end
 end
