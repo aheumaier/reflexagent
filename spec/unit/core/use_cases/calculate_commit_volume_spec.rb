@@ -18,26 +18,28 @@ RSpec.describe UseCases::CalculateCommitVolume do
         allow(cache_port).to receive(:write).with(anything, anything, expires_in: anything)
 
         allow(storage_port).to receive(:list_metrics).with(
-          name: "github.push.commits",
+          name: "github.push.commits.total",
           start_time: anything
         ).and_return(commit_metrics)
       end
 
       let(:commit_metrics) do
         # Create 10 commit metrics spread across 5 days
-        dates = [1, 5, 10, 15, 20].map { |d| d.days.ago }
+        # Ensure the dates are at noon to avoid midnight crossing issues
+        dates = [1, 5, 10, 15, 20].map { |d| d.days.ago.noon }
+
         dates.flat_map do |date|
           [
             instance_double("Domain::Metric",
-                            name: "github.push.commits",
+                            name: "github.push.commits.total",
                             value: 3,
                             dimensions: { "repository" => repository },
-                            timestamp: date),
+                            timestamp: date), # First metric at noon
             instance_double("Domain::Metric",
-                            name: "github.push.commits",
+                            name: "github.push.commits.total",
                             value: 2,
                             dimensions: { "repository" => repository },
-                            timestamp: date + 2.hours)
+                            timestamp: date + 1.hour) # Second metric 1 hour later (still same day)
           ]
         end
       end
@@ -99,7 +101,7 @@ RSpec.describe UseCases::CalculateCommitVolume do
         allow(cache_port).to receive(:write).with(anything, anything, expires_in: anything)
 
         allow(storage_port).to receive(:list_metrics).with(
-          name: "github.push.commits",
+          name: "github.push.commits.total",
           start_time: anything
         ).and_return(mixed_repo_metrics)
       end
@@ -107,12 +109,12 @@ RSpec.describe UseCases::CalculateCommitVolume do
       let(:mixed_repo_metrics) do
         [
           instance_double("Domain::Metric",
-                          name: "github.push.commits",
+                          name: "github.push.commits.total",
                           value: 3,
                           dimensions: { "repository" => repository },
                           timestamp: 1.day.ago),
           instance_double("Domain::Metric",
-                          name: "github.push.commits",
+                          name: "github.push.commits.total",
                           value: 5,
                           dimensions: { "repository" => "other/repo" },
                           timestamp: 2.days.ago)
@@ -134,7 +136,7 @@ RSpec.describe UseCases::CalculateCommitVolume do
         allow(cache_port).to receive(:write).with(anything, anything, expires_in: anything)
 
         allow(storage_port).to receive(:list_metrics).with(
-          name: "github.push.commits",
+          name: "github.push.commits.total",
           start_time: anything
         ).and_return([])
       end

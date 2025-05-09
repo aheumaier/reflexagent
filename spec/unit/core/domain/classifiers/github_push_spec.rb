@@ -36,7 +36,7 @@ RSpec.describe Domain::Classifiers::GithubEventClassifier do
         expect(push_metric[:dimensions][:organization]).to eq("aheumaier")
 
         # Check for commit count metric
-        commits_metric = result[:metrics].find { |m| m[:name] == "github.push.commits" }
+        commits_metric = result[:metrics].find { |m| m[:name] == "github.push.commits.total" }
         expect(commits_metric).to be_present
         expect(commits_metric[:value]).to eq(1) # There is 1 commit in the sample
       end

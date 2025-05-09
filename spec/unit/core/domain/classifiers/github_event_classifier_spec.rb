@@ -56,7 +56,7 @@ RSpec.describe Domain::Classifiers::GithubEventClassifier do
         expect(total_metric[:dimensions][:organization]).to eq("example")
 
         # Check for push.commits metric
-        commits_metric = result[:metrics].find { |m| m[:name] == "github.push.commits" }
+        commits_metric = result[:metrics].find { |m| m[:name] == "github.push.commits.total" }
         expect(commits_metric).to be_present
         expect(commits_metric[:value]).to eq(2) # Two commits in data
 
@@ -346,7 +346,7 @@ RSpec.describe Domain::Classifiers::GithubEventClassifier do
         expect(total_metric[:dimensions][:repository]).to eq("rails/rails")
 
         # Commit count should be correct
-        commits_metric = result[:metrics].find { |m| m[:name] == "github.push.commits" }
+        commits_metric = result[:metrics].find { |m| m[:name] == "github.push.commits.total" }
         expect(commits_metric).to be_present
         expect(commits_metric[:value]).to eq(5) # 5 commits
 
@@ -548,7 +548,7 @@ RSpec.describe Domain::Classifiers::GithubEventClassifier do
         total_metric = result[:metrics].find { |m| m[:name] == "github.push.total" }
         expect(total_metric[:dimensions]).to eq({})
 
-        commits_metric = result[:metrics].find { |m| m[:name] == "github.push.commits" }
+        commits_metric = result[:metrics].find { |m| m[:name] == "github.push.commits.total" }
         expect(commits_metric[:value]).to eq(1) # Default value
       end
     end

@@ -62,6 +62,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/ports/team_repository_port"
     require_relative "../../app/ports/dashboard_port"
     require_relative "../../app/ports/logger_port"
+    require_relative "../../app/ports/metric_naming_port"
 
     # Only after ALL ports are loaded, load adapter classes
     require_relative "../../app/adapters/web/web_adapter"
@@ -74,6 +75,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/adapters/queuing/sidekiq_queue_adapter"
     require_relative "../../app/adapters/repositories/team_repository"
     require_relative "../../app/adapters/dashboard/dashboard_adapter"
+    require_relative "../../app/adapters/metrics/metric_naming_adapter"
 
     # Now register them
     Rails.logger.info "Registering adapters..."
@@ -131,8 +133,18 @@ Rails.application.config.after_initialize do
       dimension_extractor
     )
 
+    # Register metric naming port implementation
+    metric_naming_port = Adapters::Metrics::MetricNamingAdapter.new
+    DependencyContainer.register(
+      :metric_naming_port,
+      metric_naming_port
+    )
+
     # Register the GitHub event classifier
-    github_classifier = Domain::Classifiers::GithubEventClassifier.new(dimension_extractor)
+    github_classifier = Domain::Classifiers::GithubEventClassifier.new(
+      dimension_extractor,
+      metric_naming_port
+    )
 
     # Register the Jira event classifier
     jira_classifier = Domain::Classifiers::JiraEventClassifier.new(dimension_extractor)

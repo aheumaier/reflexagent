@@ -11,28 +11,29 @@ module UseCases
     # @param repository [String, nil] Optional repository to filter by
     # @param time_period [Integer] The number of days to look back
     # @return [Hash] Commit volume metrics with time series data
-    def call(time_period:, repository: nil)
+    def call(time_period: 30, repository: nil)
       # Try to get from cache first
-      if @cache_port && (cached_result = from_cache(repository, time_period))
-        return cached_result
-      end
+      cache_key = "commit_volume:#{repository || 'all'}:days_#{time_period}"
+      cached = @cache_port.read(cache_key)
+
+      return JSON.parse(cached, symbolize_names: true) if cached
 
       start_time = time_period.days.ago
 
       # Get all commit metrics for the time period
       commit_metrics = @storage_port.list_metrics(
-        name: "github.push.commits",
+        name: "github.push.commits.total",
         start_time: start_time
       )
 
-      # Filter by repository if specified
-      if repository.present?
+      # Filter metrics by repository if provided
+      if repository
         commit_metrics = commit_metrics.select do |metric|
           metric.dimensions["repository"] == repository
         end
       end
 
-      # If no metrics found, return empty result
+      # If there are no metrics, return zeros
       if commit_metrics.empty?
         result = {
           total_commits: 0,
@@ -43,36 +44,49 @@ module UseCases
           daily_activity: []
         }
 
-        # Cache the result if caching is enabled
-        cache_result(repository, time_period, result) if @cache_port
-
+        @cache_port.write(cache_key, result.to_json, expires_in: 1.hour)
         return result
       end
 
-      # Sum up the total number of commits
+      # Calculate total commits
       total_commits = commit_metrics.sum(&:value)
 
-      # Group metrics by day to calculate daily activity
-      daily_metrics = commit_metrics.group_by do |metric|
-        metric.timestamp.strftime("%Y-%m-%d")
-      end
+      # Group metrics by day using date portion only (without time)
+      # This ensures metrics from the same day but different times are grouped together
+      daily_metrics = {}
 
-      # Sort by date and format for output
-      daily_activity = daily_metrics.map do |date_str, metrics|
-        {
-          date: date_str,
-          count: metrics.sum(&:value)
-        }
-      end.sort_by { |item| item[:date] }
+      # Group by date string (YYYY-MM-DD) ignoring the time portion
+      commit_metrics.group_by do |metric|
+        # Handle the case where the metric timestamp might be a string or a Time object
+        timestamp = metric.timestamp
+        date_str = if timestamp.is_a?(String)
+                     # If it's a string, parse it first
+                     Time.parse(timestamp).to_date.strftime("%Y-%m-%d")
+                   else
+                     # If it's already a Time object, just get the date portion
+                     timestamp.to_date.strftime("%Y-%m-%d")
+                   end
+      end.each do |date_str, day_metrics|
+        # Sum the values for all metrics on this date
+        daily_metrics[date_str] = day_metrics.sum(&:value)
+      end
 
       # Count days with at least one commit
       days_with_commits = daily_metrics.keys.size
+
+      # Format daily activity for output
+      daily_activity = daily_metrics.map do |date_str, count|
+        {
+          date: date_str,
+          count: count
+        }
+      end.sort_by { |item| item[:date] }
 
       # Calculate commits per day and commit frequency
       commits_per_day = (total_commits.to_f / time_period).round(2)
       commit_frequency = (days_with_commits.to_f / time_period).round(2)
 
-      # Construct the result
+      # Build the result
       result = {
         total_commits: total_commits,
         days_with_commits: days_with_commits,
@@ -82,47 +96,10 @@ module UseCases
         daily_activity: daily_activity
       }
 
-      # Cache the result if caching is enabled
-      cache_result(repository, time_period, result) if @cache_port
+      # Cache the result
+      @cache_port.write(cache_key, result.to_json, expires_in: 1.hour)
 
       result
-    end
-
-    private
-
-    # Get cache key for storing commit volume metrics
-    # @param repository [String, nil] Repository name or nil
-    # @param time_period [Integer] Time period in days
-    # @return [String] Cache key
-    def cache_key(repository, time_period)
-      parts = ["commit_volume"]
-      parts << repository if repository
-      parts << "days_#{time_period}"
-      parts.join(":")
-    end
-
-    # Retrieve cached result if available
-    # @param repository [String, nil] Repository to filter by
-    # @param time_period [Integer] Time period in days
-    # @return [Hash, nil] Cached result or nil if not in cache
-    def from_cache(repository, time_period)
-      key = cache_key(repository, time_period)
-      cached = @cache_port.read(key)
-      return nil unless cached
-
-      # Parse JSON if stored as string, or return the object directly
-      cached.is_a?(String) ? JSON.parse(cached, symbolize_names: true) : cached
-    rescue JSON::ParserError
-      nil
-    end
-
-    # Cache the result
-    # @param repository [String, nil] Repository that was filtered
-    # @param time_period [Integer] Time period in days
-    # @param result [Hash] Result to cache
-    def cache_result(repository, time_period, result)
-      key = cache_key(repository, time_period)
-      @cache_port.write(key, result.to_json, expires_in: 1.hour)
     end
   end
 end
