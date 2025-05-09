@@ -2,6 +2,8 @@
 
 ReflexAgent provides a unified webhook endpoint that accepts events from various sources like GitHub, Jira, GitLab, and more.
 
+> **Navigation**: [Documentation Index](../README.md) | [GitHub Setup Guide](github_setup.md) | [Event Processing Pipeline](../architecture/event_processing_pipeline.md) | [API Documentation](../api/README.md)
+
 ## Endpoint
 
 ```
@@ -125,12 +127,7 @@ Status code: 201 Created
 
 ### GitHub
 
-1. Go to your GitHub repository
-2. Navigate to Settings > Webhooks > Add webhook
-3. Set Payload URL to `https://your-reflexagent.com/api/v1/events?source=github`
-4. Set Content type to `application/json`
-5. Set Secret to your webhook token
-6. Choose which events to trigger the webhook
+For detailed GitHub webhook setup instructions, see the [GitHub Webhook Setup Guide](github_setup.md).
 
 ### Jira
 
@@ -148,4 +145,17 @@ When a webhook is received:
 3. The event is stored in the database
 4. The event is scheduled for asynchronous processing
 5. Metrics are calculated based on the event
-6. Anomalies are detected and alerts are raised if needed 
+6. Anomalies are detected and alerts are raised if needed
+
+For more details on how events are processed, see the [Event Processing Pipeline](../architecture/event_processing_pipeline.md) documentation.
+
+## Related Documentation
+
+- [Domain Model](../domain/README.md) - Understand how events are modeled in the system
+- [Event Processing Pipeline](../architecture/event_processing_pipeline.md) - Detailed flow of event processing
+- [API Documentation](../api/README.md) - Complete API reference
+- [Technical Debt](../technical/debt_analysis.md) - Current technical debt related to webhooks
+
+---
+
+*Last updated: June 27, 2024* 
