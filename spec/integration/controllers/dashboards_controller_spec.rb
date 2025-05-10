@@ -4,6 +4,7 @@ require "rails_helper"
 
 RSpec.describe DashboardsController, type: :controller do
   let(:mock_dashboard_adapter) { instance_double(Dashboard::DashboardAdapter) }
+  let(:mock_team_repository) { instance_double("TeamRepositoryPort") }
 
   # Default test data
   let(:default_commit_metrics) do
@@ -70,11 +71,17 @@ RSpec.describe DashboardsController, type: :controller do
   end
 
   before do
-    # Mock the dashboard_adapter method to return our mock adapter
-    allow(controller).to receive(:dashboard_adapter).and_return(mock_dashboard_adapter)
+    # Mock the get_dashboard_adapter method to return our mock adapter
+    allow(controller).to receive(:get_dashboard_adapter).and_return(mock_dashboard_adapter)
 
-    # Set up DependencyContainer mock for testing
+    # Set up DependencyContainer mock for testing - handle both dashboard_adapter and team_repository
+    allow(DependencyContainer).to receive(:resolve).and_return(nil)
     allow(DependencyContainer).to receive(:resolve).with(:dashboard_adapter).and_return(mock_dashboard_adapter)
+    allow(DependencyContainer).to receive(:resolve).with(:team_repository).and_return(mock_team_repository)
+
+    # Mock the team_repository on the adapter
+    allow(mock_dashboard_adapter).to receive(:team_repository).and_return(mock_team_repository)
+    allow(mock_team_repository).to receive(:list_repositories).and_return([])
   end
 
   describe "#engineering" do
@@ -86,6 +93,7 @@ RSpec.describe DashboardsController, type: :controller do
       allow(mock_dashboard_adapter).to receive(:get_repository_metrics).and_return(default_repo_metrics)
       allow(mock_dashboard_adapter).to receive(:get_team_metrics).and_return(default_team_metrics)
       allow(mock_dashboard_adapter).to receive(:get_recent_alerts).and_return(test_alerts)
+      allow(mock_dashboard_adapter).to receive(:get_available_repositories).and_return(["repo1", "repo2", "repo3"])
     end
 
     it "sets time range variables correctly" do

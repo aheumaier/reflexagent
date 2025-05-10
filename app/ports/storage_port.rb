@@ -41,6 +41,15 @@ module StoragePort
     raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
   end
 
+  # List metrics that match a given name pattern (using SQL LIKE syntax)
+  # @param pattern [String] The pattern to match against metric names (using % as wildcard)
+  # @param start_time [Time, nil] Optional start time filter
+  # @param end_time [Time, nil] Optional end time filter
+  # @return [Array<Domain::Metric>] List of matching metrics
+  def list_metrics_with_name_pattern(pattern, start_time: nil, end_time: nil)
+    raise NotImplementedError, "#{self.class} has not implemented method '#{__method__}'"
+  end
+
   # Find an aggregate metric by name and dimensions
   def find_aggregate_metric(name, dimensions)
     raise NotImplementedError
