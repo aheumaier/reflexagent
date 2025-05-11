@@ -14,6 +14,7 @@ docs/
 │   └── detailed_model.md   # Detailed domain model specification
 ├── architecture/           # System architecture documentation
 │   ├── README.md           # Architecture overview
+│   ├── repository_architecture.md  # Repository layer architecture
 │   ├── ADR/                # Architecture Decision Records
 │   └── C4/                 # C4 model diagrams
 ├── technical/              # Technical implementation documentation
@@ -32,7 +33,8 @@ docs/
 ├── api/                    # API documentation
 │   └── README.md           # API documentation overview
 └── guides/                 # User and developer guides
-    └── README.md           # Guides overview
+    ├── README.md           # Guides overview
+    └── repositories.md     # Guide for working with repositories
 ```
 
 ## Documentation Index
@@ -52,16 +54,20 @@ docs/
 ### Architecture Documentation
 
 - [**Architecture Overview**](architecture/README.md): System architecture and design principles
+- [**Repository Architecture**](architecture/repository_architecture.md): Repository layer design and implementation
 - Architecture Decision Records (ADRs):
   - [ADR-0001](architecture/ADR/ADR-0001.md): Hexagonal Architecture Decision
   - [ADR-0002](architecture/ADR/ADR-0002.md): Rails as Host Platform
   - [ADR-0003](architecture/ADR/ADR-0003.md): Event Processing Approach
   - [ADR-0003-metrics-filtering-approach](architecture/ADR/ADR-0003-metrics-filtering-approach.md): Metrics Filtering Approach
   - [ADR-0004](architecture/ADR/ADR-0004.md): Notification Strategy
+  - [ADR-0005-metric-naming-convention](architecture/ADR/ADR-0005-metric-naming-convention.md): Metric Naming Convention
+  - [ADR-0006-repository-error-handling](architecture/ADR/ADR-0006-repository-error-handling.md): Repository Error Handling
 - C4 Model Diagrams:
   - [C4 Context Diagram](architecture/C4/c4_context_diagram.md): System context
   - [C4 Container Diagram](architecture/C4/c4_container_diagram.md): Containers and deployable units
   - [C4 Component Diagram](architecture/C4/c4_component_diagram.md): Components within containers
+  - [Repository Component Diagram](architecture/C4/repository-component-diagram.md): Repository layer components
   - [C4 Code Diagram](architecture/C4/c4_code_diagram.md): Code structure
   - [C4 Diagrams Overview](architecture/C4/c4_diagrams.md): General C4 explanation
 - Technical Documents:
@@ -100,6 +106,7 @@ docs/
 ### User and Developer Guides
 
 - [**Guides Overview**](guides/README.md): Available and planned guides
+- [**Working with Repositories**](guides/repositories.md): Guide for working with the repository layer
 
 ## Documentation Types and Standards
 

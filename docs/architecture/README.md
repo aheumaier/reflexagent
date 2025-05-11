@@ -152,6 +152,10 @@ ReflexAgent/
 │       │   ├── event_repository.rb
 │       │   ├── metric_repository.rb
 │       │   ├── alert_repository.rb
+│       │   ├── concerns/
+│       │   │   └── error_handler.rb # Shared error handling concern
+│       │   ├── errors/
+│       │   │   └── metric_repository_error.rb # Repository-specific errors
 │       │   └── team_repository.rb
 │       ├── cache/                  # Cache implementations → CachePort
 │       │   ├── redis_cache.rb
@@ -249,63 +253,74 @@ Use cases access adapters through the container:
 
 ### 4.1 Event Processing Pipeline
 
-1. External systems send events via webhooks to `WebAdapter`
-2. Events are converted to domain events and enqueued with `SidekiqQueueAdapter`
-3. Background workers process events using the appropriate use cases
-4. Metrics are calculated from events and stored/cached
-5. Anomalies are detected by analyzing metrics
-6. Notifications are sent via the appropriate notification adapter
+See [Event Processing Pipeline](event_processing_pipeline.md) for details.
 
-### 4.2 Metrics Calculation
+### 4.2 Metric Calculation
 
-The metrics calculation process:
+See [Commit Metrics Extraction](commit_metrics_extraction.md) for details.
 
-```mermaid
-flowchart TD
-    Event[Event] --> Classifier{Event Classifier}
-    Classifier --> |commit event| CommitMetrics[Calculate Commit Metrics]
-    Classifier --> |PR event| PRMetrics[Calculate PR Metrics]
-    Classifier --> |build event| BuildMetrics[Calculate Build Metrics]
-    Classifier --> |deployment event| DeploymentMetrics[Calculate Deployment Metrics]
-    CommitMetrics --> Store[Store Metrics]
-    PRMetrics --> Store
-    BuildMetrics --> Store
-    DeploymentMetrics --> Store
-    Store --> Cache[Cache Metrics]
-    Cache --> Analyze[Analyze for Anomalies]
+### 4.3 Repository Architecture
+
+See [Repository Architecture](repository_architecture.md) for a detailed explanation of the repository layer, including:
+
+- Repository hierarchy and types
+- Error handling approach 
+- Query patterns and best practices
+- Usage examples
+
+### 4.4 Dimension Standards
+
+See [Dimension Standards](dimension_standards.md) for details.
+
+## 5. Architecture Decisions
+
+The following Architecture Decision Records (ADRs) document key decisions made:
+
+- [ADR-0001](ADR/ADR-0001.md): Hexagonal Architecture Adoption
+- [ADR-0002](ADR/ADR-0002.md): Event Classification Strategy
+- [ADR-0003](ADR/ADR-0003-metrics-filtering-approach.md): Metrics Filtering Approach
+- [ADR-0004](ADR/ADR-0004.md): Caching Strategy
+- [ADR-0005](ADR/ADR-0005-metric-naming-convention.md): Metric Naming Convention
+- [ADR-0006](ADR/ADR-0006-repository-error-handling.md): Repository Error Handling
+
+## 6. Testing Strategy
+
+### 6.1 Test Categories
+
+- **Unit Tests**: Test individual components (domain models, extractors, use cases) in isolation
+- **Integration Tests**: Test interactions between components (use cases + repositories)
+- **End-to-End Tests**: Test complete flows from input to output
+
+### 6.2 Test Structure
+
+```
+spec/
+├── unit/                  # Unit tests for Core components
+│   ├── core/
+│   │   ├── domain/
+│   │   │   ├── classifiers/
+│   │   │   ├── extractors/
+│   │   ├── use_cases/
+├── integration/           # Integration tests
+│   ├── repositories/      # Repository tests with real database
+│   ├── use_cases/         # Use case tests with repositories
+├── e2e/                   # End-to-end tests
+│   ├── flows/             # Complete process flows
 ```
 
-### 4.3 Reflexive Agent Architecture
+## 7. Developer Guides
 
-The ReflexiveAgent operates through a perception-action cycle:
+- [Setting Up Development Environment](../guides/setup.md)
+- [Working with Repositories](../guides/repositories.md)
+- [Writing Use Cases](../guides/use_cases.md)
+- [Testing Guidelines](../guides/testing.md)
 
-```mermaid
-flowchart LR
-    Sensors[Sensors] --> Perceive[Perceive]
-    Perceive --> Rules{Rules}
-    Rules --> Decide[Decide]
-    Decide --> Act[Act]
-    Act --> Actuators[Actuators]
-    Actuators --> |Feedback| Sensors
-```
+## 8. References
 
-## 5. Guidelines & Best Practices
-
-- **No Framework Code in Core**: Keep `app/core/` free from Rails, ActiveRecord, or other framework dependencies.
-- **Keep Ports Lean**: Port interfaces should define only method signatures without implementation logic.
-- **Adapters as Thin Wrappers**: Each adapter should adapt the external API to the port interface without adding business logic.
-- **Use Case Orchestration**: Business logic should be orchestrated in use cases, not in adapters or controllers.
-- **Test Each Layer**: 
-  - **Unit Tests**: Test domain models and use cases with mock ports.
-  - **Integration Tests**: Test adapters against actual external systems or test doubles.
-  - **E2E Tests**: Test complete flows from external events to notifications.
-
-## 6. Related Documentation
-
-- [Domain Model](../domain/README.md): Core domain concepts and entities
-- [Event Processing Pipeline](event_processing_pipeline.md): Detailed flow of events
-- [C4 Component Diagram](C4/c4_component_diagram.md): Component-level architecture diagrams
-- [Architecture Decision Records](ADR/): Rationale for key architectural decisions
+- [Hexagonal Architecture](https://alistair.cockburn.us/hexagonal-architecture/)
+- [Domain-Driven Design](https://martinfowler.com/bliki/DomainDrivenDesign.html)
+- [SOLID Principles](https://en.wikipedia.org/wiki/SOLID)
+- [Repository Pattern](https://martinfowler.com/eaaCatalog/repository.html)
 
 ---
 
