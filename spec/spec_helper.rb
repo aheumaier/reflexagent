@@ -104,6 +104,15 @@ RSpec.configure do |config|
     mocks.verify_partial_doubles = true
   end
 
+  # Configure examples with :git_metrics_isolation tag to always be isolated
+  config.around(:each, :git_metrics_isolation) do |example|
+    # Ensure tests with this tag run in isolation by cleaning up mocks before and after
+    RSpec::Mocks.setup
+    example.run
+    RSpec::Mocks.verify
+    RSpec::Mocks.teardown
+  end
+
   # This option will default to `:apply_to_host_groups` in RSpec 4 (and will
   # have no way to turn it off -- the option exists only for backwards
   # compatibility in RSpec 3). It causes shared context metadata to be
