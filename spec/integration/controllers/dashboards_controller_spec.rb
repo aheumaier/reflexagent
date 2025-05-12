@@ -57,9 +57,19 @@ RSpec.describe DashboardsController, type: :controller do
 
   let(:default_team_metrics) do
     {
-      top_contributors: { "user1" => 20, "user2" => 15, "user3" => 10 },
-      team_velocity: 25,
-      pr_review_time: 3.5
+      team_velocity: 0,
+      weekly_velocities: [],
+      total_closed: 0,
+      total_created: 0,
+      completion_rate: 0,
+      velocity_trend: 0,
+      avg_resolution_time: 0,
+      median_resolution_time: 0,
+      issue_types: [],
+      issue_priorities: [],
+      top_assignees: [],
+      backlog_growth: 0,
+      top_contributors: {}
     }
   end
 
@@ -91,7 +101,7 @@ RSpec.describe DashboardsController, type: :controller do
       allow(mock_dashboard_adapter).to receive(:get_dora_metrics).and_return(default_dora_metrics)
       allow(mock_dashboard_adapter).to receive(:get_cicd_metrics).and_return(default_cicd_metrics)
       allow(mock_dashboard_adapter).to receive(:get_repository_metrics).and_return(default_repo_metrics)
-      allow(mock_dashboard_adapter).to receive(:get_team_metrics).and_return(default_team_metrics)
+      allow(mock_dashboard_adapter).to receive(:get_team_performance_metrics).and_return(default_team_metrics)
       allow(mock_dashboard_adapter).to receive(:get_recent_alerts).and_return(test_alerts)
       allow(mock_dashboard_adapter).to receive(:get_available_repositories).and_return(["repo1", "repo2", "repo3"])
     end
@@ -117,7 +127,7 @@ RSpec.describe DashboardsController, type: :controller do
       expect(mock_dashboard_adapter).to have_received(:get_dora_metrics).with(time_period: 30)
       expect(mock_dashboard_adapter).to have_received(:get_cicd_metrics).with(time_period: 30)
       expect(mock_dashboard_adapter).to have_received(:get_repository_metrics).with(time_period: 30)
-      expect(mock_dashboard_adapter).to have_received(:get_team_metrics).with(time_period: 30)
+      expect(mock_dashboard_adapter).to have_received(:get_team_performance_metrics).with(time_period: 30)
       expect(mock_dashboard_adapter).to have_received(:get_recent_alerts).with(time_period: 30, limit: 5)
     end
 

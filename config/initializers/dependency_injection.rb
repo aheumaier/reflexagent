@@ -69,6 +69,7 @@ Rails.application.config.after_initialize do
     require_relative "../../app/adapters/repositories/event_repository"
     require_relative "../../app/adapters/repositories/metric_repository"
     require_relative "../../app/adapters/repositories/alert_repository"
+    require_relative "../../app/adapters/repositories/issue_metric_repository"
     require_relative "../../app/adapters/cache/redis_cache"
     require_relative "../../app/adapters/notifications/slack_notifier"
     require_relative "../../app/adapters/notifications/email_notifier"
@@ -104,6 +105,12 @@ Rails.application.config.after_initialize do
     DependencyContainer.register(
       :alert_repository,
       Repositories::AlertRepository.new(logger_port: logger_port)
+    )
+
+    # Register the issue metric repository for team performance analytics
+    DependencyContainer.register(
+      :issue_metric_repository,
+      Repositories::IssueMetricRepository.new(logger_port: logger_port)
     )
 
     # Cache port implementation

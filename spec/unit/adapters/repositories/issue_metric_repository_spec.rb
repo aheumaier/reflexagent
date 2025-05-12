@@ -252,11 +252,11 @@ RSpec.describe Repositories::IssueMetricRepository do
     it "finds issue close rates grouped by interval" do
       # Arrange
       allow(repository).to receive(:find_metrics_by_name_and_dimensions)
-        .with("github.issue.closed", {}, since_time)
+        .with("github.issues.closed", {}, since_time)
         .and_return(github_metrics)
 
       allow(repository).to receive(:find_metrics_by_name_and_dimensions)
-        .with("jira.issue.closed", {}, since_time)
+        .with("jira.issues.closed", {}, since_time)
         .and_return(jira_metrics)
 
       # Act
@@ -275,7 +275,7 @@ RSpec.describe Repositories::IssueMetricRepository do
     it "applies source filter if provided" do
       # Arrange
       allow(repository).to receive(:find_metrics_by_name_and_dimensions)
-        .with("github.issue.closed", {}, since_time)
+        .with("github.issues.closed", {}, since_time)
         .and_return(github_metrics)
 
       # Don't expect call for Jira metrics when GitHub source is specified
@@ -292,11 +292,11 @@ RSpec.describe Repositories::IssueMetricRepository do
     it "applies project filter if provided" do
       # Arrange
       allow(repository).to receive(:find_metrics_by_name_and_dimensions)
-        .with("github.issue.closed", { repository: project_name }, since_time)
+        .with("github.issues.closed", { repository: project_name }, since_time)
         .and_return(github_metrics)
 
       allow(repository).to receive(:find_metrics_by_name_and_dimensions)
-        .with("jira.issue.closed", { project: project_name, repository: project_name }, since_time)
+        .with("jira.issues.closed", { project: project_name, repository: project_name }, since_time)
         .and_return(jira_metrics)
 
       # Act
@@ -313,11 +313,11 @@ RSpec.describe Repositories::IssueMetricRepository do
       all_metrics = github_metrics + [outside_range_metric]
 
       allow(repository).to receive(:find_metrics_by_name_and_dimensions)
-        .with("github.issue.closed", {}, since_time)
+        .with("github.issues.closed", {}, since_time)
         .and_return(all_metrics)
 
       allow(repository).to receive(:find_metrics_by_name_and_dimensions)
-        .with("jira.issue.closed", {}, since_time)
+        .with("jira.issues.closed", {}, since_time)
         .and_return([])
 
       # Act
@@ -332,11 +332,11 @@ RSpec.describe Repositories::IssueMetricRepository do
     it "groups by the requested interval" do
       # Arrange
       allow(repository).to receive(:find_metrics_by_name_and_dimensions)
-        .with("github.issue.closed", {}, since_time)
+        .with("github.issues.closed", {}, since_time)
         .and_return(github_metrics)
 
       allow(repository).to receive(:find_metrics_by_name_and_dimensions)
-        .with("jira.issue.closed", {}, since_time)
+        .with("jira.issues.closed", {}, since_time)
         .and_return(jira_metrics)
 
       # Act - use day interval

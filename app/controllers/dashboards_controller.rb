@@ -15,7 +15,7 @@ class DashboardsController < ApplicationController
     @dora_metrics = with_dashboard_adapter(:get_dora_metrics, default_dora_metrics, time_period: @days)
     @ci_cd_metrics = with_dashboard_adapter(:get_cicd_metrics, default_cicd_metrics, time_period: @days)
     @repo_metrics = with_dashboard_adapter(:get_repository_metrics, default_repo_metrics, time_period: @days)
-    @team_metrics = with_dashboard_adapter(:get_team_metrics, default_team_metrics, time_period: @days)
+    @team_metrics = with_dashboard_adapter(:get_team_performance_metrics, default_team_metrics, time_period: @days)
     @recent_alerts = with_dashboard_adapter(:get_recent_alerts, [], time_period: @days, limit: 5)
 
     # For the select dropdown
@@ -106,9 +106,19 @@ class DashboardsController < ApplicationController
 
   def default_team_metrics
     {
-      top_contributors: {},
       team_velocity: 0,
-      pr_review_time: 0
+      weekly_velocities: [],
+      total_closed: 0,
+      total_created: 0,
+      completion_rate: 0,
+      velocity_trend: 0,
+      avg_resolution_time: 0,
+      median_resolution_time: 0,
+      issue_types: [],
+      issue_priorities: [],
+      top_assignees: [],
+      backlog_growth: 0,
+      top_contributors: {}
     }
   end
 
@@ -140,7 +150,8 @@ class DashboardsController < ApplicationController
     @dashboard_adapter ||= Dashboard::DashboardAdapter.new(
       storage_port: Repositories::MetricRepository.new(logger_port: Rails.logger),
       cache_port: nil,
-      logger_port: Rails.logger
+      logger_port: Rails.logger,
+      use_case_factory: UseCaseFactory
     )
   end
 end

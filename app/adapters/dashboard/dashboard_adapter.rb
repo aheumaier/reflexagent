@@ -177,6 +177,17 @@ module Dashboard
       )[:team_metrics]
     end
 
+    # Fetch team performance metrics using the AnalyzeTeamPerformance use case
+    # @param time_period [Integer] The number of days to look back
+    # @param team_id [String, nil] Optional team identifier
+    # @return [Hash] Comprehensive team performance metrics
+    def get_team_performance_metrics(time_period:, team_id: nil)
+      analyze_team_performance_use_case.get_team_performance_metrics(
+        time_period: time_period,
+        team_id: team_id
+      )
+    end
+
     # Fetch recent alerts for dashboard display
     # @param time_period [Integer] The number of days to look back
     # @param limit [Integer] Maximum number of alerts to return
@@ -511,6 +522,10 @@ module Dashboard
         cache_port: @cache_port,
         logger_port: @logger_port
       )
+    end
+
+    def analyze_team_performance_use_case
+      @analyze_team_performance_use_case ||= @use_case_factory.create_analyze_team_performance
     end
   end
 end

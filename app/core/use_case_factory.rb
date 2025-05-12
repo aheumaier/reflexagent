@@ -12,6 +12,7 @@ require_relative "use_cases/dashboard_metrics"
 require_relative "use_cases/register_repository"
 require_relative "use_cases/list_team_repositories"
 require_relative "use_cases/find_or_create_team"
+require_relative "use_cases/analyze_team_performance"
 
 class UseCaseFactory
   class << self
@@ -132,6 +133,15 @@ class UseCaseFactory
     def create_find_or_create_team
       UseCases::FindOrCreateTeam.new(
         team_repository_port: DependencyContainer.resolve(:team_repository),
+        logger_port: Rails.logger
+      )
+    end
+
+    def create_analyze_team_performance
+      UseCases::AnalyzeTeamPerformance.new(
+        issue_metric_repository: DependencyContainer.resolve(:issue_metric_repository),
+        storage_port: DependencyContainer.resolve(:metric_repository),
+        cache_port: DependencyContainer.resolve(:cache_port),
         logger_port: Rails.logger
       )
     end

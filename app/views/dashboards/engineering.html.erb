@@ -734,10 +734,37 @@
                   <div class="text-sm text-gray-500 mt-1">tasks per week (4-week average)</div>
                 </div>
                 
+                <% if @team_metrics[:completion_rate] && @team_metrics[:completion_rate] > 0 %>
+                  <div class="flex justify-between items-center mt-2 mb-3">
+                    <div>
+                      <span class="text-sm text-gray-600">Completion Rate:</span>
+                      <span class="text-sm font-medium ml-1"><%= @team_metrics[:completion_rate] %>%</span>
+                    </div>
+                    <div>
+                      <span class="text-sm text-gray-600">Tasks:</span>
+                      <span class="text-sm font-medium ml-1"><%= @team_metrics[:total_closed] %> completed</span>
+                    </div>
+                  </div>
+                <% end %>
+                
+                <% if @team_metrics[:velocity_trend] %>
+                  <div class="flex items-center mt-2 mb-3">
+                    <span class="text-sm text-gray-600">Trend:</span>
+                    <% trend_class = @team_metrics[:velocity_trend] >= 0 ? 'text-green-600' : 'text-red-600' %>
+                    <% trend_icon = @team_metrics[:velocity_trend] >= 0 ? 'M3 7l5 5 5-5' : 'M3 3l5 5 5-5' %>
+                    <span class="<%= trend_class %> text-sm font-medium ml-1">
+                      <%= @team_metrics[:velocity_trend] >= 0 ? '+' : '' %><%= @team_metrics[:velocity_trend] %>%
+                      <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 16 16" stroke-width="1.5" stroke="currentColor" class="w-3 h-3 inline">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="<%= trend_icon %>" />
+                      </svg>
+                    </span>
+                  </div>
+                <% end %>
+                
                 <!-- Velocity chart -->
                 <div class="chart-container bg-white rounded mt-4" style="height: 250px; max-height: 250px; overflow: hidden;" data-controller="chart" data-chart-type-value="bar">
                   <% 
-                    # Calculate weekly task data
+                    # Use weekly velocities from @team_metrics
                     velocity_data = {
                       labels: [],
                       values: []
@@ -746,34 +773,21 @@
                     # Log current velocity
                     Rails.logger.debug("Team velocity value: #{@team_metrics[:team_velocity]}")
                     
-                    # Use data from controller or generate placeholders
+                    # Use data from AnalyzeTeamPerformance use case
                     begin
-                      # Get weekly task data from the backend (last 4 weeks)
-                      start_time = 4.weeks.ago
+                      weekly_velocities = @team_metrics[:weekly_velocities] || []
                       
-                      # Use direct SQL query to get task data if available
-                      task_metrics = DomainMetric.where("name LIKE 'task.%.total'")
-                                                .where("recorded_at >= ?", start_time)
-                                                .order(recorded_at: :desc)
-                      
-                      Rails.logger.debug("Found #{task_metrics.count} task metrics")
-                      
-                      # Group by week and calculate sums
-                      weekly_data = task_metrics.group_by do |metric|
-                        metric.recorded_at.beginning_of_week.strftime("%Y-%m-%d")
-                      end.transform_values do |metrics|
-                        metrics.sum(&:value).to_i
-                      end
-                      
-                      # Sort by date and format for display
-                      sorted_weeks = weekly_data.sort_by { |date, _| date }.last(4)
-                      
-                      if sorted_weeks.any?
-                        Rails.logger.debug("Using real velocity data with #{sorted_weeks.length} weeks")
-                        sorted_weeks.each do |date, value|
-                          date_obj = Date.parse(date)
-                          velocity_data[:labels] << "Week of #{date_obj.strftime('%b %-d')}"
-                          velocity_data[:values] << value
+                      if weekly_velocities.any?
+                        Rails.logger.debug("Using real velocity data with #{weekly_velocities.length} weeks")
+                        
+                        weekly_velocities.each do |week|
+                          week_start = week[:week_starting]
+                          if week_start.respond_to?(:strftime)
+                            velocity_data[:labels] << "Week of #{week_start.strftime('%b %-d')}"
+                          else
+                            velocity_data[:labels] << "Week #{velocity_data[:labels].length + 1}"
+                          end
+                          velocity_data[:values] << week[:count]
                         end
                       else
                         # Use realistic sample data
@@ -866,26 +880,52 @@
                 </div>
               </div>
               
-              <!-- Top Contributors -->
+              <!-- Top Assignees -->
               <div class="bg-white p-4 rounded-lg border border-gray-100">
-                <h3 class="text-base font-medium text-gray-800 mb-3">Top Contributors</h3>
+                <h3 class="text-base font-medium text-gray-800 mb-3">Team Workload</h3>
                 <div class="h-64 overflow-auto">
-                  <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                      <tr>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Author</th>
-                        <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commits</th>
-                      </tr>
-                    </thead>
-                    <tbody class="bg-white divide-y divide-gray-200">
-                      <% @team_metrics[:top_contributors].each do |author, count| %>
+                  <% if @team_metrics[:top_assignees].present? %>
+                    <table class="min-w-full divide-y divide-gray-200">
+                      <thead class="bg-gray-50">
                         <tr>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= author %></td>
-                          <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= count %></td>
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Assignee</th>
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Issues</th>
                         </tr>
-                      <% end %>
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody class="bg-white divide-y divide-gray-200">
+                        <% @team_metrics[:top_assignees].each do |assignee| %>
+                          <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= assignee[:assignee] %></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= assignee[:issue_count] %></td>
+                          </tr>
+                        <% end %>
+                      </tbody>
+                    </table>
+                  <% elsif @team_metrics[:top_contributors].present? %>
+                    <!-- Fallback to contributors if no assignees -->
+                    <table class="min-w-full divide-y divide-gray-200">
+                      <thead class="bg-gray-50">
+                        <tr>
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Contributor</th>
+                          <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Commits</th>
+                        </tr>
+                      </thead>
+                      <tbody class="bg-white divide-y divide-gray-200">
+                        <% @team_metrics[:top_contributors].each do |author, count| %>
+                          <tr>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900"><%= author %></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500"><%= count %></td>
+                          </tr>
+                        <% end %>
+                      </tbody>
+                    </table>
+                  <% else %>
+                    <div class="flex h-full items-center justify-center">
+                      <div class="text-sm text-gray-500 italic text-center">
+                        No workload data available for the selected period
+                      </div>
+                    </div>
+                  <% end %>
                 </div>
               </div>
             </div>

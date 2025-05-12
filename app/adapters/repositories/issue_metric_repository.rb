@@ -232,7 +232,7 @@ module Repositories
         # GitHub issues
         if source.nil? || source.downcase == "github"
           github_metrics = find_metrics_by_name_and_dimensions(
-            "github.issue.closed",
+            "github.issues.closed",
             dimensions,
             since
           ).select { |m| m.timestamp <= until_time }
@@ -243,7 +243,7 @@ module Repositories
         if source.nil? || source.downcase == "jira"
           dimensions[:project] = project if project # Jira uses 'project' instead of 'repository'
           jira_metrics = find_metrics_by_name_and_dimensions(
-            "jira.issue.closed",
+            "jira.issues.closed",
             dimensions,
             since
           ).select { |m| m.timestamp <= until_time }
