@@ -16,13 +16,13 @@ RSpec.describe Repositories::EventMapper, type: :unit do
   end
 
   let(:record) do
-    instance_double(
-      DomainEvent,
-      id: 123,
-      aggregate_id: "test-aggregate-id",
-      event_type: "test.event.type",
-      payload: { "key" => "value" },
-      created_at: Time.current
+    # Using a struct instead of instance_double to avoid method missing issues
+    Struct.new(:id, :aggregate_id, :event_type, :payload, :created_at).new(
+      123,
+      "test-aggregate-id",
+      "test.event.type",
+      { "key" => "value" },
+      Time.current
     )
   end
 

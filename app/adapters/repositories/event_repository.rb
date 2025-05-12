@@ -5,11 +5,13 @@ require_relative "../../core/domain/event_factory"
 require_relative "../cache/event_lru_cache"
 require_relative "event_mapper"
 require_relative "event_lookup_strategy"
+require_relative "concerns/error_handler"
 
 module Repositories
   # Database implementation of event storage using DomainEvent model
   class EventRepository
     include StoragePort
+    include Repositories::Concerns::ErrorHandler
 
     require "securerandom"
 
@@ -40,32 +42,40 @@ module Repositories
     # @param event [Domain::Event] The event to save
     # @return [Domain::Event] The saved event
     def save_event(event)
-      ActiveRecord::Base.transaction do
-        # Map the domain event to database attributes
-        attributes = @event_mapper.to_record_attributes(event)
+      # Validate input
+      raise ArgumentError, "Event cannot be nil" unless event
 
-        # Create a record in the database
-        record = DomainEvent.new(attributes)
-        record.save!
+      context = {
+        event_name: event.name,
+        event_source: event.source,
+        data_keys: event.data.keys
+      }
 
-        # Create a new domain event with the database-generated ID
-        new_event = Domain::EventFactory.create(
-          id: record.id.to_s,
-          name: event.name,
-          source: event.source,
-          data: event.data,
-          timestamp: record.created_at
-        )
+      handle_database_error("save_event", context) do
+        ActiveRecord::Base.transaction do
+          # Map the domain event to database attributes
+          attributes = @event_mapper.to_record_attributes(event)
 
-        # Cache the event
-        cache_event(new_event)
+          # Create a record in the database
+          record = DomainEvent.new(attributes)
+          record.save!
 
-        @logger_port.debug { "Event persisted to database: #{new_event.id}, position: #{record.position}" }
-        new_event
+          # Create a new domain event with the database-generated ID
+          new_event = Domain::EventFactory.create(
+            id: record.id.to_s,
+            name: event.name,
+            source: event.source,
+            data: event.data,
+            timestamp: record.created_at
+          )
+
+          # Cache the event
+          cache_event(new_event)
+
+          @logger_port.debug { "Event persisted to database: #{new_event.id}, position: #{record.position}" }
+          new_event
+        end
       end
-    rescue ActiveRecord::RecordInvalid => e
-      @logger_port.error("Failed to save event: #{e.message}")
-      raise "Failed to save event: #{e.message}"
     end
 
     # Find an event by ID
@@ -79,92 +89,131 @@ module Repositories
       # Always convert to string for cache lookup
       id_str = id.to_s
 
+      return nil if id_str.blank?
+
+      context = { id: id_str }
+
       # Try to fetch from cache first
       cached_event = get_from_cache(id_str)
       return cached_event if cached_event
 
-      # Use the appropriate lookup strategy based on ID format
-      strategy = EventLookupStrategyFactory.for_id(id_str, @logger_port)
-      record = strategy.find_record(id_str)
+      handle_database_error("find_event", context) do
+        # Use the appropriate lookup strategy based on ID format
+        strategy = EventLookupStrategyFactory.for_id(id_str, @logger_port)
+        record = strategy.find_record(id_str)
 
-      return nil unless record
-
-      # Convert to domain event using the mapper
-      domain_event = @event_mapper.to_domain_event(record)
-
-      # Cache the event for future lookups
-      cache_event(domain_event)
-
-      @logger_port.debug { "Found event: #{domain_event.id} (#{domain_event.name})" }
-      domain_event
-    end
-
-    # Event store specific operations
-    def append_event(aggregate_id:, event_type:, payload:)
-      ActiveRecord::Base.transaction do
-        # Ensure we have a valid UUID for aggregate_id
-        valid_aggregate_id = @event_mapper.event_id_to_aggregate_id(aggregate_id)
-
-        # Create a record in the database
-        record = DomainEvent.create!(
-          aggregate_id: valid_aggregate_id,
-          event_type: event_type,
-          payload: payload
-        )
+        # The repository's find_event method traditionally returns nil if not found
+        # so we maintain that behavior rather than raising an error
+        return nil unless record
 
         # Convert to domain event using the mapper
         domain_event = @event_mapper.to_domain_event(record)
 
-        # Cache the event
+        # Cache the event for future lookups
         cache_event(domain_event)
 
+        @logger_port.debug { "Found event: #{domain_event.id} (#{domain_event.name})" }
         domain_event
       end
     end
 
-    def read_events(from_position: 0, limit: nil)
-      # Query the database
-      query = DomainEvent.since_position(from_position).chronological
-      query = query.limit(limit) if limit
+    # Event store specific operations
+    def append_event(aggregate_id:, event_type:, payload:)
+      # Validate inputs
+      raise ArgumentError, "Aggregate ID cannot be nil" unless aggregate_id
+      raise ArgumentError, "Event type cannot be nil" unless event_type
+      raise ArgumentError, "Payload cannot be nil" unless payload
 
-      # Convert to domain events and cache them
-      query.map do |record|
-        # Check cache first
-        event_id = record.id.to_s
-        cached_event = get_from_cache(event_id)
+      context = {
+        aggregate_id: aggregate_id,
+        event_type: event_type,
+        payload_keys: payload.keys
+      }
 
-        if cached_event
-          cached_event
-        else
+      handle_database_error("append_event", context) do
+        ActiveRecord::Base.transaction do
+          # Ensure we have a valid UUID for aggregate_id
+          valid_aggregate_id = @event_mapper.event_id_to_aggregate_id(aggregate_id)
+
+          # Create a record in the database
+          record = DomainEvent.create!(
+            aggregate_id: valid_aggregate_id,
+            event_type: event_type,
+            payload: payload
+          )
+
+          # Convert to domain event using the mapper
           domain_event = @event_mapper.to_domain_event(record)
+
+          # Cache the event
           cache_event(domain_event)
+
           domain_event
         end
       end
     end
 
+    def read_events(from_position: 0, limit: nil)
+      context = {
+        from_position: from_position,
+        limit: limit
+      }
+
+      handle_query_error("read_events", context) do
+        # Query the database
+        query = DomainEvent.since_position(from_position).chronological
+        query = query.limit(limit) if limit
+
+        # Convert to domain events and cache them
+        query.map do |record|
+          # Check cache first
+          event_id = record.id.to_s
+          cached_event = get_from_cache(event_id)
+
+          if cached_event
+            cached_event
+          else
+            domain_event = @event_mapper.to_domain_event(record)
+            cache_event(domain_event)
+            domain_event
+          end
+        end
+      end
+    end
+
     def read_stream(aggregate_id:, from_position: 0, limit: nil)
-      # Query the database for events of a specific aggregate
-      valid_aggregate_id = @event_mapper.event_id_to_aggregate_id(aggregate_id)
+      # Validate input
+      raise ArgumentError, "Aggregate ID cannot be nil" unless aggregate_id
 
-      query = DomainEvent.for_aggregate(valid_aggregate_id)
-                         .since_position(from_position)
-                         .chronological
+      context = {
+        aggregate_id: aggregate_id,
+        from_position: from_position,
+        limit: limit
+      }
 
-      query = query.limit(limit) if limit
+      handle_query_error("read_stream", context) do
+        # Query the database for events of a specific aggregate
+        valid_aggregate_id = @event_mapper.event_id_to_aggregate_id(aggregate_id)
 
-      # Convert to domain events and cache them
-      query.map do |record|
-        # Check cache first
-        event_id = record.id.to_s
-        cached_event = get_from_cache(event_id)
+        query = DomainEvent.for_aggregate(valid_aggregate_id)
+                           .since_position(from_position)
+                           .chronological
 
-        if cached_event
-          cached_event
-        else
-          domain_event = @event_mapper.to_domain_event(record)
-          cache_event(domain_event)
-          domain_event
+        query = query.limit(limit) if limit
+
+        # Convert to domain events and cache them
+        query.map do |record|
+          # Check cache first
+          event_id = record.id.to_s
+          cached_event = get_from_cache(event_id)
+
+          if cached_event
+            cached_event
+          else
+            domain_event = @event_mapper.to_domain_event(record)
+            cache_event(domain_event)
+            domain_event
+          end
         end
       end
     end
@@ -173,23 +222,41 @@ module Repositories
 
     # Cache an event, using the appropriate caching mechanism based on environment
     def cache_event(event)
-      if Rails.env.test?
-        # Use in-memory cache for tests
-        @events_cache[event.id.to_s] = event
-      else
-        # Use Redis LRU cache for production/development
-        @events_cache.put(event)
+      return nil unless event
+
+      begin
+        if Rails.env.test?
+          # Use in-memory cache for tests
+          @events_cache[event.id.to_s] = event
+        else
+          # Use Redis LRU cache for production/development
+          @events_cache.put(event)
+        end
+      rescue StandardError => e
+        # Log the error but don't fail the operation if caching fails
+        log_error("Failed to cache event: #{event.id}", e)
+        nil
       end
+
+      event
     end
 
     # Get an event from cache, using the appropriate caching mechanism based on environment
     def get_from_cache(id)
-      if Rails.env.test?
-        # Use in-memory cache for tests
-        @events_cache[id]
-      else
-        # Use Redis LRU cache for production/development
-        @events_cache.get(id)
+      return nil unless id.present?
+
+      begin
+        if Rails.env.test?
+          # Use in-memory cache for tests
+          @events_cache[id]
+        else
+          # Use Redis LRU cache for production/development
+          @events_cache.get(id)
+        end
+      rescue StandardError => e
+        # Log the error but don't fail the operation if cache retrieval fails
+        log_error("Failed to retrieve event from cache: #{id}", e)
+        nil
       end
     end
   end

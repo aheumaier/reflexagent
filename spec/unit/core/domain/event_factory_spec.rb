@@ -52,12 +52,14 @@ RSpec.describe Domain::EventFactory do
 
   describe ".from_record" do
     let(:record) do
-      instance_double("DomainEvent",
-                      id: 42,
-                      event_type: event_name,
-                      aggregate_id: event_source,
-                      payload: event_data,
-                      created_at: event_timestamp)
+      # Using a struct instead of instance_double to avoid method missing issues
+      Struct.new(:id, :event_type, :aggregate_id, :payload, :created_at).new(
+        42,
+        event_name,
+        event_source,
+        event_data,
+        event_timestamp
+      )
     end
 
     it "creates a Domain::Event from a database record with correct mappings" do
